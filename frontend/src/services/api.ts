@@ -1,0 +1,589 @@
+import type {
+  CreateDailyTaskPayload,
+  CreateExecutionPayload,
+  CreateExecutionTaskPayload,
+  CreateProjectPayload,
+  CreateRequirementPayload,
+  CreateWorklogPayload,
+  DailyReportDraft,
+  DailyTask,
+  Execution,
+  ExecutionDetail,
+  ExecutionScheduleItem,
+  ExecutionTask,
+  Project,
+  Requirement,
+  RequirementDetail,
+  RequirementGenerateExecutionPayload,
+  RequirementGenerateExecutionResult,
+  RequirementReview,
+  RequirementReviewPayload,
+  TeamScheduleItem,
+  UpdateDailyTaskPayload,
+  UpdateExecutionPayload,
+  UpdateExecutionTaskPayload,
+  UpdateRequirementPayload,
+  UpdateWorklogPayload,
+  WeeklyReportDraft,
+  Worklog,
+  WorkspaceSummary,
+} from './types';
+import { getAuthToken } from './authToken';
+
+const API_BASE = '/api/v1';
+
+type ApiEnvelope<T> = {
+  code: number;
+  message: string;
+  data: T;
+  request_id: string;
+};
+
+export class ApiError extends Error {
+  data: unknown;
+  status: number;
+
+  constructor(message: string, data: unknown, status: number) {
+    super(message);
+    this.name = 'ApiError';
+    this.data = data;
+    this.status = status;
+  }
+}
+
+function formatDateTime(value: string | null | undefined): string {
+  if (!value) {
+    return '';
+  }
+
+  const normalized = value.replace('T', ' ').replace(/\+\d{2}:\d{2}$/, '');
+  return normalized.length >= 16 ? normalized.slice(0, 16) : normalized;
+}
+
+function toNumberArray(value: unknown): number[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.map((item) => Number(item)).filter((item) => Number.isFinite(item));
+}
+
+function toStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.map((item) => String(item));
+}
+
+async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const headers = new Headers(options.headers ?? {});
+  const token = getAuthToken();
+
+  if (token && !headers.has('Authorization')) {
+    headers.set('Authorization', 'Bearer ' + token);
+  }
+
+  if (options.body !== undefined && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
+
+  const response = await fetch(`${API_BASE}${path}`, {
+    ...options,
+    headers,
+  });
+  const payload = (await response.json()) as ApiEnvelope<T>;
+
+  if (!response.ok || payload.code !== 0) {
+    throw new ApiError(payload.message, payload.data, response.status);
+  }
+
+  return payload.data;
+}
+
+function mapWorkspaceSummary(item: any): WorkspaceSummary {
+  return {
+    myExecutions: Number(item?.my_executions ?? 0),
+    dueToday: Number(item?.due_today ?? 0),
+    blocked: Number(item?.blocked ?? 0),
+    reportsReady: Number(item?.reports_ready ?? 0),
+  };
+}
+
+function mapRequirement(item: any): Requirement {
+  return {
+    id: Number(item?.id ?? 0),
+    title: String(item?.title ?? ''),
+    status: item?.status ?? 'Draft',
+    priority: item?.priority ?? 'P1',
+    ownerName: String(item?.owner_name ?? ''),
+    expectedReleaseAt: String(item?.expected_release_at ?? ''),
+    linkedExecutionCount: Number(item?.linked_execution_count ?? 0),
+  };
+}
+
+function mapReview(item: any): RequirementReview {
+  return {
+    id: Number(item?.id ?? 0),
+    requirementId: Number(item?.requirement_id ?? 0),
+    reviewerName: String(item?.reviewer_name ?? ''),
+    result: item?.result ?? 'supplement_required',
+    comment: String(item?.comment ?? ''),
+    reviewedAt: formatDateTime(item?.reviewed_at),
+  };
+}
+
+function mapRequirementDetail(item: any): RequirementDetail {
+  const linkedExecutionNames = Array.isArray(item?.linked_execution_names)
+    ? item.linked_execution_names.map((entry: unknown) => String(entry))
+    : Array.isArray(item?.linked_executions)
+      ? item.linked_executions.map((entry: any) => String(entry?.name ?? ''))
+      : [];
+
+  return {
+    ...mapRequirement(item),
+    description: String(item?.description ?? ''),
+    currentStage: String(item?.current_stage ?? ''),
+    solutionSummary: String(item?.solution_summary ?? ''),
+    acceptanceCriteria: toStringArray(item?.acceptance_criteria),
+    impactScope: toStringArray(item?.impact_scope),
+    risks: toStringArray(item?.risks),
+    maturityChecks: Array.isArray(item?.maturity_checks)
+      ? item.maturity_checks.map((check: any) => ({
+          key: String(check?.key ?? ''),
+          label: String(check?.label ?? ''),
+          passed: Boolean(check?.passed),
+        }))
+      : [],
+    linkedExecutionIds: toNumberArray(item?.linked_execution_ids),
+    linkedExecutionNames,
+    reviews: Array.isArray(item?.reviews) ? item.reviews.map(mapReview) : [],
+  };
+}
+
+function mapProject(item: any): Project {
+  return {
+    id: Number(item?.id ?? 0),
+    name: String(item?.name ?? ''),
+    code: String(item?.code ?? ''),
+    ownerName: String(item?.owner_name ?? ''),
+    status: item?.status ?? 'Active',
+    executionCount: Number(item?.execution_count ?? 0),
+    riskCount: Number(item?.risk_count ?? 0),
+  };
+}
+
+function mapExecution(item: any): Execution {
+  return {
+    id: Number(item?.id ?? 0),
+    name: String(item?.name ?? ''),
+    projectName: String(item?.project_name ?? ''),
+    ownerName: String(item?.owner_name ?? ''),
+    status: item?.status ?? 'NotStarted',
+    planStart: String(item?.plan_start ?? ''),
+    planEnd: String(item?.plan_end ?? ''),
+    actualProgress: Number(item?.actual_progress ?? 0),
+    planProgress: Number(item?.plan_progress ?? 0),
+  };
+}
+
+function mapExecutionDetail(item: any): ExecutionDetail {
+  return {
+    ...mapExecution(item),
+    projectId: Number(item?.project_id ?? 0),
+    requirementIds: toNumberArray(item?.requirement_ids),
+  };
+}
+
+function mapTask(item: any): ExecutionTask {
+  return {
+    id: Number(item?.id ?? 0),
+    executionId: Number(item?.execution_id ?? 0),
+    name: String(item?.name ?? ''),
+    ownerName: String(item?.owner_name ?? ''),
+    status: item?.status ?? 'NotStarted',
+    actualProgress: Number(item?.actual_progress ?? 0),
+  };
+}
+
+function mapWorklog(item: any): Worklog {
+  return {
+    id: Number(item?.id ?? 0),
+    executionId: Number(item?.execution_id ?? 0),
+    executionName: String(item?.execution_name ?? ''),
+    ownerName: String(item?.owner_name ?? ''),
+    workDate: String(item?.work_date ?? ''),
+    hours: Number(item?.hours ?? 0),
+    summary: String(item?.summary ?? ''),
+  };
+}
+
+function mapTeamScheduleItem(item: any): TeamScheduleItem {
+  return {
+    ...mapExecution(item),
+    projectId: Number(item?.project_id ?? 0),
+    requirementIds: toNumberArray(item?.requirement_ids),
+  };
+}
+
+function mapExecutionScheduleItem(item: any): ExecutionScheduleItem {
+  return {
+    ...mapTask(item),
+    executionName: String(item?.execution_name ?? ''),
+    projectName: String(item?.project_name ?? ''),
+    planStart: String(item?.plan_start ?? ''),
+    planEnd: String(item?.plan_end ?? ''),
+  };
+}
+
+function mapDailyTask(item: any): DailyTask {
+  return {
+    id: Number(item?.id ?? 0),
+    title: String(item?.title ?? ''),
+    ownerName: String(item?.owner_name ?? ''),
+    status: item?.status ?? 'NotStarted',
+    dueAt: String(item?.due_at ?? ''),
+    excludeFromReport: Boolean(item?.exclude_from_report),
+  };
+}
+
+function mapDailyReport(item: any): DailyReportDraft {
+  return {
+    generatedAt: formatDateTime(item?.generated_at),
+    completed: toStringArray(item?.completed),
+    inProgress: toStringArray(item?.in_progress),
+    risks: toStringArray(item?.risks),
+    nextSteps: toStringArray(item?.next_steps),
+  };
+}
+
+function mapWeeklyReport(item: any): WeeklyReportDraft {
+  return {
+    generatedAt: formatDateTime(item?.generated_at),
+    summary: String(item?.summary ?? ''),
+    completed: toStringArray(item?.completed),
+    inProgress: toStringArray(item?.in_progress),
+    risks: toStringArray(item?.risks),
+    nextWeek: toStringArray(item?.next_week),
+    worklogHighlights: toStringArray(item?.worklog_highlights),
+    totalHours: Number(item?.total_hours ?? 0),
+  };
+}
+
+function buildMaturityChecks(payload: CreateRequirementPayload | UpdateRequirementPayload) {
+  return [
+    { key: 'acceptance', label: 'Acceptance criteria added', passed: payload.acceptanceCriteria.length > 0 },
+    { key: 'solution', label: 'Solution summary added', passed: Boolean(payload.solutionSummary.trim()) },
+    { key: 'impact', label: 'Impact scope defined', passed: payload.impactScope.length > 0 },
+    { key: 'risk', label: 'Risks and dependencies captured', passed: payload.risks.length > 0 },
+    { key: 'owner', label: 'Owner assigned', passed: Boolean(payload.ownerName.trim()) },
+  ];
+}
+
+function mapRequirementStage(status: UpdateRequirementPayload['status']): string {
+  switch (status) {
+    case 'Draft':
+      return 'Drafting';
+    case 'Understanding':
+      return 'Understanding';
+    case 'Confirmed':
+      return 'Confirmed';
+    case 'ToReview':
+      return 'Pending review';
+    case 'Reviewed':
+      return 'Reviewed';
+    case 'Scheduled':
+      return 'Scheduled';
+    case 'InDevelopment':
+      return 'In development';
+    default:
+      return 'Drafting';
+  }
+}
+
+export function formatApiError(error: unknown): string {
+  if (error instanceof ApiError) {
+    if (error.message === 'maturity_check_failed') {
+      const failedChecks = Array.isArray((error.data as any)?.failed_checks)
+        ? (error.data as any).failed_checks.map((item: any) => String(item?.label ?? '')).filter(Boolean)
+        : [];
+
+      if (failedChecks.length > 0) {
+        return `Maturity checks still failing: ${failedChecks.join(', ')}`;
+      }
+    }
+
+    return error.message.replace(/_/g, ' ');
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return 'Request failed.';
+}
+
+export const pmApi = {
+  async getWorkspaceSummary(): Promise<WorkspaceSummary> {
+    const data = await request<any>('/system/summary');
+    return mapWorkspaceSummary(data);
+  },
+  async getRequirements(): Promise<Requirement[]> {
+    const data = await request<any>('/requirements');
+    return Array.isArray(data?.items) ? data.items.map(mapRequirement) : [];
+  },
+  async getRequirementDetail(id: number): Promise<RequirementDetail | null> {
+    const data = await request<any>(`/requirements/${id}`);
+    return data ? mapRequirementDetail(data) : null;
+  },
+  async createRequirement(payload: CreateRequirementPayload): Promise<RequirementDetail> {
+    const data = await request<any>('/requirements', {
+      method: 'POST',
+      body: JSON.stringify({
+        title: payload.title,
+        priority: payload.priority,
+        owner_name: payload.ownerName,
+        expected_release_at: payload.expectedReleaseAt,
+        description: payload.description,
+        current_stage: 'Drafting',
+        solution_summary: payload.solutionSummary,
+        acceptance_criteria: payload.acceptanceCriteria,
+        impact_scope: payload.impactScope,
+        risks: payload.risks,
+        maturity_checks: buildMaturityChecks(payload),
+      }),
+    });
+
+    return mapRequirementDetail(data);
+  },
+  async updateRequirement(id: number, payload: UpdateRequirementPayload): Promise<RequirementDetail> {
+    const data = await request<any>(`/requirements/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        title: payload.title,
+        status: payload.status,
+        priority: payload.priority,
+        owner_name: payload.ownerName,
+        expected_release_at: payload.expectedReleaseAt,
+        description: payload.description,
+        current_stage: mapRequirementStage(payload.status),
+        solution_summary: payload.solutionSummary,
+        acceptance_criteria: payload.acceptanceCriteria,
+        impact_scope: payload.impactScope,
+        risks: payload.risks,
+        maturity_checks: buildMaturityChecks(payload),
+      }),
+    });
+
+    return mapRequirementDetail(data);
+  },
+  async submitRequirementForReview(id: number): Promise<RequirementDetail> {
+    const data = await request<any>(`/requirements/${id}/actions/submit-review`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    });
+
+    return mapRequirementDetail(data);
+  },
+  async createRequirementReview(id: number, payload: RequirementReviewPayload): Promise<RequirementReview> {
+    const data = await request<any>(`/requirements/${id}/reviews`, {
+      method: 'POST',
+      body: JSON.stringify({
+        reviewer_name: payload.reviewerName,
+        result: payload.result,
+        comment: payload.comment,
+      }),
+    });
+
+    return mapReview(data);
+  },
+  async batchGenerateExecutions(
+    payload: RequirementGenerateExecutionPayload,
+  ): Promise<RequirementGenerateExecutionResult> {
+    const data = await request<any>('/requirements/batch-generate-executions', {
+      method: 'POST',
+      body: JSON.stringify({
+        requirement_ids: payload.requirementIds,
+        project_id: payload.projectId,
+        project_name: payload.projectName,
+        plan_start: payload.planStart,
+        plan_end: payload.planEnd,
+      }),
+    });
+
+    return {
+      items: Array.isArray(data?.items) ? data.items.map(mapExecution) : [],
+      skippedRequirementIds: toNumberArray(data?.skipped_requirement_ids),
+    };
+  },
+  async getProjects(): Promise<Project[]> {
+    const data = await request<any>('/projects');
+    return Array.isArray(data?.items) ? data.items.map(mapProject) : [];
+  },
+  async createProject(payload: CreateProjectPayload): Promise<Project> {
+    const data = await request<any>('/projects', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: payload.name,
+        code: payload.code,
+        owner_name: payload.ownerName,
+        status: payload.status,
+      }),
+    });
+
+    return mapProject(data);
+  },
+  async getExecutions(): Promise<Execution[]> {
+    const data = await request<any>('/executions');
+    return Array.isArray(data?.items) ? data.items.map(mapExecution) : [];
+  },
+  async getExecutionDetail(id: number): Promise<ExecutionDetail | null> {
+    const data = await request<any>(`/executions/${id}`);
+    return data ? mapExecutionDetail(data) : null;
+  },
+  async createExecution(payload: CreateExecutionPayload): Promise<ExecutionDetail> {
+    const data = await request<any>('/executions', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: payload.name,
+        project_id: payload.projectId,
+        project_name: payload.projectName,
+        owner_name: payload.ownerName,
+        status: payload.status,
+        plan_start: payload.planStart,
+        plan_end: payload.planEnd,
+        actual_progress: 0,
+        plan_progress: 0,
+      }),
+    });
+
+    return mapExecutionDetail(data);
+  },
+  async updateExecution(id: number, payload: UpdateExecutionPayload): Promise<ExecutionDetail> {
+    const data = await request<any>(`/executions/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        name: payload.name,
+        owner_name: payload.ownerName,
+        status: payload.status,
+        plan_start: payload.planStart,
+        plan_end: payload.planEnd,
+        actual_progress: payload.actualProgress,
+        plan_progress: payload.planProgress,
+      }),
+    });
+
+    return mapExecutionDetail(data);
+  },
+  async getExecutionTasks(executionId: number): Promise<ExecutionTask[]> {
+    const data = await request<any>(`/executions/${executionId}/tasks`);
+    return Array.isArray(data?.items) ? data.items.map(mapTask) : [];
+  },
+  async createExecutionTask(payload: CreateExecutionTaskPayload): Promise<ExecutionTask> {
+    const data = await request<any>('/tasks', {
+      method: 'POST',
+      body: JSON.stringify({
+        execution_id: payload.executionId,
+        name: payload.name,
+        owner_name: payload.ownerName,
+        status: payload.status,
+        actual_progress: payload.actualProgress,
+      }),
+    });
+
+    return mapTask(data);
+  },
+  async updateExecutionTask(id: number, payload: UpdateExecutionTaskPayload): Promise<ExecutionTask> {
+    const data = await request<any>(`/tasks/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        name: payload.name,
+        owner_name: payload.ownerName,
+        status: payload.status,
+        actual_progress: payload.actualProgress,
+      }),
+    });
+
+    return mapTask(data);
+  },
+  async getExecutionWorklogs(executionId: number): Promise<Worklog[]> {
+    const data = await request<any>(`/executions/${executionId}/worklogs`);
+    return Array.isArray(data?.items) ? data.items.map(mapWorklog) : [];
+  },
+  async createWorklog(payload: CreateWorklogPayload): Promise<Worklog> {
+    const data = await request<any>('/worklogs', {
+      method: 'POST',
+      body: JSON.stringify({
+        execution_id: payload.executionId,
+        owner_name: payload.ownerName,
+        work_date: payload.workDate,
+        hours: payload.hours,
+        summary: payload.summary,
+      }),
+    });
+
+    return mapWorklog(data);
+  },
+  async updateWorklog(id: number, payload: UpdateWorklogPayload): Promise<Worklog> {
+    const data = await request<any>(`/worklogs/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        execution_id: payload.executionId,
+        owner_name: payload.ownerName,
+        work_date: payload.workDate,
+        hours: payload.hours,
+        summary: payload.summary,
+      }),
+    });
+
+    return mapWorklog(data);
+  },
+  async getTeamSchedule(): Promise<TeamScheduleItem[]> {
+    const data = await request<any>('/schedules/team-gantt');
+    return Array.isArray(data?.items) ? data.items.map(mapTeamScheduleItem) : [];
+  },
+  async getExecutionSchedule(): Promise<ExecutionScheduleItem[]> {
+    const data = await request<any>('/schedules/execution-gantt');
+    return Array.isArray(data?.items) ? data.items.map(mapExecutionScheduleItem) : [];
+  },
+  async getDailyTasks(): Promise<DailyTask[]> {
+    const data = await request<any>('/daily-tasks');
+    return Array.isArray(data?.items) ? data.items.map(mapDailyTask) : [];
+  },
+  async createDailyTask(payload: CreateDailyTaskPayload): Promise<DailyTask> {
+    const data = await request<any>('/daily-tasks', {
+      method: 'POST',
+      body: JSON.stringify({
+        title: payload.title,
+        owner_name: payload.ownerName,
+        status: payload.status,
+        due_at: payload.dueAt,
+        exclude_from_report: payload.excludeFromReport,
+      }),
+    });
+
+    return mapDailyTask(data);
+  },
+  async updateDailyTask(id: number, payload: UpdateDailyTaskPayload): Promise<DailyTask> {
+    const data = await request<any>(`/daily-tasks/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        title: payload.title,
+        owner_name: payload.ownerName,
+        status: payload.status,
+        due_at: payload.dueAt,
+        exclude_from_report: payload.excludeFromReport,
+      }),
+    });
+
+    return mapDailyTask(data);
+  },
+  async generateDailyReport(): Promise<DailyReportDraft> {
+    const data = await request<any>('/reports/daily/generate', { method: 'POST' });
+    return mapDailyReport(data);
+  },
+  async generateWeeklyReport(): Promise<WeeklyReportDraft> {
+    const data = await request<any>('/reports/weekly/generate', { method: 'POST' });
+    return mapWeeklyReport(data);
+  },
+};

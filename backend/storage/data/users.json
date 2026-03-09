@@ -1,0 +1,30 @@
+[
+  {
+    "id": 1,
+    "name": "Wang Jun",
+    "email": "wangjun@example.com",
+    "password": "demo123",
+    "roles": ["super_admin", "project_admin"],
+    "permissions": [
+      "requirement.view.related",
+      "requirement.create.project",
+      "requirement.review.create.project",
+      "requirement.execution.generate.project",
+      "project.view.related",
+      "project.create.org",
+      "execution.view.related",
+      "execution.create.project",
+      "execution.task.update.related",
+      "worklog.view.related",
+      "worklog.create.self",
+      "worklog.update.self",
+      "daily_task.view.self",
+      "daily_task.create.self",
+      "daily_task.update.self",
+      "report.daily.generate.self",
+      "report.weekly.generate.self",
+      "schedule.view.related"
+    ],
+    "dingtalk_bound": false
+  }
+]

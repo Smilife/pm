@@ -1,0 +1,83 @@
+[
+  {
+    "id": 1001,
+    "title": "Requirement review and batch execution generation",
+    "status": "ToReview",
+    "priority": "P0",
+    "owner_name": "Wang Jun",
+    "expected_release_at": "2026-03-21",
+    "description": "Connect requirement intake, review and execution generation so the team can move from idea to delivery in one flow.",
+    "current_stage": "Pending review",
+    "solution_summary": "Store maturity checks and review decisions in the requirement detail view, then hand the item over to execution management.",
+    "acceptance_criteria": [
+      "At least three acceptance points are visible",
+      "Review records are traceable",
+      "Batch execution generation creates requirement links"
+    ],
+    "impact_scope": ["Requirement pool", "Execution management", "Report aggregation"],
+    "risks": [
+      "Missing review details can lead to invalid execution generation",
+      "Unclear status rules may cause skipped steps"
+    ],
+    "maturity_checks": [
+      { "key": "acceptance", "label": "Acceptance criteria added", "passed": true },
+      { "key": "solution", "label": "Solution summary added", "passed": true },
+      { "key": "impact", "label": "Impact scope defined", "passed": true },
+      { "key": "risk", "label": "Risks and dependencies captured", "passed": false },
+      { "key": "owner", "label": "Owner assigned", "passed": true }
+    ],
+    "linked_execution_ids": []
+  },
+  {
+    "id": 1002,
+    "title": "Highlight team gantt conflicts",
+    "status": "Reviewed",
+    "priority": "P1",
+    "owner_name": "Chen Jing",
+    "expected_release_at": "2026-03-28",
+    "description": "Highlight overlapping execution windows for the same team member so project admins can adjust schedule conflicts early.",
+    "current_stage": "Reviewed",
+    "solution_summary": "Group execution windows by member, detect overlap and surface the result in summary cards and gantt rows.",
+    "acceptance_criteria": [
+      "Conflict summary cards are visible",
+      "Conflicts can be viewed per member",
+      "Conflict results can be filtered by project"
+    ],
+    "impact_scope": ["Team gantt", "Schedule management", "Workspace risk exposure"],
+    "risks": ["Missing plan dates will reduce conflict detection accuracy"],
+    "maturity_checks": [
+      { "key": "acceptance", "label": "Acceptance criteria added", "passed": true },
+      { "key": "solution", "label": "Solution summary added", "passed": true },
+      { "key": "impact", "label": "Impact scope defined", "passed": true },
+      { "key": "risk", "label": "Risks and dependencies captured", "passed": true },
+      { "key": "owner", "label": "Owner assigned", "passed": true }
+    ],
+    "linked_execution_ids": [3002]
+  },
+  {
+    "id": 1003,
+    "title": "Generate daily report drafts automatically",
+    "status": "InDevelopment",
+    "priority": "P0",
+    "owner_name": "Li Nan",
+    "expected_release_at": "2026-03-18",
+    "description": "Aggregate execution changes, worklogs and daily items into an editable daily report draft.",
+    "current_stage": "In development",
+    "solution_summary": "Build a four-part report template with completed work, work in progress, risks and next steps.",
+    "acceptance_criteria": [
+      "Draft can be generated with one action",
+      "Draft can be edited and exported",
+      "Items excluded from reporting are skipped"
+    ],
+    "impact_scope": ["Daily report", "Weekly report", "Execution worklogs", "Daily items"],
+    "risks": ["Low quality worklogs reduce the quality of generated reports"],
+    "maturity_checks": [
+      { "key": "acceptance", "label": "Acceptance criteria added", "passed": true },
+      { "key": "solution", "label": "Solution summary added", "passed": true },
+      { "key": "impact", "label": "Impact scope defined", "passed": true },
+      { "key": "risk", "label": "Risks and dependencies captured", "passed": true },
+      { "key": "owner", "label": "Owner assigned", "passed": true }
+    ],
+    "linked_execution_ids": [3003]
+  }
+]

@@ -1,0 +1,148 @@
+:root {
+  color: #16302c;
+  background:
+    radial-gradient(circle at top left, rgba(31, 122, 109, 0.16), transparent 28%),
+    linear-gradient(180deg, #f7fbf8 0%, #edf6f2 100%);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  font-family: 'IBM Plex Sans', 'Noto Sans SC', 'Segoe UI', sans-serif;
+  background: transparent;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.app-shell {
+  min-height: 100vh;
+}
+
+.app-sider {
+  border-inline-end: 1px solid rgba(22, 48, 44, 0.08);
+  background: rgba(255, 255, 255, 0.8) !important;
+  backdrop-filter: blur(10px);
+}
+
+.brand-panel {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 16px;
+  min-height: 88px;
+}
+
+.brand-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #1f7a6d, #2da895);
+  color: #fff;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.brand-panel .ant-typography {
+  margin-bottom: 0;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  background: rgba(255, 255, 255, 0.6);
+  border-bottom: 1px solid rgba(22, 48, 44, 0.08);
+  backdrop-filter: blur(12px);
+}
+
+.app-header .ant-typography {
+  margin-bottom: 0;
+}
+
+.header-chip {
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: rgba(31, 122, 109, 0.1);
+  color: #1f7a6d;
+  font-weight: 600;
+}
+
+.app-content {
+  padding: 24px;
+}
+
+.page-stack {
+  width: 100%;
+}
+
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.page-header .ant-typography {
+  margin-bottom: 0;
+}
+
+.ant-card {
+  border: 1px solid rgba(22, 48, 44, 0.08);
+  box-shadow: 0 18px 40px rgba(31, 61, 54, 0.08);
+}
+
+@media (max-width: 960px) {
+  .app-header {
+    padding: 0 16px;
+  }
+
+  .app-content {
+    padding: 16px;
+  }
+
+  .page-header {
+    flex-direction: column;
+  }
+
+  .header-chip {
+    display: none;
+  }
+}
+
+.header-user {
+  text-align: right;
+}
+
+.header-user .ant-typography {
+  margin-bottom: 0;
+}
+
+.auth-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.auth-screen--loading {
+  flex-direction: column;
+  gap: 16px;
+  color: #1f7a6d;
+  font-weight: 600;
+}
+
+.auth-card {
+  width: min(480px, 100%);
+}

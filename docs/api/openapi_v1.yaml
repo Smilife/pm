@@ -1,0 +1,1388 @@
+openapi: 3.0.3
+info:
+  title: 开发项目管理平台 API
+  version: 1.0.0
+  description: |
+    V1 接口定义，覆盖需求池、项目、执行、任务、日常任务、甘特排期、日报周报、权限校验与钉钉绑定。
+    部署日期基线：2026-03-03。
+servers:
+  - url: http://localhost:8000/api/v1
+    description: 本地开发环境
+tags:
+  - name: Auth
+  - name: System
+  - name: Users
+  - name: Requirements
+  - name: Projects
+  - name: Executions
+  - name: Tasks
+  - name: DailyTasks
+  - name: Schedules
+  - name: Reports
+  - name: Permissions
+security:
+  - BearerAuth: []
+paths:
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: 账号密码登录
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: 登录成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseAuthLogin'
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: 退出登录
+      responses:
+        '200':
+          description: 退出成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseEmptyCurrent'
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: 获取当前用户信息
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseAuthUser'
+  /auth/permissions:
+    get:
+      tags: [Auth]
+      summary: 获取当前用户角色与权限
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseAuthPermissionSummary'
+  /system/summary:
+    get:
+      tags: [System]
+      summary: 获取认证与权限基础能力摘要
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseSystemSummary'
+  /requirements:
+    get:
+      tags: [Requirements]
+      summary: 需求列表
+      parameters:
+        - $ref: '#/components/parameters/PageNo'
+        - $ref: '#/components/parameters/PageSize'
+        - in: query
+          name: status
+          schema:
+            type: string
+        - in: query
+          name: priority
+          schema:
+            type: string
+            enum: [P0, P1, P2, P3]
+        - in: query
+          name: owner_id
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 查询成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseRequirementPage'
+    post:
+      tags: [Requirements]
+      summary: 新建需求
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequirementCreateRequest'
+      responses:
+        '200':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseRequirement'
+  /requirements/{id}:
+    get:
+      tags: [Requirements]
+      summary: 获取需求详情
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseRequirement'
+    patch:
+      tags: [Requirements]
+      summary: 更新需求
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequirementUpdateRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseRequirement'
+  /requirements/{id}/reviews:
+    post:
+      tags: [Requirements]
+      summary: 创建评审记录
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewCreateRequest'
+      responses:
+        '200':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseReview'
+    get:
+      tags: [Requirements]
+      summary: 查询评审记录
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: 查询成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseReviewList'
+  /requirements/batch-generate-executions:
+    post:
+      tags: [Requirements]
+      summary: 批量从需求生成执行
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [requirement_ids]
+              properties:
+                requirement_ids:
+                  type: array
+                  items:
+                    type: integer
+                    format: int64
+                project_id:
+                  type: integer
+                  format: int64
+                project_name:
+                  type: string
+                execution_id:
+                  type: integer
+                  format: int64
+      responses:
+        '200':
+          description: 生成成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseBatchGenerateResult'
+  /requirements/batch-generate-tasks:
+    post:
+      tags: [Requirements]
+      summary: 兼容旧路径，批量从需求生成执行
+      deprecated: true
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [requirement_ids]
+              properties:
+                requirement_ids:
+                  type: array
+                  items:
+                    type: integer
+                    format: int64
+                project_id:
+                  type: integer
+                  format: int64
+                project_name:
+                  type: string
+                execution_id:
+                  type: integer
+                  format: int64
+      responses:
+        '200':
+          description: 生成成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseBatchGenerateResult'
+  /projects:
+    get:
+      tags: [Projects]
+      summary: 项目列表
+      parameters:
+        - $ref: '#/components/parameters/PageNo'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: 查询成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseProjectPage'
+    post:
+      tags: [Projects]
+      summary: 新建项目
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectCreateRequest'
+      responses:
+        '200':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseProject'
+  /projects/{id}:
+    get:
+      tags: [Projects]
+      summary: 项目详情
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: 查询成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseProject'
+    patch:
+      tags: [Projects]
+      summary: 更新项目
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                owner_id:
+                  type: integer
+                  format: int64
+                status:
+                  type: string
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseProject'
+  /executions:
+    get:
+      tags: [Executions]
+      summary: 执行列表
+      parameters:
+        - $ref: '#/components/parameters/PageNo'
+        - $ref: '#/components/parameters/PageSize'
+        - in: query
+          name: project_id
+          schema:
+            type: integer
+            format: int64
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [not_started, in_progress, suspended, closed]
+      responses:
+        '200':
+          description: 查询成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseExecutionPage'
+    post:
+      tags: [Executions]
+      summary: 新建执行
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExecutionCreateRequest'
+      responses:
+        '200':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseExecution'
+  /executions/{id}:
+    get:
+      tags: [Executions]
+      summary: 执行详情
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: 查询成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseExecution'
+    patch:
+      tags: [Executions]
+      summary: 更新执行
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExecutionUpdateRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseExecution'
+  /executions/{id}/tasks:
+    get:
+      tags: [Executions]
+      summary: 执行下任务列表
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - $ref: '#/components/parameters/PageNo'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: 查询成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseTaskPage'
+  /tasks:
+    get:
+      tags: [Tasks]
+      summary: 任务列表
+      parameters:
+        - $ref: '#/components/parameters/PageNo'
+        - $ref: '#/components/parameters/PageSize'
+        - in: query
+          name: project_id
+          schema:
+            type: integer
+            format: int64
+        - in: query
+          name: execution_id
+          schema:
+            type: integer
+            format: int64
+        - in: query
+          name: assignee_id
+          schema:
+            type: integer
+            format: int64
+        - in: query
+          name: status
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 查询成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseTaskPage'
+    post:
+      tags: [Tasks]
+      summary: 新建任务
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskCreateRequest'
+      responses:
+        '200':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseTask'
+  /tasks/{id}:
+    get:
+      tags: [Tasks]
+      summary: 任务详情
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseTask'
+    patch:
+      tags: [Tasks]
+      summary: 更新任务
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskUpdateRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseTask'
+  /daily-tasks:
+    get:
+      tags: [DailyTasks]
+      summary: 日常任务列表
+      parameters:
+        - $ref: '#/components/parameters/PageNo'
+        - $ref: '#/components/parameters/PageSize'
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [not_started, in_progress, completed, paused]
+      responses:
+        '200':
+          description: 查询成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseDailyTaskPage'
+    post:
+      tags: [DailyTasks]
+      summary: 快速创建日常任务
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DailyTaskCreateRequest'
+      responses:
+        '200':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseDailyTask'
+  /schedules/team-gantt:
+    get:
+      tags: [Schedules]
+      summary: 团队甘特视图数据
+      parameters:
+        - in: query
+          name: start_date
+          required: true
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: end_date
+          required: true
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: member_ids
+          schema:
+            type: string
+            description: 逗号分隔的成员ID
+      responses:
+        '200':
+          description: 查询成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseTeamGantt'
+  /schedules/execution-gantt:
+    get:
+      tags: [Schedules]
+      summary: 执行甘特视图数据
+      parameters:
+        - in: query
+          name: execution_id
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - in: query
+          name: start_date
+          required: true
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: end_date
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: 查询成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseTaskPage'
+  /reports/daily/generate:
+    post:
+      tags: [Reports]
+      summary: 生成日报草稿
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                date:
+                  type: string
+                  format: date
+      responses:
+        '200':
+          description: 生成成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseReportDraft'
+  /reports/weekly/generate:
+    post:
+      tags: [Reports]
+      summary: 生成周报草稿
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                week_start:
+                  type: string
+                  format: date
+      responses:
+        '200':
+          description: 生成成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseReportDraft'
+  /permissions/check:
+    post:
+      tags: [Permissions]
+      summary: 权限点校验
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [resource, action]
+              properties:
+                resource:
+                  type: string
+                action:
+                  type: string
+                scope:
+                  type: string
+      responses:
+        '200':
+          description: 校验成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponsePermissionResult'
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    IdPath:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+    PageNo:
+      name: page_no
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PageSize:
+      name: page_size
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 200
+        default: 20
+  schemas:
+    ApiBaseCurrent:
+      type: object
+      required: [code, message, timestamp]
+      properties:
+        code:
+          type: integer
+          example: 0
+        message:
+          type: string
+          example: ok
+        timestamp:
+          type: string
+          format: date-time
+    ApiBase:
+      type: object
+      required: [code, message, request_id]
+      properties:
+        code:
+          type: integer
+          example: 0
+        message:
+          type: string
+          example: ok
+        request_id:
+          type: string
+          example: req_20260303_xxx
+    ApiResponseEmpty:
+      allOf:
+        - $ref: '#/components/schemas/ApiBase'
+        - type: object
+          properties:
+            data:
+              type: object
+              nullable: true
+    ApiResponseEmptyCurrent:
+      allOf:
+        - $ref: '#/components/schemas/ApiBaseCurrent'
+        - type: object
+          properties:
+            data:
+              type: array
+              items: {}
+    ApiResponseToken:
+      allOf:
+        - $ref: '#/components/schemas/ApiBase'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                access_token:
+                  type: string
+                refresh_token:
+                  type: string
+                expires_in:
+                  type: integer
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+          format: password
+    AuthToken:
+      type: object
+      properties:
+        accessToken:
+          type: string
+        tokenType:
+          type: string
+          example: Bearer
+        expiresIn:
+          type: integer
+        expiresAt:
+          type: string
+          format: date-time
+    CurrentUser:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        username:
+          type: string
+        realName:
+          type: string
+        email:
+          type: string
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        status:
+          type: integer
+        roles:
+          type: array
+          items:
+            type: string
+        permissions:
+          type: array
+          items:
+            type: string
+    ApiResponseLogin:
+      allOf:
+        - $ref: '#/components/schemas/ApiBase'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                access_token:
+                  type: string
+                refresh_token:
+                  type: string
+                expires_in:
+                  type: integer
+                user:
+                  $ref: '#/components/schemas/User'
+    ApiResponseAuthLogin:
+      allOf:
+        - $ref: '#/components/schemas/ApiBaseCurrent'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                token:
+                  $ref: '#/components/schemas/AuthToken'
+                user:
+                  $ref: '#/components/schemas/CurrentUser'
+    ApiResponseUser:
+      allOf:
+        - $ref: '#/components/schemas/ApiBase'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/User'
+    ApiResponseAuthUser:
+      allOf:
+        - $ref: '#/components/schemas/ApiBaseCurrent'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/CurrentUser'
+    ApiResponseAuthPermissionSummary:
+      allOf:
+        - $ref: '#/components/schemas/ApiBaseCurrent'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                roles:
+                  type: array
+                  items:
+                    type: string
+                permissions:
+                  type: array
+                  items:
+                    type: string
+    ApiResponseSystemSummary:
+      allOf:
+        - $ref: '#/components/schemas/ApiBaseCurrent'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                currentUser:
+                  $ref: '#/components/schemas/CurrentUser'
+                capabilities:
+                  type: object
+                  properties:
+                    rbac:
+                      type: boolean
+                    jwt:
+                      type: boolean
+                    auditLog:
+                      type: boolean
+                    permissionGuard:
+                      type: boolean
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        account:
+          type: string
+        email:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+        dingtalk_bound:
+          type: boolean
+    Requirement:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        title:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+        priority:
+          type: string
+          enum: [P0, P1, P2, P3]
+        owner_id:
+          type: integer
+          format: int64
+        expected_release_date:
+          type: string
+          format: date
+        created_at:
+          type: string
+          format: date-time
+    RequirementCreateRequest:
+      type: object
+      required: [title, owner_id]
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        owner_id:
+          type: integer
+          format: int64
+        priority:
+          type: string
+          enum: [P0, P1, P2, P3]
+        expected_release_date:
+          type: string
+          format: date
+    RequirementUpdateRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+        owner_id:
+          type: integer
+          format: int64
+        priority:
+          type: string
+          enum: [P0, P1, P2, P3]
+    Review:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        requirement_id:
+          type: integer
+          format: int64
+        result:
+          type: string
+          enum: [approved, rejected, delayed, need_more]
+        reviewer_id:
+          type: integer
+          format: int64
+        decision_note:
+          type: string
+        reviewed_at:
+          type: string
+          format: date-time
+    ReviewCreateRequest:
+      type: object
+      required: [result]
+      properties:
+        result:
+          type: string
+          enum: [approved, rejected, delayed, need_more]
+        decision_note:
+          type: string
+        next_actions:
+          type: array
+          items:
+            type: string
+    Project:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        code:
+          type: string
+        owner_id:
+          type: integer
+          format: int64
+        status:
+          type: string
+    ProjectCreateRequest:
+      type: object
+      required: [name, code, owner_id]
+      properties:
+        name:
+          type: string
+        code:
+          type: string
+        owner_id:
+          type: integer
+          format: int64
+    Execution:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        project_id:
+          type: integer
+          format: int64
+        execution_name:
+          type: string
+        owner_id:
+          type: integer
+          format: int64
+        status:
+          type: string
+          enum: [not_started, in_progress, suspended, closed]
+        start_at:
+          type: string
+          format: date
+        end_at:
+          type: string
+          format: date
+    ExecutionCreateRequest:
+      type: object
+      required: [project_id, execution_name, owner_id]
+      properties:
+        project_id:
+          type: integer
+          format: int64
+        execution_name:
+          type: string
+        owner_id:
+          type: integer
+          format: int64
+        status:
+          type: string
+          enum: [not_started, in_progress, suspended, closed]
+        start_at:
+          type: string
+          format: date
+        end_at:
+          type: string
+          format: date
+    ExecutionUpdateRequest:
+      type: object
+      properties:
+        execution_name:
+          type: string
+        owner_id:
+          type: integer
+          format: int64
+        status:
+          type: string
+          enum: [not_started, in_progress, suspended, closed]
+        start_at:
+          type: string
+          format: date
+        end_at:
+          type: string
+          format: date
+    Task:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        project_id:
+          type: integer
+          format: int64
+        execution_id:
+          type: integer
+          format: int64
+        title:
+          type: string
+        type:
+          type: string
+          enum: [epic, story, task, bug, tech_debt]
+        status:
+          type: string
+        assignee_id:
+          type: integer
+          format: int64
+        plan_start:
+          type: string
+          format: date
+        plan_end:
+          type: string
+          format: date
+        blocked:
+          type: boolean
+    TaskCreateRequest:
+      type: object
+      required: [title, type]
+      properties:
+        project_id:
+          type: integer
+          format: int64
+        execution_id:
+          type: integer
+          format: int64
+        title:
+          type: string
+        description:
+          type: string
+        type:
+          type: string
+          enum: [epic, story, task, bug, tech_debt]
+        assignee_id:
+          type: integer
+          format: int64
+        plan_start:
+          type: string
+          format: date
+        plan_end:
+          type: string
+          format: date
+    TaskUpdateRequest:
+      type: object
+      properties:
+        execution_id:
+          type: integer
+          format: int64
+        title:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+        assignee_id:
+          type: integer
+          format: int64
+        plan_start:
+          type: string
+          format: date
+        plan_end:
+          type: string
+          format: date
+        blocked_reason:
+          type: string
+    DailyTask:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        title:
+          type: string
+        status:
+          type: string
+          enum: [not_started, in_progress, completed, paused]
+        due_at:
+          type: string
+          format: date-time
+        exclude_from_report:
+          type: boolean
+    DailyTaskCreateRequest:
+      type: object
+      required: [title]
+      properties:
+        title:
+          type: string
+        due_at:
+          type: string
+          format: date-time
+        priority:
+          type: string
+          enum: [P0, P1, P2, P3]
+        exclude_from_report:
+          type: boolean
+    TeamGanttRow:
+      type: object
+      properties:
+        member_id:
+          type: integer
+          format: int64
+        member_name:
+          type: string
+        tasks:
+          type: array
+          items:
+            $ref: '#/components/schemas/Task'
+        conflict_count:
+          type: integer
+    ReportDraft:
+      type: object
+      properties:
+        report_type:
+          type: string
+          enum: [daily, weekly]
+        owner_id:
+          type: integer
+          format: int64
+        content_md:
+          type: string
+        generated_at:
+          type: string
+          format: date-time
+    PermissionResult:
+      type: object
+      properties:
+        allowed:
+          type: boolean
+        reason:
+          type: string
+    PageMeta:
+      type: object
+      properties:
+        page_no:
+          type: integer
+        page_size:
+          type: integer
+        total:
+          type: integer
+    ApiResponseRequirement:
+      allOf:
+        - $ref: '#/components/schemas/ApiBase'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/Requirement'
+    ApiResponseRequirementPage:
+      allOf:
+        - $ref: '#/components/schemas/ApiBase'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                list:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Requirement'
+                page:
+                  $ref: '#/components/schemas/PageMeta'
+    ApiResponseReview:
+      allOf:
+        - $ref: '#/components/schemas/ApiBase'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/Review'
+    ApiResponseReviewList:
+      allOf:
+        - $ref: '#/components/schemas/ApiBase'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/Review'
+    ApiResponseProject:
+      allOf:
+        - $ref: '#/components/schemas/ApiBase'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/Project'
+    ApiResponseProjectPage:
+      allOf:
+        - $ref: '#/components/schemas/ApiBase'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                list:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Project'
+                page:
+                  $ref: '#/components/schemas/PageMeta'
+    ApiResponseExecution:
+      allOf:
+        - $ref: '#/components/schemas/ApiBase'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/Execution'
+    ApiResponseExecutionPage:
+      allOf:
+        - $ref: '#/components/schemas/ApiBase'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                list:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Execution'
+                page:
+                  $ref: '#/components/schemas/PageMeta'
+    ApiResponseTask:
+      allOf:
+        - $ref: '#/components/schemas/ApiBase'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/Task'
+    ApiResponseTaskPage:
+      allOf:
+        - $ref: '#/components/schemas/ApiBase'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                list:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Task'
+                page:
+                  $ref: '#/components/schemas/PageMeta'
+    ApiResponseDailyTask:
+      allOf:
+        - $ref: '#/components/schemas/ApiBase'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/DailyTask'
+    ApiResponseDailyTaskPage:
+      allOf:
+        - $ref: '#/components/schemas/ApiBase'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                list:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/DailyTask'
+                page:
+                  $ref: '#/components/schemas/PageMeta'
+    ApiResponseTeamGantt:
+      allOf:
+        - $ref: '#/components/schemas/ApiBase'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/TeamGanttRow'
+    ApiResponseReportDraft:
+      allOf:
+        - $ref: '#/components/schemas/ApiBase'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/ReportDraft'
+    ApiResponsePermissionResult:
+      allOf:
+        - $ref: '#/components/schemas/ApiBase'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/PermissionResult'
+    ApiResponseBatchGenerateResult:
+      allOf:
+        - $ref: '#/components/schemas/ApiBase'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                created_task_count:
+                  type: integer
+                skipped_requirement_ids:
+                  type: array
+                  items:
+                    type: integer
+                    format: int64

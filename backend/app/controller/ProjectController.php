@@ -1,0 +1,62 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Controller;
+
+use App\Support\JsonStore;
+use App\Support\Request;
+use App\Support\Response;
+
+final class ProjectController
+{
+    private JsonStore $store;
+
+    public function __construct()
+    {
+        $this->store = new JsonStore();
+    }
+
+    public function index(Request $request, array $params): Response
+    {
+        $items = $this->store->all('projects');
+
+        return Response::success(['items' => $items, 'total' => count($items)], $request->requestId);
+    }
+
+    public function store(Request $request, array $params): Response
+    {
+        $payload = [
+            'name' => $request->body['name'] ?? 'Untitled project',
+            'code' => $request->body['code'] ?? 'AUTO-' . date('His'),
+            'owner_name' => $request->body['owner_name'] ?? 'Unassigned',
+            'status' => $request->body['status'] ?? 'Active',
+            'risk_count' => 0,
+            'execution_count' => 0,
+        ];
+
+        return Response::success($this->store->create('projects', $payload), $request->requestId);
+    }
+
+    public function show(Request $request, array $params): Response
+    {
+        $project = $this->store->find('projects', (int) $params['id']);
+
+        if ($project === null) {
+            return Response::error(404, 'project_not_found', [], $request->requestId);
+        }
+
+        return Response::success($project, $request->requestId);
+    }
+
+    public function update(Request $request, array $params): Response
+    {
+        $updated = $this->store->update('projects', (int) $params['id'], $request->body);
+
+        if ($updated === null) {
+            return Response::error(404, 'project_not_found', [], $request->requestId);
+        }
+
+        return Response::success($updated, $request->requestId);
+    }
+}

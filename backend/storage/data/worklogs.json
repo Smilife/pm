@@ -1,0 +1,29 @@
+[
+  {
+    "id": 6001,
+    "execution_id": 3001,
+    "execution_name": "Build frontend and backend skeleton",
+    "owner_name": "Wang Jun",
+    "work_date": "2026-03-09",
+    "hours": 4.5,
+    "summary": "Connected requirement page to the real backend APIs."
+  },
+  {
+    "id": 6002,
+    "execution_id": 3002,
+    "execution_name": "Implement requirement pool base APIs",
+    "owner_name": "Li Nan",
+    "work_date": "2026-03-08",
+    "hours": 3,
+    "summary": "Reviewed route and payload shape for requirement review endpoints."
+  },
+  {
+    "id": 6003,
+    "execution_id": 3003,
+    "execution_name": "Implement daily report aggregation",
+    "owner_name": "Chen Jing",
+    "work_date": "2026-03-07",
+    "hours": 2.5,
+    "summary": "Drafted the report sections and aligned the next-step template."
+  }
+]

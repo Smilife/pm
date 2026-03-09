@@ -1,0 +1,41 @@
+[
+  {
+    "id": 3001,
+    "name": "Build frontend and backend skeleton",
+    "project_id": 201,
+    "project_name": "Project Management Platform V1",
+    "owner_name": "Wang Jun",
+    "status": "InProgress",
+    "plan_start": "2026-03-09",
+    "plan_end": "2026-03-12",
+    "plan_progress": 35,
+    "actual_progress": 45,
+    "requirement_ids": []
+  },
+  {
+    "id": 3002,
+    "name": "Implement requirement pool base APIs",
+    "project_id": 201,
+    "project_name": "Project Management Platform V1",
+    "owner_name": "Li Nan",
+    "status": "Blocked",
+    "plan_start": "2026-03-10",
+    "plan_end": "2026-03-15",
+    "plan_progress": 18,
+    "actual_progress": 20,
+    "requirement_ids": [1002]
+  },
+  {
+    "id": 3003,
+    "name": "Implement daily report aggregation",
+    "project_id": 201,
+    "project_name": "Project Management Platform V1",
+    "owner_name": "Chen Jing",
+    "status": "NotStarted",
+    "plan_start": "2026-03-13",
+    "plan_end": "2026-03-18",
+    "plan_progress": 0,
+    "actual_progress": 0,
+    "requirement_ids": [1003]
+  }
+]

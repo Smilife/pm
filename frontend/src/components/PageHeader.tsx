@@ -1,0 +1,20 @@
+import type { ReactNode } from 'react';
+import { Typography } from 'antd';
+
+interface PageHeaderProps {
+  title: string;
+  description: string;
+  extra?: ReactNode;
+}
+
+export function PageHeader({ title, description, extra }: PageHeaderProps) {
+  return (
+    <div className="page-header">
+      <div>
+        <Typography.Title level={2}>{title}</Typography.Title>
+        <Typography.Paragraph>{description}</Typography.Paragraph>
+      </div>
+      {extra ? <div>{extra}</div> : null}
+    </div>
+  );
+}
