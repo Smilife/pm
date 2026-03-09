@@ -1,4 +1,8 @@
 import type {
+  BatchSubmitBugsPayload,
+  BatchSubmitBugsResult,
+  Bug,
+  CreateBugPayload,
   CreateDailyTaskPayload,
   CreateExecutionPayload,
   CreateExecutionTaskPayload,
@@ -19,6 +23,7 @@ import type {
   RequirementReview,
   RequirementReviewPayload,
   TeamScheduleItem,
+  UpdateBugPayload,
   UpdateDailyTaskPayload,
   UpdateExecutionPayload,
   UpdateExecutionTaskPayload,
@@ -247,6 +252,27 @@ function mapDailyTask(item: any): DailyTask {
   };
 }
 
+function mapBug(item: any): Bug {
+  return {
+    id: Number(item?.id ?? 0),
+    title: String(item?.title ?? ''),
+    severity: item?.severity ?? 'Medium',
+    priority: item?.priority ?? 'P1',
+    status: item?.status ?? 'Draft',
+    linkType: item?.link_type ?? 'execution',
+    linkId: Number(item?.link_id ?? 0),
+    linkName: String(item?.link_name ?? ''),
+    ownerName: String(item?.owner_name ?? ''),
+    reporterName: String(item?.reporter_name ?? ''),
+    reproductionSteps: toStringArray(item?.reproduction_steps),
+    expectedResult: String(item?.expected_result ?? ''),
+    actualResult: String(item?.actual_result ?? ''),
+    createdAt: formatDateTime(item?.created_at),
+    updatedAt: formatDateTime(item?.updated_at),
+    submittedAt: formatDateTime(item?.submitted_at),
+  };
+}
+
 function mapDailyReport(item: any): DailyReportDraft {
   return {
     generatedAt: formatDateTime(item?.generated_at),
@@ -311,6 +337,11 @@ export function formatApiError(error: unknown): string {
       if (failedChecks.length > 0) {
         return `Maturity checks still failing: ${failedChecks.join(', ')}`;
       }
+    }
+
+    if (error.message === 'forbidden') {
+      const requiredPermission = String((error.data as any)?.required_permission ?? '').trim();
+      return requiredPermission ? `Missing permission: ${requiredPermission}` : 'Forbidden';
     }
 
     return error.message.replace(/_/g, ' ');
@@ -538,14 +569,6 @@ export const pmApi = {
 
     return mapWorklog(data);
   },
-  async getTeamSchedule(): Promise<TeamScheduleItem[]> {
-    const data = await request<any>('/schedules/team-gantt');
-    return Array.isArray(data?.items) ? data.items.map(mapTeamScheduleItem) : [];
-  },
-  async getExecutionSchedule(): Promise<ExecutionScheduleItem[]> {
-    const data = await request<any>('/schedules/execution-gantt');
-    return Array.isArray(data?.items) ? data.items.map(mapExecutionScheduleItem) : [];
-  },
   async getDailyTasks(): Promise<DailyTask[]> {
     const data = await request<any>('/daily-tasks');
     return Array.isArray(data?.items) ? data.items.map(mapDailyTask) : [];
@@ -577,6 +600,75 @@ export const pmApi = {
     });
 
     return mapDailyTask(data);
+  },
+  async getBugs(): Promise<Bug[]> {
+    const data = await request<any>('/bugs');
+    return Array.isArray(data?.items) ? data.items.map(mapBug) : [];
+  },
+  async getBugDetail(id: number): Promise<Bug | null> {
+    const data = await request<any>(`/bugs/${id}`);
+    return data ? mapBug(data) : null;
+  },
+  async createBug(payload: CreateBugPayload): Promise<Bug> {
+    const data = await request<any>('/bugs', {
+      method: 'POST',
+      body: JSON.stringify({
+        title: payload.title,
+        severity: payload.severity,
+        priority: payload.priority,
+        status: payload.status,
+        link_type: payload.linkType,
+        link_id: payload.linkId,
+        link_name: payload.linkName,
+        owner_name: payload.ownerName,
+        reporter_name: payload.reporterName,
+        reproduction_steps: payload.reproductionSteps,
+        expected_result: payload.expectedResult,
+        actual_result: payload.actualResult,
+      }),
+    });
+
+    return mapBug(data);
+  },
+  async updateBug(id: number, payload: UpdateBugPayload): Promise<Bug> {
+    const data = await request<any>(`/bugs/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        title: payload.title,
+        severity: payload.severity,
+        priority: payload.priority,
+        status: payload.status,
+        link_type: payload.linkType,
+        link_id: payload.linkId,
+        link_name: payload.linkName,
+        owner_name: payload.ownerName,
+        reporter_name: payload.reporterName,
+        reproduction_steps: payload.reproductionSteps,
+        expected_result: payload.expectedResult,
+        actual_result: payload.actualResult,
+      }),
+    });
+
+    return mapBug(data);
+  },
+  async batchSubmitBugs(payload: BatchSubmitBugsPayload): Promise<BatchSubmitBugsResult> {
+    const data = await request<any>('/bugs/batch-submit', {
+      method: 'POST',
+      body: JSON.stringify({ bug_ids: payload.bugIds }),
+    });
+
+    return {
+      items: Array.isArray(data?.items) ? data.items.map(mapBug) : [],
+      skippedBugIds: toNumberArray(data?.skipped_bug_ids),
+    };
+  },
+  async getTeamSchedule(): Promise<TeamScheduleItem[]> {
+    const data = await request<any>('/schedules/team-gantt');
+    return Array.isArray(data?.items) ? data.items.map(mapTeamScheduleItem) : [];
+  },
+  async getExecutionSchedule(): Promise<ExecutionScheduleItem[]> {
+    const data = await request<any>('/schedules/execution-gantt');
+    return Array.isArray(data?.items) ? data.items.map(mapExecutionScheduleItem) : [];
   },
   async generateDailyReport(): Promise<DailyReportDraft> {
     const data = await request<any>('/reports/daily/generate', { method: 'POST' });

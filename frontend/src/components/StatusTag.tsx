@@ -16,6 +16,8 @@ const colorMap: Record<string, string> = {
   Closed: 'default',
   Active: 'processing',
   Risk: 'error',
+  Open: 'error',
+  Resolved: 'success',
 };
 
 export function StatusTag({ value }: { value: string }) {

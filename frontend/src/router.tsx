@@ -4,6 +4,7 @@ import { WorkspacePage } from './pages/WorkspacePage';
 import { RequirementsPage } from './pages/RequirementsPage';
 import { ProjectsPage } from './pages/ProjectsPage';
 import { ExecutionsPage } from './pages/ExecutionsPage';
+import { BugsPage } from './pages/BugsPage';
 import { DailyTasksPage } from './pages/DailyTasksPage';
 import { ReportsDailyPage } from './pages/ReportsDailyPage';
 import { ReportsWeeklyPage } from './pages/ReportsWeeklyPage';
@@ -43,6 +44,14 @@ export const router = createBrowserRouter([
         element: (
           <PermissionGuard permission="execution.view.related">
             <ExecutionsPage />
+          </PermissionGuard>
+        ),
+      },
+      {
+        path: 'bugs',
+        element: (
+          <PermissionGuard permission="bug.view.related">
+            <BugsPage />
           </PermissionGuard>
         ),
       },

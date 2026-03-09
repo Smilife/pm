@@ -17,6 +17,10 @@ export type ExecutionStatus =
 
 export type DailyTaskStatus = 'NotStarted' | 'InProgress' | 'Blocked' | 'Done';
 
+export type BugStatus = 'Draft' | 'Open' | 'InProgress' | 'Resolved' | 'Closed';
+export type BugSeverity = 'Low' | 'Medium' | 'High' | 'Critical';
+export type BugLinkType = 'project' | 'execution';
+
 export type ReviewResult = 'approved' | 'rejected' | 'delayed' | 'supplement_required';
 
 export interface WorkspaceSummary {
@@ -235,6 +239,51 @@ export interface CreateDailyTaskPayload {
 }
 
 export interface UpdateDailyTaskPayload extends CreateDailyTaskPayload {}
+
+export interface Bug {
+  id: number;
+  title: string;
+  severity: BugSeverity;
+  priority: 'P0' | 'P1' | 'P2';
+  status: BugStatus;
+  linkType: BugLinkType;
+  linkId: number;
+  linkName: string;
+  ownerName: string;
+  reporterName: string;
+  reproductionSteps: string[];
+  expectedResult: string;
+  actualResult: string;
+  createdAt: string;
+  updatedAt: string;
+  submittedAt: string;
+}
+
+export interface CreateBugPayload {
+  title: string;
+  severity: BugSeverity;
+  priority: 'P0' | 'P1' | 'P2';
+  status: BugStatus;
+  linkType: BugLinkType;
+  linkId: number;
+  linkName?: string;
+  ownerName: string;
+  reporterName: string;
+  reproductionSteps: string[];
+  expectedResult: string;
+  actualResult: string;
+}
+
+export interface UpdateBugPayload extends CreateBugPayload {}
+
+export interface BatchSubmitBugsPayload {
+  bugIds: number[];
+}
+
+export interface BatchSubmitBugsResult {
+  items: Bug[];
+  skippedBugIds: number[];
+}
 
 export interface DailyReportDraft {
   generatedAt: string;

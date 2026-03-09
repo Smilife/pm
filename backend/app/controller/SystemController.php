@@ -17,6 +17,7 @@ final class SystemController
         $projects = $store->all('projects');
         $executions = $store->all('executions');
         $dailyTasks = $store->all('daily_tasks');
+        $bugs = $store->all('bugs');
         $users = $store->all('users');
         $today = date('Y-m-d');
         $currentUser = (string) (($users[0]['name'] ?? 'Wang Jun'));
@@ -40,6 +41,10 @@ final class SystemController
             $dailyTasks,
             static fn (array $item): bool => !($item['exclude_from_report'] ?? false) && (string) ($item['status'] ?? '') !== 'Done'
         ));
+        $openBugs = count(array_filter(
+            $bugs,
+            static fn (array $item): bool => !in_array((string) ($item['status'] ?? ''), ['Resolved', 'Closed'], true)
+        ));
 
         return Response::success([
             'auth_mode' => 'password_login',
@@ -52,6 +57,7 @@ final class SystemController
                 'requirements' => count($requirements),
                 'projects' => count($projects),
                 'executions' => count($executions),
+                'bugs' => $openBugs,
             ],
         ], $request->requestId);
     }

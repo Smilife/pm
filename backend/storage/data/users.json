@@ -21,6 +21,10 @@
       "daily_task.view.self",
       "daily_task.create.self",
       "daily_task.update.self",
+      "bug.view.related",
+      "bug.create.related",
+      "bug.update.related",
+      "bug.submit.related",
       "report.daily.generate.self",
       "report.weekly.generate.self",
       "schedule.view.related"

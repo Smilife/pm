@@ -1,5 +1,6 @@
 import {
   AppstoreOutlined,
+  BugOutlined,
   CalendarOutlined,
   CheckSquareOutlined,
   ContainerOutlined,
@@ -12,7 +13,6 @@ import {
   ReadOutlined,
 } from '@ant-design/icons';
 import { Button, Layout, Menu, Space, Typography } from 'antd';
-import type { MenuProps } from 'antd';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { useUiStore } from '../store/uiStore';
@@ -31,6 +31,7 @@ const navItems: NavItem[] = [
   { key: '/requirements', icon: <ContainerOutlined />, label: 'Requirements', permission: 'requirement.view.related' },
   { key: '/projects', icon: <ProjectOutlined />, label: 'Projects', permission: 'project.view.related' },
   { key: '/executions', icon: <ProfileOutlined />, label: 'Executions', permission: 'execution.view.related' },
+  { key: '/bugs', icon: <BugOutlined />, label: 'Bugs', permission: 'bug.view.related' },
   { key: '/daily-tasks', icon: <CheckSquareOutlined />, label: 'Daily Tasks', permission: 'daily_task.view.self' },
   { key: '/reports/daily', icon: <FileTextOutlined />, label: 'Daily Report', permission: 'report.daily.generate.self' },
   { key: '/reports/weekly', icon: <ReadOutlined />, label: 'Weekly Report', permission: 'report.weekly.generate.self' },
@@ -74,7 +75,7 @@ export function AppShell() {
             <Button type="text" icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />} onClick={toggleCollapsed} />
             <div>
               <Typography.Text strong>R and D Management Mainline</Typography.Text>
-              <Typography.Paragraph>Current focus: auth, requirements, projects, executions, worklogs, daily tasks, reports.</Typography.Paragraph>
+              <Typography.Paragraph>Current focus: auth, requirements, executions, bugs, worklogs, reports.</Typography.Paragraph>
             </div>
           </Space>
           <Space size="middle" align="center">

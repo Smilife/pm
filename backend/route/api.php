@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Controller\AuthController;
+use App\Controller\BugController;
 use App\Controller\DailyTaskController;
 use App\Controller\ExecutionController;
 use App\Controller\PermissionController;
@@ -56,6 +57,12 @@ return [
     ['POST', '/daily-tasks', [DailyTaskController::class, 'store']],
     ['GET', '/daily-tasks/{id}', [DailyTaskController::class, 'show']],
     ['PATCH', '/daily-tasks/{id}', [DailyTaskController::class, 'update']],
+
+    ['GET', '/bugs', [BugController::class, 'index']],
+    ['POST', '/bugs', [BugController::class, 'store']],
+    ['GET', '/bugs/{id}', [BugController::class, 'show']],
+    ['PATCH', '/bugs/{id}', [BugController::class, 'update']],
+    ['POST', '/bugs/batch-submit', [BugController::class, 'batchSubmit']],
 
     ['GET', '/schedules/team-gantt', [ScheduleController::class, 'teamGantt']],
     ['GET', '/schedules/execution-gantt', [ScheduleController::class, 'executionGantt']],
