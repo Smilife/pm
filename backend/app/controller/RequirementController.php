@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Support\JsonStore;
+use App\Support\RecordScope;
 use App\Support\Request;
 use App\Support\Response;
 
@@ -19,7 +20,11 @@ final class RequirementController
 
     public function index(Request $request, array $params): Response
     {
-        $items = array_map(fn (array $item): array => $this->mapSummary($item), $this->store->all('requirements'));
+        $scope = new RecordScope($request, $this->store);
+        $items = array_map(
+            fn (array $item): array => $this->mapSummary($item),
+            $scope->filterRequirements($this->store->all('requirements'))
+        );
 
         return Response::success([
             'items' => $items,
@@ -31,11 +36,13 @@ final class RequirementController
 
     public function store(Request $request, array $params): Response
     {
+        $scope = new RecordScope($request, $this->store);
+        $ownerName = trim((string) ($request->body['owner_name'] ?? '')) ?: $scope->currentUserName();
         $payload = [
             'title' => $request->body['title'] ?? 'Untitled requirement',
             'status' => $request->body['status'] ?? 'Draft',
             'priority' => $request->body['priority'] ?? 'P1',
-            'owner_name' => $request->body['owner_name'] ?? 'Unassigned',
+            'owner_name' => $ownerName !== '' ? $ownerName : 'Unassigned',
             'expected_release_at' => $request->body['expected_release_at'] ?? date('Y-m-d'),
             'description' => $request->body['description'] ?? '',
             'current_stage' => $request->body['current_stage'] ?? 'Drafting',
@@ -55,37 +62,61 @@ final class RequirementController
 
         $created = $this->store->create('requirements', $payload);
 
-        return Response::success($this->mapDetail($created), $request->requestId);
+        return Response::success($this->mapDetail($created, $scope), $request->requestId);
     }
 
     public function show(Request $request, array $params): Response
     {
-        $requirement = $this->store->find('requirements', (int) $params['id']);
+        $requirementId = (int) ($params['id'] ?? 0);
+        $requirement = $this->store->find('requirements', $requirementId);
 
         if ($requirement === null) {
             return Response::error(404, 'requirement_not_found', [], $request->requestId);
         }
 
-        return Response::success($this->mapDetail($requirement), $request->requestId);
+        $scope = new RecordScope($request, $this->store);
+        if (!$scope->canAccessRequirement($requirement)) {
+            return $scope->scopeDenied('requirement', $request->requestId, $requirementId);
+        }
+
+        return Response::success($this->mapDetail($requirement, $scope), $request->requestId);
     }
 
     public function update(Request $request, array $params): Response
     {
-        $updated = $this->store->update('requirements', (int) $params['id'], $request->body);
+        $requirementId = (int) ($params['id'] ?? 0);
+        $current = $this->store->find('requirements', $requirementId);
+
+        if ($current === null) {
+            return Response::error(404, 'requirement_not_found', [], $request->requestId);
+        }
+
+        $scope = new RecordScope($request, $this->store);
+        if (!$scope->canAccessRequirement($current)) {
+            return $scope->scopeDenied('requirement', $request->requestId, $requirementId);
+        }
+
+        $updated = $this->store->update('requirements', $requirementId, $request->body);
 
         if ($updated === null) {
             return Response::error(404, 'requirement_not_found', [], $request->requestId);
         }
 
-        return Response::success($this->mapDetail($updated), $request->requestId);
+        return Response::success($this->mapDetail($updated, $scope), $request->requestId);
     }
 
     public function submitForReview(Request $request, array $params): Response
     {
-        $requirement = $this->store->find('requirements', (int) $params['id']);
+        $requirementId = (int) ($params['id'] ?? 0);
+        $requirement = $this->store->find('requirements', $requirementId);
 
         if ($requirement === null) {
             return Response::error(404, 'requirement_not_found', [], $request->requestId);
+        }
+
+        $scope = new RecordScope($request, $this->store);
+        if (!$scope->canAccessRequirement($requirement)) {
+            return $scope->scopeDenied('requirement', $request->requestId, $requirementId);
         }
 
         $failedChecks = array_values(array_filter(
@@ -97,28 +128,39 @@ final class RequirementController
             return Response::error(422, 'maturity_check_failed', ['failed_checks' => $failedChecks], $request->requestId);
         }
 
-        $updated = $this->store->update('requirements', (int) $params['id'], [
+        $updated = $this->store->update('requirements', $requirementId, [
             'status' => 'ToReview',
             'current_stage' => 'Pending review',
         ]);
 
-        return Response::success($this->mapDetail($updated ?? $requirement), $request->requestId);
+        return Response::success($this->mapDetail($updated ?? $requirement, $scope), $request->requestId);
     }
 
     public function storeReview(Request $request, array $params): Response
     {
-        $requirementId = (int) $params['id'];
+        $requirementId = (int) ($params['id'] ?? 0);
         $requirement = $this->store->find('requirements', $requirementId);
 
         if ($requirement === null) {
             return Response::error(404, 'requirement_not_found', [], $request->requestId);
         }
 
+        $scope = new RecordScope($request, $this->store);
+        if (!$scope->canAccessRequirement($requirement)) {
+            return $scope->scopeDenied('requirement', $request->requestId, $requirementId);
+        }
+
+        $reviewerName = trim((string) ($request->body['reviewer_name'] ?? '')) ?: $scope->currentUserName();
+        $reviewerError = $scope->ensureCurrentUserField($reviewerName, 'reviewer_name', 'requirement_review', $request->requestId, $requirementId);
+        if ($reviewerError !== null) {
+            return $reviewerError;
+        }
+
         $result = (string) ($request->body['result'] ?? 'supplement_required');
         $review = $this->store->create('requirement_reviews', [
             'requirement_id' => $requirementId,
             'result' => $result,
-            'reviewer_name' => $request->body['reviewer_name'] ?? 'Anonymous reviewer',
+            'reviewer_name' => $reviewerName !== '' ? $reviewerName : 'Anonymous reviewer',
             'comment' => $request->body['comment'] ?? '',
             'reviewed_at' => date(DATE_ATOM),
         ]);
@@ -140,13 +182,24 @@ final class RequirementController
 
     public function listReviews(Request $request, array $params): Response
     {
-        $requirementId = (int) $params['id'];
+        $requirementId = (int) ($params['id'] ?? 0);
+        $requirement = $this->store->find('requirements', $requirementId);
+
+        if ($requirement === null) {
+            return Response::error(404, 'requirement_not_found', [], $request->requestId);
+        }
+
+        $scope = new RecordScope($request, $this->store);
+        if (!$scope->canAccessRequirement($requirement)) {
+            return $scope->scopeDenied('requirement', $request->requestId, $requirementId);
+        }
+
         $reviews = $this->store->filter(
             'requirement_reviews',
-            static fn (array $item): bool => (int) $item['requirement_id'] === $requirementId
+            static fn (array $item): bool => (int) ($item['requirement_id'] ?? 0) === $requirementId
         );
 
-        usort($reviews, static fn (array $left, array $right): int => strcmp($right['reviewed_at'], $left['reviewed_at']));
+        usort($reviews, static fn (array $left, array $right): int => strcmp((string) ($right['reviewed_at'] ?? ''), (string) ($left['reviewed_at'] ?? '')));
 
         return Response::success([
             'items' => array_map(fn (array $item): array => $this->mapReview($item), $reviews),
@@ -155,8 +208,13 @@ final class RequirementController
 
     public function batchGenerateExecutions(Request $request, array $params): Response
     {
+        $scope = new RecordScope($request, $this->store);
         $requirementIds = array_values(array_unique(array_map('intval', $request->body['requirement_ids'] ?? [])));
         $projectId = (int) ($request->body['project_id'] ?? 0);
+        if ($projectId > 0 && !$scope->canAccessProjectId($projectId)) {
+            return $scope->scopeDenied('project', $request->requestId, $projectId);
+        }
+
         $requirements = $this->store->all('requirements');
         $executions = $this->store->all('executions');
         $projects = $this->store->all('projects');
@@ -172,6 +230,11 @@ final class RequirementController
         }
 
         foreach ($requirementIds as $requirementId) {
+            if (!$scope->canAccessRequirementId($requirementId)) {
+                $skipped[] = $requirementId;
+                continue;
+            }
+
             $requirementIndex = null;
 
             foreach ($requirements as $index => $requirement) {
@@ -188,17 +251,17 @@ final class RequirementController
 
             $requirement = $requirements[$requirementIndex];
 
-            if (!in_array($requirement['status'], ['Reviewed', 'Scheduled', 'InDevelopment'], true)) {
+            if (!in_array((string) ($requirement['status'] ?? ''), ['Reviewed', 'Scheduled', 'InDevelopment'], true)) {
                 $skipped[] = $requirementId;
                 continue;
             }
 
             $execution = [
                 'id' => $this->nextId($executions),
-                'name' => 'Execution - ' . $requirement['title'],
+                'name' => 'Execution - ' . (string) ($requirement['title'] ?? 'Untitled requirement'),
                 'project_id' => $projectId,
                 'project_name' => $projectName,
-                'owner_name' => $requirement['owner_name'],
+                'owner_name' => (string) ($requirement['owner_name'] ?? 'Unassigned'),
                 'status' => 'NotStarted',
                 'plan_start' => $request->body['plan_start'] ?? date('Y-m-d'),
                 'plan_end' => $request->body['plan_end'] ?? date('Y-m-d', strtotime('+7 days')),
@@ -212,7 +275,7 @@ final class RequirementController
             $requirements[$requirementIndex]['status'] = 'Scheduled';
             $requirements[$requirementIndex]['current_stage'] = 'Scheduled';
             $requirements[$requirementIndex]['linked_execution_ids'] = array_values(array_unique([
-                ...($requirements[$requirementIndex]['linked_execution_ids'] ?? []),
+                ...(is_array($requirements[$requirementIndex]['linked_execution_ids'] ?? null) ? $requirements[$requirementIndex]['linked_execution_ids'] : []),
                 $execution['id'],
             ]));
         }
@@ -238,28 +301,31 @@ final class RequirementController
     private function mapSummary(array $item): array
     {
         return [
-            'id' => (int) $item['id'],
-            'title' => $item['title'],
-            'status' => $item['status'],
-            'priority' => $item['priority'],
-            'owner_name' => $item['owner_name'],
-            'expected_release_at' => $item['expected_release_at'],
-            'linked_execution_count' => count($item['linked_execution_ids'] ?? []),
+            'id' => (int) ($item['id'] ?? 0),
+            'title' => (string) ($item['title'] ?? ''),
+            'status' => (string) ($item['status'] ?? 'Draft'),
+            'priority' => (string) ($item['priority'] ?? 'P1'),
+            'owner_name' => (string) ($item['owner_name'] ?? ''),
+            'expected_release_at' => (string) ($item['expected_release_at'] ?? ''),
+            'linked_execution_count' => count(is_array($item['linked_execution_ids'] ?? null) ? $item['linked_execution_ids'] : []),
         ];
     }
 
-    private function mapDetail(array $item): array
+    private function mapDetail(array $item, ?RecordScope $scope = null): array
     {
         $reviews = $this->store->filter(
             'requirement_reviews',
-            static fn (array $review): bool => (int) $review['requirement_id'] === (int) $item['id']
+            static fn (array $review): bool => (int) ($review['requirement_id'] ?? 0) === (int) ($item['id'] ?? 0)
         );
-        usort($reviews, static fn (array $left, array $right): int => strcmp($right['reviewed_at'], $left['reviewed_at']));
+        usort($reviews, static fn (array $left, array $right): int => strcmp((string) ($right['reviewed_at'] ?? ''), (string) ($left['reviewed_at'] ?? '')));
 
         $executions = array_values(array_filter(array_map(
             fn (int $executionId): ?array => $this->store->find('executions', $executionId),
-            array_map('intval', $item['linked_execution_ids'] ?? [])
+            array_map('intval', is_array($item['linked_execution_ids'] ?? null) ? $item['linked_execution_ids'] : [])
         )));
+        if ($scope !== null) {
+            $executions = $scope->filterExecutions($executions);
+        }
 
         return [
             ...$this->mapSummary($item),

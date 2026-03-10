@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Support\JsonStore;
+use App\Support\RecordScope;
 use App\Support\Request;
 use App\Support\Response;
 
@@ -13,7 +14,8 @@ final class ScheduleController
     public function teamGantt(Request $request, array $params): Response
     {
         $store = new JsonStore();
-        $executions = $store->all('executions');
+        $scope = new RecordScope($request, $store);
+        $executions = $scope->filterExecutions($store->all('executions'));
 
         return Response::success([
             'items' => $executions,
@@ -25,17 +27,22 @@ final class ScheduleController
     public function executionGantt(Request $request, array $params): Response
     {
         $store = new JsonStore();
-        $tasks = $store->all('tasks');
-        $executions = $store->all('executions');
+        $scope = new RecordScope($request, $store);
+        $tasks = $scope->filterTasks($store->all('tasks'));
+        $executions = $scope->filterExecutions($store->all('executions'));
         $executionMap = [];
 
         foreach ($executions as $execution) {
             $executionMap[(int) ($execution['id'] ?? 0)] = $execution;
         }
 
-        $items = array_map(static function (array $task) use ($executionMap): array {
+        $items = array_values(array_filter(array_map(static function (array $task) use ($executionMap): ?array {
             $executionId = (int) ($task['execution_id'] ?? 0);
-            $execution = $executionMap[$executionId] ?? [];
+            $execution = $executionMap[$executionId] ?? null;
+
+            if (!is_array($execution)) {
+                return null;
+            }
 
             return [
                 ...$task,
@@ -44,7 +51,7 @@ final class ScheduleController
                 'plan_start' => (string) ($execution['plan_start'] ?? ''),
                 'plan_end' => (string) ($execution['plan_end'] ?? ''),
             ];
-        }, $tasks);
+        }, $tasks)));
 
         return Response::success([
             'items' => $items,

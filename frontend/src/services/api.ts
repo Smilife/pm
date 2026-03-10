@@ -1,4 +1,4 @@
-import type {
+﻿import type {
   BatchSubmitBugsPayload,
   BatchSubmitBugsResult,
   Bug,
@@ -802,3 +802,4 @@ export const pmApi = {
     return mapWeeklyReport(data);
   },
 };
+

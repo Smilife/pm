@@ -12,7 +12,7 @@
     "id": 6002,
     "execution_id": 3002,
     "execution_name": "Implement requirement pool base APIs",
-    "owner_name": "Li Nan",
+    "owner_name": "Li Na",
     "work_date": "2026-03-08",
     "hours": 3,
     "summary": "Reviewed route and payload shape for requirement review endpoints."

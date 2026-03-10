@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Support\JsonStore;
+use App\Support\RecordScope;
 use App\Support\Request;
 use App\Support\Response;
 
@@ -19,7 +20,8 @@ final class BugController
 
     public function index(Request $request, array $params): Response
     {
-        $items = $this->store->all('bugs');
+        $scope = new RecordScope($request, $this->store);
+        $items = $scope->filterBugs($this->store->all('bugs'));
 
         usort($items, static function (array $left, array $right): int {
             return strcmp((string) ($right['updated_at'] ?? ''), (string) ($left['updated_at'] ?? ''));
@@ -30,10 +32,23 @@ final class BugController
 
     public function store(Request $request, array $params): Response
     {
+        $scope = new RecordScope($request, $this->store);
         $linkType = $this->normalizeLinkType((string) ($request->body['link_type'] ?? 'execution'));
         $linkId = (int) ($request->body['link_id'] ?? 0);
+        if ($linkType === 'project' && $linkId > 0 && !$scope->canAccessProjectId($linkId)) {
+            return $scope->scopeDenied('project', $request->requestId, $linkId);
+        }
+        if ($linkType === 'execution' && $linkId > 0 && !$scope->canAccessExecutionId($linkId)) {
+            return $scope->scopeDenied('execution', $request->requestId, $linkId);
+        }
+
         $status = (string) ($request->body['status'] ?? 'Draft');
         $now = date('c');
+        $reporterName = trim((string) ($request->body['reporter_name'] ?? '')) ?: $scope->currentUserName();
+        $reporterError = $scope->ensureCurrentUserField($reporterName, 'reporter_name', 'bug', $request->requestId);
+        if ($reporterError !== null) {
+            return $reporterError;
+        }
 
         $payload = [
             'title' => trim((string) ($request->body['title'] ?? 'Untitled bug')),
@@ -44,7 +59,7 @@ final class BugController
             'link_id' => $linkId,
             'link_name' => $this->resolveLinkName($linkType, $linkId, (string) ($request->body['link_name'] ?? 'Unlinked')),
             'owner_name' => trim((string) ($request->body['owner_name'] ?? 'Unassigned')),
-            'reporter_name' => trim((string) ($request->body['reporter_name'] ?? 'Unknown reporter')),
+            'reporter_name' => $reporterName !== '' ? $reporterName : 'Unknown reporter',
             'reproduction_steps' => $this->normalizeLines($request->body['reproduction_steps'] ?? []),
             'expected_result' => trim((string) ($request->body['expected_result'] ?? '')),
             'actual_result' => trim((string) ($request->body['actual_result'] ?? '')),
@@ -58,10 +73,16 @@ final class BugController
 
     public function show(Request $request, array $params): Response
     {
-        $bug = $this->store->find('bugs', (int) $params['id']);
+        $bugId = (int) ($params['id'] ?? 0);
+        $bug = $this->store->find('bugs', $bugId);
 
         if ($bug === null) {
             return Response::error(404, 'bug_not_found', [], $request->requestId);
+        }
+
+        $scope = new RecordScope($request, $this->store);
+        if (!$scope->canAccessBug($bug)) {
+            return $scope->scopeDenied('bug', $request->requestId, $bugId);
         }
 
         return Response::success($bug, $request->requestId);
@@ -69,17 +90,28 @@ final class BugController
 
     public function update(Request $request, array $params): Response
     {
-        $bugId = (int) $params['id'];
+        $bugId = (int) ($params['id'] ?? 0);
         $current = $this->store->find('bugs', $bugId);
 
         if ($current === null) {
             return Response::error(404, 'bug_not_found', [], $request->requestId);
         }
 
+        $scope = new RecordScope($request, $this->store);
+        if (!$scope->canAccessBug($current)) {
+            return $scope->scopeDenied('bug', $request->requestId, $bugId);
+        }
+
         $linkType = $this->normalizeLinkType((string) ($request->body['link_type'] ?? ($current['link_type'] ?? 'execution')));
         $linkId = (int) ($request->body['link_id'] ?? ($current['link_id'] ?? 0));
+        if ($linkType === 'project' && $linkId > 0 && !$scope->canAccessProjectId($linkId)) {
+            return $scope->scopeDenied('project', $request->requestId, $linkId);
+        }
+        if ($linkType === 'execution' && $linkId > 0 && !$scope->canAccessExecutionId($linkId)) {
+            return $scope->scopeDenied('execution', $request->requestId, $linkId);
+        }
 
-        $payload = [
+        $updated = $this->store->update('bugs', $bugId, [
             'title' => trim((string) ($request->body['title'] ?? ($current['title'] ?? 'Untitled bug'))),
             'severity' => (string) ($request->body['severity'] ?? ($current['severity'] ?? 'Medium')),
             'priority' => (string) ($request->body['priority'] ?? ($current['priority'] ?? 'P1')),
@@ -93,9 +125,7 @@ final class BugController
             'expected_result' => trim((string) ($request->body['expected_result'] ?? ($current['expected_result'] ?? ''))),
             'actual_result' => trim((string) ($request->body['actual_result'] ?? ($current['actual_result'] ?? ''))),
             'updated_at' => date('c'),
-        ];
-
-        $updated = $this->store->update('bugs', $bugId, $payload);
+        ]);
 
         if ($updated === null) {
             return Response::error(404, 'bug_not_found', [], $request->requestId);
@@ -106,6 +136,7 @@ final class BugController
 
     public function batchSubmit(Request $request, array $params): Response
     {
+        $scope = new RecordScope($request, $this->store);
         $bugIds = array_values(array_filter(array_map('intval', (array) ($request->body['bug_ids'] ?? [])), static fn (int $item): bool => $item > 0));
 
         if ($bugIds === []) {
@@ -120,6 +151,11 @@ final class BugController
         foreach ($items as $index => $item) {
             $bugId = (int) ($item['id'] ?? 0);
             if (!in_array($bugId, $bugIds, true)) {
+                continue;
+            }
+
+            if (!$scope->canAccessBug($item)) {
+                $skippedBugIds[] = $bugId;
                 continue;
             }
 

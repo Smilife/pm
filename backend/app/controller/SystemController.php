@@ -6,6 +6,7 @@ namespace App\Controller;
 
 use App\Support\Auth;
 use App\Support\JsonStore;
+use App\Support\RecordScope;
 use App\Support\Request;
 use App\Support\Response;
 
@@ -14,15 +15,17 @@ final class SystemController
     public function summary(Request $request, array $params): Response
     {
         $store = new JsonStore();
-        $requirements = $store->all('requirements');
-        $projects = $store->all('projects');
-        $executions = $store->all('executions');
-        $dailyTasks = $store->all('daily_tasks');
-        $bugs = $store->all('bugs');
+        $scope = new RecordScope($request, $store);
+        $requirements = $scope->filterRequirements($store->all('requirements'));
+        $projects = $scope->filterProjects($store->all('projects'));
+        $executions = $scope->filterExecutions($store->all('executions'));
+        $dailyTasks = $scope->filterDailyTasks($store->all('daily_tasks'));
+        $bugs = $scope->filterBugs($store->all('bugs'));
         $users = $store->all('users');
         $today = date('Y-m-d');
         $currentUser = Auth::currentUser($request);
         $currentUserName = (string) (($currentUser['name'] ?? 'Wang Jun'));
+        $permissions = is_array($currentUser['permissions'] ?? null) ? $currentUser['permissions'] : [];
 
         $myExecutions = array_values(array_filter(
             $executions,
@@ -47,10 +50,11 @@ final class SystemController
             $bugs,
             static fn (array $item): bool => !in_array((string) ($item['status'] ?? ''), ['Resolved', 'Closed'], true)
         ));
+        $memberCount = in_array('settings.member.manage.org', $permissions, true) ? count($users) : 1;
 
         return Response::success([
             'auth_mode' => 'password_login',
-            'permission_mode' => 'rbac_route_guard',
+            'permission_mode' => 'rbac_route_guard_with_record_scope',
             'my_executions' => count($myExecutions),
             'due_today' => $dueTodayCount,
             'blocked' => $blockedCount,
@@ -60,7 +64,7 @@ final class SystemController
                 'projects' => count($projects),
                 'executions' => count($executions),
                 'bugs' => $openBugs,
-                'members' => count($users),
+                'members' => $memberCount,
             ],
         ], $request->requestId);
     }

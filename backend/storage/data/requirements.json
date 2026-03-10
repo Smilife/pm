@@ -59,7 +59,7 @@
     "title": "Generate daily report drafts automatically",
     "status": "InDevelopment",
     "priority": "P0",
-    "owner_name": "Li Nan",
+    "owner_name": "Li Na",
     "expected_release_at": "2026-03-18",
     "description": "Aggregate execution changes, worklogs and daily items into an editable daily report draft.",
     "current_stage": "In development",

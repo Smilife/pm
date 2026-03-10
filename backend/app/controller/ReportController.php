@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Support\JsonStore;
+use App\Support\RecordScope;
 use App\Support\Request;
 use App\Support\Response;
 
@@ -13,22 +14,26 @@ final class ReportController
     public function generateDaily(Request $request, array $params): Response
     {
         $store = new JsonStore();
-        $executions = $store->all('executions');
-        $dailyTasks = $store->filter('daily_tasks', static fn (array $item): bool => !($item['exclude_from_report'] ?? false));
+        $scope = new RecordScope($request, $store);
+        $executions = $scope->filterExecutions($store->all('executions'));
+        $dailyTasks = array_values(array_filter(
+            $scope->filterDailyTasks($store->all('daily_tasks')),
+            static fn (array $item): bool => !($item['exclude_from_report'] ?? false)
+        ));
 
         $completed = array_values(array_map(
-            static fn (array $item): string => (string) $item['name'],
+            static fn (array $item): string => (string) ($item['name'] ?? ''),
             array_filter($executions, static fn (array $item): bool => (string) ($item['status'] ?? '') === 'Done')
         ));
         if ($completed === []) {
             $completed = array_values(array_map(
-                static fn (array $item): string => (string) $item['name'],
+                static fn (array $item): string => (string) ($item['name'] ?? ''),
                 array_slice($executions, 0, 1)
             ));
         }
 
         $inProgress = array_values(array_map(
-            static fn (array $item): string => (string) $item['name'],
+            static fn (array $item): string => (string) ($item['name'] ?? ''),
             array_filter(
                 $executions,
                 static fn (array $item): bool => in_array((string) ($item['status'] ?? ''), ['InProgress', 'NotStarted', 'ToVerify'], true)
@@ -36,7 +41,7 @@ final class ReportController
         ));
 
         $risks = array_values(array_map(
-            static fn (array $item): string => 'Blocked execution: ' . (string) $item['name'],
+            static fn (array $item): string => 'Blocked execution: ' . (string) ($item['name'] ?? ''),
             array_filter($executions, static fn (array $item): bool => (string) ($item['status'] ?? '') === 'Blocked')
         ));
         if ($risks === []) {
@@ -44,12 +49,12 @@ final class ReportController
         }
 
         $nextSteps = array_values(array_map(
-            static fn (array $item): string => (string) $item['title'],
+            static fn (array $item): string => (string) ($item['title'] ?? ''),
             array_filter($dailyTasks, static fn (array $item): bool => (string) ($item['status'] ?? '') !== 'Done')
         ));
         if ($nextSteps === []) {
             $nextSteps = array_values(array_map(
-                static fn (array $item): string => 'Follow up on ' . (string) $item['name'],
+                static fn (array $item): string => 'Follow up on ' . (string) ($item['name'] ?? ''),
                 array_slice($executions, 0, 2)
             ));
         }
@@ -67,13 +72,17 @@ final class ReportController
     public function generateWeekly(Request $request, array $params): Response
     {
         $store = new JsonStore();
-        $executions = $store->all('executions');
-        $dailyTasks = $store->filter('daily_tasks', static fn (array $item): bool => !($item['exclude_from_report'] ?? false));
-        $worklogs = $store->all('worklogs');
+        $scope = new RecordScope($request, $store);
+        $executions = $scope->filterExecutions($store->all('executions'));
+        $dailyTasks = array_values(array_filter(
+            $scope->filterDailyTasks($store->all('daily_tasks')),
+            static fn (array $item): bool => !($item['exclude_from_report'] ?? false)
+        ));
+        $worklogs = $scope->filterWorklogs($store->all('worklogs'));
         usort($worklogs, static fn (array $left, array $right): int => strcmp((string) ($right['work_date'] ?? ''), (string) ($left['work_date'] ?? '')));
 
         $completed = array_values(array_map(
-            static fn (array $item): string => (string) $item['name'],
+            static fn (array $item): string => (string) ($item['name'] ?? ''),
             array_filter($executions, static fn (array $item): bool => (string) ($item['status'] ?? '') === 'Done')
         ));
         foreach ($dailyTasks as $item) {
@@ -81,10 +90,10 @@ final class ReportController
                 $completed[] = (string) ($item['title'] ?? '');
             }
         }
-        $completed = array_values(array_unique(array_filter($completed)));
+        $completed = array_values(array_unique(array_filter($completed, static fn (string $item): bool => $item !== '')));
 
         $inProgress = array_values(array_map(
-            static fn (array $item): string => (string) $item['name'],
+            static fn (array $item): string => (string) ($item['name'] ?? ''),
             array_filter(
                 $executions,
                 static fn (array $item): bool => in_array((string) ($item['status'] ?? ''), ['InProgress', 'NotStarted', 'ToVerify'], true)
@@ -92,7 +101,7 @@ final class ReportController
         ));
 
         $risks = array_values(array_map(
-            static fn (array $item): string => 'Blocked execution: ' . (string) $item['name'],
+            static fn (array $item): string => 'Blocked execution: ' . (string) ($item['name'] ?? ''),
             array_filter($executions, static fn (array $item): bool => (string) ($item['status'] ?? '') === 'Blocked')
         ));
         if ($risks === []) {

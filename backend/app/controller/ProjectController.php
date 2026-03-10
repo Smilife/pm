@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Support\JsonStore;
+use App\Support\RecordScope;
 use App\Support\Request;
 use App\Support\Response;
 
@@ -19,17 +20,21 @@ final class ProjectController
 
     public function index(Request $request, array $params): Response
     {
-        $items = $this->store->all('projects');
+        $scope = new RecordScope($request, $this->store);
+        $items = $scope->filterProjects($this->store->all('projects'));
 
         return Response::success(['items' => $items, 'total' => count($items)], $request->requestId);
     }
 
     public function store(Request $request, array $params): Response
     {
+        $scope = new RecordScope($request, $this->store);
+        $ownerName = trim((string) ($request->body['owner_name'] ?? '')) ?: $scope->currentUserName();
+
         $payload = [
             'name' => $request->body['name'] ?? 'Untitled project',
             'code' => $request->body['code'] ?? 'AUTO-' . date('His'),
-            'owner_name' => $request->body['owner_name'] ?? 'Unassigned',
+            'owner_name' => $ownerName !== '' ? $ownerName : 'Unassigned',
             'status' => $request->body['status'] ?? 'Active',
             'risk_count' => 0,
             'execution_count' => 0,
@@ -40,10 +45,16 @@ final class ProjectController
 
     public function show(Request $request, array $params): Response
     {
-        $project = $this->store->find('projects', (int) $params['id']);
+        $projectId = (int) ($params['id'] ?? 0);
+        $project = $this->store->find('projects', $projectId);
 
         if ($project === null) {
             return Response::error(404, 'project_not_found', [], $request->requestId);
+        }
+
+        $scope = new RecordScope($request, $this->store);
+        if (!$scope->canAccessProject($project)) {
+            return $scope->scopeDenied('project', $request->requestId, $projectId);
         }
 
         return Response::success($project, $request->requestId);
@@ -51,7 +62,19 @@ final class ProjectController
 
     public function update(Request $request, array $params): Response
     {
-        $updated = $this->store->update('projects', (int) $params['id'], $request->body);
+        $projectId = (int) ($params['id'] ?? 0);
+        $current = $this->store->find('projects', $projectId);
+
+        if ($current === null) {
+            return Response::error(404, 'project_not_found', [], $request->requestId);
+        }
+
+        $scope = new RecordScope($request, $this->store);
+        if (!$scope->canAccessProject($current)) {
+            return $scope->scopeDenied('project', $request->requestId, $projectId);
+        }
+
+        $updated = $this->store->update('projects', $projectId, $request->body);
 
         if ($updated === null) {
             return Response::error(404, 'project_not_found', [], $request->requestId);

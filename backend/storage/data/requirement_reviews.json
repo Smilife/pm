@@ -11,7 +11,7 @@
     "id": 2,
     "requirement_id": 1001,
     "result": "supplement_required",
-    "reviewer_name": "Li Nan",
+    "reviewer_name": "Li Na",
     "comment": "Risks and rollback expectations still need more detail before execution generation.",
     "reviewed_at": "2026-03-09T09:30:00+08:00"
   }
