@@ -423,6 +423,19 @@ export function formatApiError(error: unknown): string {
       return '\u767b\u5f55\u72b6\u6001\u5df2\u5931\u6548\uff0c\u8bf7\u91cd\u65b0\u767b\u5f55\u3002';
     }
 
+    const friendlyMessages: Record<string, string> = {
+      role_not_found: '\u89d2\u8272\u6a21\u677f\u4e0d\u5b58\u5728\u3002',
+      role_in_use: '\u8be5\u89d2\u8272\u6a21\u677f\u4ecd\u88ab\u6210\u5458\u4f7f\u7528\uff0c\u6682\u65f6\u4e0d\u80fd\u5220\u9664\u3002',
+      policy_not_found: '\u7b56\u7565\u5305\u4e0d\u5b58\u5728\u3002',
+      dictionary_not_found: '\u5171\u4eab\u5b57\u5178\u4e0d\u5b58\u5728\u3002',
+      dictionary_locked: '\u7cfb\u7edf\u5185\u7f6e\u5b57\u5178\u4e0d\u652f\u6301\u5220\u9664\u3002',
+      workflow_not_found: '\u6d41\u7a0b\u6a21\u677f\u4e0d\u5b58\u5728\u3002',
+    };
+    const friendlyMessage = friendlyMessages[error.message];
+    if (friendlyMessage) {
+      return friendlyMessage;
+    }
+
     return error.message.replace(/_/g, ' ');
   }
 
@@ -795,6 +808,11 @@ export const pmApi = {
 
     return mapSettingsRole(data);
   },
+  async deleteSettingsRole(id: number): Promise<void> {
+    await request<any>(`/settings/roles/${id}`, {
+      method: 'DELETE',
+    });
+  },
   async updateSettingsRole(id: number, payload: UpdateSettingsRolePayload): Promise<SettingsRole> {
     const data = await request<any>(`/settings/roles/${id}`, {
       method: 'PATCH',
@@ -825,6 +843,11 @@ export const pmApi = {
 
     return mapSettingsPolicy(data);
   },
+  async deleteSettingsPolicy(id: number): Promise<void> {
+    await request<any>(`/settings/policies/${id}`, {
+      method: 'DELETE',
+    });
+  },
   async updateSettingsPolicy(id: number, payload: UpdateSettingsPolicyPayload): Promise<SettingsPolicy> {
     const data = await request<any>(`/settings/policies/${id}`, {
       method: 'PATCH',
@@ -854,6 +877,11 @@ export const pmApi = {
 
     return mapSettingsDictionary(data);
   },
+  async deleteSettingsDictionary(id: number): Promise<void> {
+    await request<any>(`/settings/dictionaries/${id}`, {
+      method: 'DELETE',
+    });
+  },
   async updateSettingsDictionary(id: number, payload: UpdateSettingsDictionaryPayload): Promise<SettingsDictionary> {
     const data = await request<any>(`/settings/dictionaries/${id}`, {
       method: 'PATCH',
@@ -881,6 +909,11 @@ export const pmApi = {
     });
 
     return mapSettingsWorkflow(data);
+  },
+  async deleteSettingsWorkflow(id: number): Promise<void> {
+    await request<any>(`/settings/workflows/${id}`, {
+      method: 'DELETE',
+    });
   },
   async updateSettingsWorkflow(id: number, payload: UpdateSettingsWorkflowPayload): Promise<SettingsWorkflow> {
     const data = await request<any>(`/settings/workflows/${id}`, {

@@ -67,6 +67,25 @@ final class JsonStore
         $this->write($name, $items);
     }
 
+    public function delete(string $name, int $id): ?array
+    {
+        $items = $this->read($name);
+
+        foreach ($items as $index => $item) {
+            if ((int) ($item['id'] ?? 0) !== $id) {
+                continue;
+            }
+
+            $deleted = $item;
+            array_splice($items, $index, 1);
+            $this->write($name, array_values($items));
+
+            return $deleted;
+        }
+
+        return null;
+    }
+
     private function read(string $name): array
     {
         $file = $this->filePath($name);

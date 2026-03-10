@@ -12,6 +12,8 @@ final class SettingsController
 {
     private const VALID_SCOPES = ['org', 'project', 'self'];
 
+    private const PROTECTED_DICTIONARY_KEYS = ['requirement_status', 'execution_status', 'bug_severity', 'project_status'];
+
     private JsonStore $store;
 
     public function __construct()
@@ -186,6 +188,28 @@ final class SettingsController
         return Response::success($this->mapRole($updated), $request->requestId);
     }
 
+    public function destroyRole(Request $request, array $params): Response
+    {
+        $roleId = (int) ($params['id'] ?? 0);
+        $current = $this->store->find('roles', $roleId);
+        if ($current === null) {
+            return Response::error(404, 'role_not_found', [], $request->requestId);
+        }
+
+        $roleKey = (string) ($current['key'] ?? '');
+        $userCount = $this->roleUserCount($roleKey);
+        if ($userCount > 0) {
+            return Response::error(409, 'role_in_use', ['user_count' => $userCount], $request->requestId);
+        }
+
+        $deleted = $this->store->delete('roles', $roleId);
+        if ($deleted === null) {
+            return Response::error(404, 'role_not_found', [], $request->requestId);
+        }
+
+        return Response::success($this->mapRole($deleted), $request->requestId);
+    }
+
     public function policies(Request $request, array $params): Response
     {
         $items = array_map(fn (array $policy): array => $this->mapPolicy($policy), $this->store->all('policies'));
@@ -269,6 +293,22 @@ final class SettingsController
         return Response::success($this->mapPolicy($updated), $request->requestId);
     }
 
+    public function destroyPolicy(Request $request, array $params): Response
+    {
+        $policyId = (int) ($params['id'] ?? 0);
+        $current = $this->store->find('policies', $policyId);
+        if ($current === null) {
+            return Response::error(404, 'policy_not_found', [], $request->requestId);
+        }
+
+        $deleted = $this->store->delete('policies', $policyId);
+        if ($deleted === null) {
+            return Response::error(404, 'policy_not_found', [], $request->requestId);
+        }
+
+        return Response::success($this->mapPolicy($deleted), $request->requestId);
+    }
+
     public function dictionaries(Request $request, array $params): Response
     {
         $items = array_map(fn (array $dictionary): array => $this->mapDictionary($dictionary), $this->store->all('dictionaries'));
@@ -337,6 +377,27 @@ final class SettingsController
         }
 
         return Response::success($this->mapDictionary($updated), $request->requestId);
+    }
+
+    public function destroyDictionary(Request $request, array $params): Response
+    {
+        $dictionaryId = (int) ($params['id'] ?? 0);
+        $current = $this->store->find('dictionaries', $dictionaryId);
+        if ($current === null) {
+            return Response::error(404, 'dictionary_not_found', [], $request->requestId);
+        }
+
+        $key = (string) ($current['key'] ?? '');
+        if ($this->isProtectedDictionaryKey($key)) {
+            return Response::error(409, 'dictionary_locked', ['key' => $key], $request->requestId);
+        }
+
+        $deleted = $this->store->delete('dictionaries', $dictionaryId);
+        if ($deleted === null) {
+            return Response::error(404, 'dictionary_not_found', [], $request->requestId);
+        }
+
+        return Response::success($this->mapDictionary($deleted), $request->requestId);
     }
 
     public function workflows(Request $request, array $params): Response
@@ -416,6 +477,22 @@ final class SettingsController
         }
 
         return Response::success($this->mapWorkflow($updated), $request->requestId);
+    }
+
+    public function destroyWorkflow(Request $request, array $params): Response
+    {
+        $workflowId = (int) ($params['id'] ?? 0);
+        $current = $this->store->find('workflows', $workflowId);
+        if ($current === null) {
+            return Response::error(404, 'workflow_not_found', [], $request->requestId);
+        }
+
+        $deleted = $this->store->delete('workflows', $workflowId);
+        if ($deleted === null) {
+            return Response::error(404, 'workflow_not_found', [], $request->requestId);
+        }
+
+        return Response::success($this->mapWorkflow($deleted), $request->requestId);
     }
 
     private function validateMemberRequest(Request $request, ?array $current = null): ?Response
@@ -606,6 +683,23 @@ final class SettingsController
         if ($changed) {
             $this->store->replaceAll('users', $users);
         }
+    }
+
+    private function roleUserCount(string $roleKey): int
+    {
+        if ($roleKey === '') {
+            return 0;
+        }
+
+        return count(array_filter(
+            $this->store->all('users'),
+            static fn (array $user): bool => in_array($roleKey, is_array($user['roles'] ?? null) ? $user['roles'] : [], true)
+        ));
+    }
+
+    private function isProtectedDictionaryKey(string $key): bool
+    {
+        return in_array($this->normalizeMachineKey($key), self::PROTECTED_DICTIONARY_KEYS, true);
     }
 
     private function normalizeMemberStatus(string $status): string

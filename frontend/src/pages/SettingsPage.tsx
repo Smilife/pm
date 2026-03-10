@@ -232,6 +232,18 @@ export function SettingsPage() {
     onError: (error) => messageApi.error(formatApiError(error)),
   });
 
+  const deleteRoleMutation = useMutation({
+    mutationFn: (id: number) => pmApi.deleteSettingsRole(id),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['settings-roles'] }),
+        queryClient.invalidateQueries({ queryKey: ['settings-members'] }),
+      ]);
+      messageApi.success('\u89d2\u8272\u6a21\u677f\u5df2\u5220\u9664\u3002');
+    },
+    onError: (error) => messageApi.error(formatApiError(error)),
+  });
+
   const createPolicyMutation = useMutation({
     mutationFn: (payload: CreateSettingsPolicyPayload) => pmApi.createSettingsPolicy(payload),
     onSuccess: async () => {
@@ -251,6 +263,15 @@ export function SettingsPage() {
       setEditingPolicy(null);
       editPolicyForm.resetFields();
       messageApi.success('\u7b56\u7565\u5305\u5df2\u66f4\u65b0\u3002');
+    },
+    onError: (error) => messageApi.error(formatApiError(error)),
+  });
+
+  const deletePolicyMutation = useMutation({
+    mutationFn: (id: number) => pmApi.deleteSettingsPolicy(id),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['settings-policies'] });
+      messageApi.success('\u7b56\u7565\u5305\u5df2\u5220\u9664\u3002');
     },
     onError: (error) => messageApi.error(formatApiError(error)),
   });
@@ -278,6 +299,15 @@ export function SettingsPage() {
     onError: (error) => messageApi.error(formatApiError(error)),
   });
 
+  const deleteDictionaryMutation = useMutation({
+    mutationFn: (id: number) => pmApi.deleteSettingsDictionary(id),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['settings-dictionaries'] });
+      messageApi.success('\u5171\u4eab\u5b57\u5178\u5df2\u5220\u9664\u3002');
+    },
+    onError: (error) => messageApi.error(formatApiError(error)),
+  });
+
   const createWorkflowMutation = useMutation({
     mutationFn: (payload: CreateSettingsWorkflowPayload) => pmApi.createSettingsWorkflow(payload),
     onSuccess: async () => {
@@ -297,6 +327,15 @@ export function SettingsPage() {
       setEditingWorkflow(null);
       editWorkflowForm.resetFields();
       messageApi.success('\u6d41\u7a0b\u6a21\u677f\u5df2\u66f4\u65b0\u3002');
+    },
+    onError: (error) => messageApi.error(formatApiError(error)),
+  });
+
+  const deleteWorkflowMutation = useMutation({
+    mutationFn: (id: number) => pmApi.deleteSettingsWorkflow(id),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['settings-workflows'] });
+      messageApi.success('\u6d41\u7a0b\u6a21\u677f\u5df2\u5220\u9664\u3002');
     },
     onError: (error) => messageApi.error(formatApiError(error)),
   });
@@ -322,7 +361,7 @@ export function SettingsPage() {
   ];
 
   if (canManageRoles) {
-    roleColumns.push({ title: '\u64cd\u4f5c', key: 'actions', width: 100, render: (_value, record) => <Button size="small" onClick={() => openEditRoleModal(record)}>\u7f16\u8f91</Button> });
+    roleColumns.push({ title: '\u64cd\u4f5c', key: 'actions', width: 160, render: (_value, record) => <Space><Button size="small" onClick={() => openEditRoleModal(record)}>\u7f16\u8f91</Button><Button size="small" danger onClick={() => confirmDeleteRole(record)}>\u5220\u9664</Button></Space> });
   }
 
   const openCreateMemberModal = () => {
@@ -370,6 +409,46 @@ export function SettingsPage() {
     editWorkflowForm.setFieldsValue({ name: workflow.name, scope: workflow.scope, stages: workflow.stages, enabled: workflow.enabled });
     setEditWorkflowModalOpen(true);
   };
+  const confirmDeleteRole = (role: SettingsRole) => {
+    Modal.confirm({
+      title: '\u5220\u9664\u89d2\u8272\u6a21\u677f',
+      content: '\u786e\u8ba4\u5220\u9664\u300c' + role.name + '\u300d\uff1f\u5982\u679c\u8fd8\u6709\u6210\u5458\u5728\u4f7f\u7528\uff0c\u540e\u7aef\u4f1a\u62d2\u7edd\u6b64\u64cd\u4f5c\u3002',
+      okText: '\u5220\u9664',
+      okType: 'danger',
+      cancelText: '\u53d6\u6d88',
+      onOk: () => deleteRoleMutation.mutateAsync(role.id),
+    });
+  };
+  const confirmDeletePolicy = (policy: SettingsPolicy) => {
+    Modal.confirm({
+      title: '\u5220\u9664\u7b56\u7565\u5305',
+      content: '\u786e\u8ba4\u5220\u9664\u300c' + policy.name + '\u300d\uff1f',
+      okText: '\u5220\u9664',
+      okType: 'danger',
+      cancelText: '\u53d6\u6d88',
+      onOk: () => deletePolicyMutation.mutateAsync(policy.id),
+    });
+  };
+  const confirmDeleteDictionary = (dictionary: SettingsDictionary) => {
+    Modal.confirm({
+      title: '\u5220\u9664\u5171\u4eab\u5b57\u5178',
+      content: '\u786e\u8ba4\u5220\u9664\u300c' + dictionary.name + '\u300d\uff1f\u7cfb\u7edf\u5185\u7f6e\u5b57\u5178\u4f1a\u88ab\u540e\u7aef\u4fdd\u62a4\u3002',
+      okText: '\u5220\u9664',
+      okType: 'danger',
+      cancelText: '\u53d6\u6d88',
+      onOk: () => deleteDictionaryMutation.mutateAsync(dictionary.id),
+    });
+  };
+  const confirmDeleteWorkflow = (workflow: SettingsWorkflow) => {
+    Modal.confirm({
+      title: '\u5220\u9664\u6d41\u7a0b\u6a21\u677f',
+      content: '\u786e\u8ba4\u5220\u9664\u300c' + workflow.name + '\u300d\uff1f',
+      okText: '\u5220\u9664',
+      okType: 'danger',
+      cancelText: '\u53d6\u6d88',
+      onOk: () => deleteWorkflowMutation.mutateAsync(workflow.id),
+    });
+  };
   const tabs: TabsProps['items'] = [];
 
   if (canManageMembers) {
@@ -392,7 +471,7 @@ export function SettingsPage() {
     tabs.push({
       key: 'policies',
       label: '\u7b56\u7565',
-      children: renderPoliciesPanel(policiesQuery.data ?? [], policiesQuery.isLoading, policiesQuery.error, canManagePolicies, openCreatePolicyModal, openEditPolicyModal),
+      children: renderPoliciesPanel(policiesQuery.data ?? [], policiesQuery.isLoading, policiesQuery.error, canManagePolicies, openCreatePolicyModal, openEditPolicyModal, confirmDeletePolicy),
     });
   }
 
@@ -400,7 +479,7 @@ export function SettingsPage() {
     tabs.push({
       key: 'dictionaries',
       label: '\u5b57\u5178',
-      children: renderDictionariesPanel(dictionariesQuery.data ?? [], dictionariesQuery.isLoading, dictionariesQuery.error, canManageDictionaries, openCreateDictionaryModal, openEditDictionaryModal),
+      children: renderDictionariesPanel(dictionariesQuery.data ?? [], dictionariesQuery.isLoading, dictionariesQuery.error, canManageDictionaries, openCreateDictionaryModal, openEditDictionaryModal, confirmDeleteDictionary),
     });
   }
 
@@ -408,7 +487,7 @@ export function SettingsPage() {
     tabs.push({
       key: 'workflows',
       label: '\u6d41\u7a0b',
-      children: renderWorkflowsPanel(workflowsQuery.data ?? [], workflowsQuery.isLoading, workflowsQuery.error, canManageWorkflows, openCreateWorkflowModal, openEditWorkflowModal),
+      children: renderWorkflowsPanel(workflowsQuery.data ?? [], workflowsQuery.isLoading, workflowsQuery.error, canManageWorkflows, openCreateWorkflowModal, openEditWorkflowModal, confirmDeleteWorkflow),
     });
   }
 
@@ -420,7 +499,7 @@ export function SettingsPage() {
     <Space direction="vertical" size={20} className="page-stack">
       {contextHolder}
       <PageHeader title="\u8bbe\u7f6e\u4e2d\u5fc3" description="\u7edf\u4e00\u67e5\u770b\u4e0e\u7ef4\u62a4\u6210\u5458\u3001\u89d2\u8272\u6a21\u677f\u3001\u7b56\u7565\u5305\u3001\u5171\u4eab\u5b57\u5178\u548c\u6d41\u7a0b\u6a21\u677f\u3002" extra={<Space><Space direction="vertical" size={0}><Typography.Text strong>{currentUser?.name ?? '\u672a\u77e5\u7528\u6237'}</Typography.Text><Typography.Text type="secondary">{formatRoleList(currentRoles)}</Typography.Text></Space>{canManageMembers ? <Button type="primary" onClick={openCreateMemberModal}>\u9080\u8bf7\u6210\u5458</Button> : null}</Space>} />
-      <Alert type="info" showIcon message="\u8bbe\u7f6e\u4e2d\u5fc3\u5df2\u7ecf\u652f\u6301\u65b0\u589e\u4e0e\u7f16\u8f91\u3002" description="\u73b0\u5728\u53ef\u4ee5\u7ef4\u62a4\u6210\u5458\uff0c\u4e5f\u53ef\u4ee5\u65b0\u589e\u89d2\u8272\u6a21\u677f\u3001\u7b56\u7565\u5305\u3001\u5171\u4eab\u5b57\u5178\u548c\u6d41\u7a0b\u6a21\u677f\u3002" />
+      <Alert type="info" showIcon message="\u8bbe\u7f6e\u4e2d\u5fc3\u5df2\u652f\u6301\u65b0\u589e\u3001\u7f16\u8f91\u4e0e\u5220\u9664\u3002" description="\u73b0\u5728\u53ef\u4ee5\u7ef4\u62a4\u6210\u5458\uff0c\u5e76\u7ba1\u7406\u89d2\u8272\u6a21\u677f\u3001\u7b56\u7565\u5305\u3001\u5171\u4eab\u5b57\u5178\u548c\u6d41\u7a0b\u6a21\u677f\u7684\u65b0\u589e\u3001\u4fee\u6539\u4e0e\u5220\u9664\u3002" />
       <Space size={16} wrap>
         <Card><Statistic title="\u6210\u5458\u6570" value={summary.members} /><Typography.Text type="secondary">\u542f\u7528\u4e2d\uff1a{summary.activeMembers}</Typography.Text></Card>
         <Card><Statistic title="\u89d2\u8272\u6a21\u677f" value={summary.roleTemplates} /><Typography.Text type="secondary">\u5f53\u524d\u8d26\u53f7\u89d2\u8272\uff1a{currentRoles.length}</Typography.Text></Card>
@@ -448,7 +527,7 @@ function MemberEditorForm({ form, roleOptions, roleLoading }: { form: FormInstan
 }
 
 function RoleEditorForm({ form, permissionOptions, roleKey = '', keyEditable = false }: { form: FormInstance<RoleFormValues>; permissionOptions: Array<{ value: string; label: string }>; roleKey?: string; keyEditable?: boolean }) {
-  return <Form form={form} layout="vertical"><Form.Item label="Role Key" name="key" rules={[{ required: true, message: 'Please input role key.' }]}><Input disabled={!keyEditable} placeholder="e.g. qa_lead" /></Form.Item><Space size={12} style={{ width: '100%' }} align="start"><Form.Item label="\u89d2\u8272\u540d\u79f0" name="name" rules={[{ required: true, message: '\u8bf7\u8f93\u5165\u89d2\u8272\u540d\u79f0\u3002' }]} style={{ flex: 1 }}><Input placeholder={roleKey || 'QA Lead'} /></Form.Item><Form.Item label="\u8303\u56f4" name="scope" rules={[{ required: true, message: '\u8bf7\u9009\u62e9\u8303\u56f4\u3002' }]} style={{ width: 180 }}><Select options={scopeOptions} /></Form.Item></Space><Form.Item label="\u89d2\u8272\u8bf4\u660e" name="description" rules={[{ required: true, message: '\u8bf7\u8f93\u5165\u89d2\u8272\u8bf4\u660e\u3002' }]}><Input.TextArea rows={3} /></Form.Item><Form.Item label="\u6743\u9650\u70b9" name="permissions" rules={[{ required: true, message: '\u8bf7\u81f3\u5c11\u9009\u62e9\u4e00\u4e2a\u6743\u9650\u70b9\u3002' }]}><Select mode="multiple" options={permissionOptions} optionFilterProp="label" placeholder="\u8bf7\u9009\u62e9\u6743\u9650\u70b9" /></Form.Item></Form>;
+  return <Form form={form} layout="vertical"><Form.Item label="\u89d2\u8272\u6807\u8bc6" name="key" rules={[{ required: true, message: '\u8bf7\u8f93\u5165\u89d2\u8272\u6807\u8bc6\u3002' }]}><Input disabled={!keyEditable} placeholder="\u4f8b\u5982 qa_lead" /></Form.Item><Space size={12} style={{ width: '100%' }} align="start"><Form.Item label="\u89d2\u8272\u540d\u79f0" name="name" rules={[{ required: true, message: '\u8bf7\u8f93\u5165\u89d2\u8272\u540d\u79f0\u3002' }]} style={{ flex: 1 }}><Input placeholder={roleKey || 'QA Lead'} /></Form.Item><Form.Item label="\u8303\u56f4" name="scope" rules={[{ required: true, message: '\u8bf7\u9009\u62e9\u8303\u56f4\u3002' }]} style={{ width: 180 }}><Select options={scopeOptions} /></Form.Item></Space><Form.Item label="\u89d2\u8272\u8bf4\u660e" name="description" rules={[{ required: true, message: '\u8bf7\u8f93\u5165\u89d2\u8272\u8bf4\u660e\u3002' }]}><Input.TextArea rows={3} /></Form.Item><Form.Item label="\u6743\u9650\u70b9" name="permissions" rules={[{ required: true, message: '\u8bf7\u81f3\u5c11\u9009\u62e9\u4e00\u4e2a\u6743\u9650\u70b9\u3002' }]}><Select mode="multiple" options={permissionOptions} optionFilterProp="label" placeholder="\u8bf7\u9009\u62e9\u6743\u9650\u70b9" /></Form.Item></Form>;
 }
 
 function PolicyEditorForm({ form, permissionOptions }: { form: FormInstance<PolicyFormValues>; permissionOptions: Array<{ value: string; label: string }> }) {
@@ -456,31 +535,30 @@ function PolicyEditorForm({ form, permissionOptions }: { form: FormInstance<Poli
 }
 
 function DictionaryEditorForm({ form, dictionaryKey = '', keyEditable = false }: { form: FormInstance<DictionaryFormValues>; dictionaryKey?: string; keyEditable?: boolean }) {
-  return <Form form={form} layout="vertical"><Form.Item label="Dictionary Key" name="key" rules={[{ required: true, message: 'Please input dictionary key.' }]}><Input disabled={!keyEditable} placeholder="e.g. task_status" /></Form.Item><Form.Item label="\u5b57\u5178\u540d\u79f0" name="name" rules={[{ required: true, message: '\u8bf7\u8f93\u5165\u5b57\u5178\u540d\u79f0\u3002' }]}><Input placeholder={dictionaryKey || 'Task Status'} /></Form.Item><Form.Item label="\u5b57\u5178\u503c" name="values" rules={[{ required: true, message: '\u8bf7\u81f3\u5c11\u4fdd\u7559\u4e00\u4e2a\u5b57\u5178\u503c\u3002' }]}><Select mode="tags" tokenSeparators={[',']} placeholder="\u8f93\u5165\u540e\u56de\u8f66\uff0c\u652f\u6301\u76f4\u63a5\u589e\u5220\u679a\u4e3e\u503c" /></Form.Item></Form>;
+  return <Form form={form} layout="vertical"><Form.Item label="\u5b57\u5178\u6807\u8bc6" name="key" rules={[{ required: true, message: '\u8bf7\u8f93\u5165\u5b57\u5178\u6807\u8bc6\u3002' }]}><Input disabled={!keyEditable} placeholder="\u4f8b\u5982 task_status" /></Form.Item><Form.Item label="\u5b57\u5178\u540d\u79f0" name="name" rules={[{ required: true, message: '\u8bf7\u8f93\u5165\u5b57\u5178\u540d\u79f0\u3002' }]}><Input placeholder={dictionaryKey || 'Task Status'} /></Form.Item><Form.Item label="\u5b57\u5178\u503c" name="values" rules={[{ required: true, message: '\u8bf7\u81f3\u5c11\u4fdd\u7559\u4e00\u4e2a\u5b57\u5178\u503c\u3002' }]}><Select mode="tags" tokenSeparators={[',']} placeholder="\u8f93\u5165\u540e\u56de\u8f66\uff0c\u652f\u6301\u76f4\u63a5\u589e\u5220\u679a\u4e3e\u503c" /></Form.Item></Form>;
 }
 
 function WorkflowEditorForm({ form }: { form: FormInstance<WorkflowFormValues> }) {
   return <Form form={form} layout="vertical"><Space size={12} style={{ width: '100%' }} align="start"><Form.Item label="\u6d41\u7a0b\u540d\u79f0" name="name" rules={[{ required: true, message: '\u8bf7\u8f93\u5165\u6d41\u7a0b\u540d\u79f0\u3002' }]} style={{ flex: 1 }}><Input /></Form.Item><Form.Item label="\u8303\u56f4" name="scope" rules={[{ required: true, message: '\u8bf7\u9009\u62e9\u8303\u56f4\u3002' }]} style={{ width: 180 }}><Select options={scopeOptions} /></Form.Item></Space><Form.Item label="\u6d41\u7a0b\u9636\u6bb5" name="stages" rules={[{ required: true, message: '\u8bf7\u81f3\u5c11\u4fdd\u7559\u4e00\u4e2a\u9636\u6bb5\u3002' }]}><Select mode="tags" tokenSeparators={[',']} placeholder="\u8f93\u5165\u540e\u56de\u8f66\uff0c\u652f\u6301\u76f4\u63a5\u589e\u5220\u9636\u6bb5" /></Form.Item><Form.Item label="\u542f\u7528\u72b6\u6001" name="enabled" valuePropName="checked"><Switch checkedChildren="\u542f\u7528" unCheckedChildren="\u505c\u7528" /></Form.Item></Form>;
 }
 
-function renderPoliciesPanel(items: SettingsPolicy[], loading: boolean, error: unknown, canManage: boolean, onCreate: () => void, onEdit: (item: SettingsPolicy) => void) {
+function renderPoliciesPanel(items: SettingsPolicy[], loading: boolean, error: unknown, canManage: boolean, onCreate: () => void, onEdit: (item: SettingsPolicy) => void, onDelete: (item: SettingsPolicy) => void) {
   if (error) return <Alert type="error" showIcon message="\u8bfb\u53d6\u7b56\u7565\u5305\u5931\u8d25" description={formatApiError(error)} />;
   if (!loading && items.length === 0) return <Space direction="vertical" size={16} style={{ display: 'flex' }}>{canManage ? <Button type="primary" onClick={onCreate}>\u65b0\u589e\u7b56\u7565\u5305</Button> : null}<Empty description="\u6682\u65e0\u7b56\u7565\u5305\u3002" /></Space>;
-  return <Space direction="vertical" size={16} style={{ display: 'flex' }}>{canManage ? <Button type="primary" onClick={onCreate}>\u65b0\u589e\u7b56\u7565\u5305</Button> : null}{items.map((item) => <Card key={item.id} size="small" title={item.name} extra={<Space><Tag>{formatScope(item.scope)}</Tag>{canManage ? <Button size="small" onClick={() => onEdit(item)}>\u7f16\u8f91</Button> : null}</Space>}><Space direction="vertical" size={12} style={{ display: 'flex' }}><Typography.Paragraph style={{ marginBottom: 0 }}>{item.description}</Typography.Paragraph><Space size={[6, 6]} wrap>{item.permissions.map((permission) => <Tag key={permission}>{permission}</Tag>)}</Space></Space></Card>)}</Space>;
+  return <Space direction="vertical" size={16} style={{ display: 'flex' }}>{canManage ? <Button type="primary" onClick={onCreate}>\u65b0\u589e\u7b56\u7565\u5305</Button> : null}{items.map((item) => <Card key={item.id} size="small" title={item.name} extra={<Space><Tag>{formatScope(item.scope)}</Tag>{canManage ? <Button size="small" onClick={() => onEdit(item)}>\u7f16\u8f91</Button> : null}{canManage ? <Button size="small" danger onClick={() => onDelete(item)}>\u5220\u9664</Button> : null}</Space>}><Space direction="vertical" size={12} style={{ display: 'flex' }}><Typography.Paragraph style={{ marginBottom: 0 }}>{item.description}</Typography.Paragraph><Space size={[6, 6]} wrap>{item.permissions.map((permission) => <Tag key={permission}>{permission}</Tag>)}</Space></Space></Card>)}</Space>;
 }
 
-function renderDictionariesPanel(items: SettingsDictionary[], loading: boolean, error: unknown, canManage: boolean, onCreate: () => void, onEdit: (item: SettingsDictionary) => void) {
+function renderDictionariesPanel(items: SettingsDictionary[], loading: boolean, error: unknown, canManage: boolean, onCreate: () => void, onEdit: (item: SettingsDictionary) => void, onDelete: (item: SettingsDictionary) => void) {
   if (error) return <Alert type="error" showIcon message="\u8bfb\u53d6\u5171\u4eab\u5b57\u5178\u5931\u8d25" description={formatApiError(error)} />;
   if (!loading && items.length === 0) return <Space direction="vertical" size={16} style={{ display: 'flex' }}>{canManage ? <Button type="primary" onClick={onCreate}>\u65b0\u589e\u5b57\u5178</Button> : null}<Empty description="\u6682\u65e0\u5b57\u5178\u914d\u7f6e\u3002" /></Space>;
-  return <Space direction="vertical" size={16} style={{ display: 'flex' }}>{canManage ? <Button type="primary" onClick={onCreate}>\u65b0\u589e\u5b57\u5178</Button> : null}{items.map((item) => <Card key={item.id} size="small" title={item.name} extra={<Space><Typography.Text type="secondary">{item.updatedAt || '-'}</Typography.Text>{canManage ? <Button size="small" onClick={() => onEdit(item)}>\u7f16\u8f91</Button> : null}</Space>}><Space direction="vertical" size={8} style={{ display: 'flex' }}><Typography.Text type="secondary">{item.key}</Typography.Text><Space size={[6, 6]} wrap>{item.values.map((value) => <Tag key={value} color="blue">{value}</Tag>)}</Space></Space></Card>)}</Space>;
+  return <Space direction="vertical" size={16} style={{ display: 'flex' }}>{canManage ? <Button type="primary" onClick={onCreate}>\u65b0\u589e\u5b57\u5178</Button> : null}{items.map((item) => <Card key={item.id} size="small" title={item.name} extra={<Space><Typography.Text type="secondary">{item.updatedAt || '-'}</Typography.Text>{canManage ? <Button size="small" onClick={() => onEdit(item)}>\u7f16\u8f91</Button> : null}{canManage ? <Button size="small" danger onClick={() => onDelete(item)}>\u5220\u9664</Button> : null}</Space>}><Space direction="vertical" size={8} style={{ display: 'flex' }}><Typography.Text type="secondary">{item.key}</Typography.Text><Space size={[6, 6]} wrap>{item.values.map((value) => <Tag key={value} color="blue">{value}</Tag>)}</Space></Space></Card>)}</Space>;
 }
 
-function renderWorkflowsPanel(items: SettingsWorkflow[], loading: boolean, error: unknown, canManage: boolean, onCreate: () => void, onEdit: (item: SettingsWorkflow) => void) {
+function renderWorkflowsPanel(items: SettingsWorkflow[], loading: boolean, error: unknown, canManage: boolean, onCreate: () => void, onEdit: (item: SettingsWorkflow) => void, onDelete: (item: SettingsWorkflow) => void) {
   if (error) return <Alert type="error" showIcon message="\u8bfb\u53d6\u6d41\u7a0b\u6a21\u677f\u5931\u8d25" description={formatApiError(error)} />;
   if (!loading && items.length === 0) return <Space direction="vertical" size={16} style={{ display: 'flex' }}>{canManage ? <Button type="primary" onClick={onCreate}>\u65b0\u589e\u6d41\u7a0b\u6a21\u677f</Button> : null}<Empty description="\u6682\u65e0\u6d41\u7a0b\u6a21\u677f\u3002" /></Space>;
-  return <Space direction="vertical" size={16} style={{ display: 'flex' }}>{canManage ? <Button type="primary" onClick={onCreate}>\u65b0\u589e\u6d41\u7a0b\u6a21\u677f</Button> : null}{items.map((item) => <Card key={item.id} size="small" title={item.name} extra={<Space><Tag>{formatScope(item.scope)}</Tag><Tag color={item.enabled ? 'success' : 'default'}>{item.enabled ? '\u542f\u7528' : '\u505c\u7528'}</Tag>{canManage ? <Button size="small" onClick={() => onEdit(item)}>\u7f16\u8f91</Button> : null}</Space>}><Space direction="vertical" size={8} style={{ display: 'flex' }}><Typography.Text type="secondary">\u6700\u8fd1\u66f4\u65b0\uff1a{item.updatedAt || '-'}</Typography.Text><Space size={[6, 6]} wrap>{item.stages.map((stage) => <Tag key={stage} color="geekblue">{stage}</Tag>)}</Space></Space></Card>)}</Space>;
+  return <Space direction="vertical" size={16} style={{ display: 'flex' }}>{canManage ? <Button type="primary" onClick={onCreate}>\u65b0\u589e\u6d41\u7a0b\u6a21\u677f</Button> : null}{items.map((item) => <Card key={item.id} size="small" title={item.name} extra={<Space><Tag>{formatScope(item.scope)}</Tag><Tag color={item.enabled ? 'success' : 'default'}>{item.enabled ? '\u542f\u7528' : '\u505c\u7528'}</Tag>{canManage ? <Button size="small" onClick={() => onEdit(item)}>\u7f16\u8f91</Button> : null}{canManage ? <Button size="small" danger onClick={() => onDelete(item)}>\u5220\u9664</Button> : null}</Space>}><Space direction="vertical" size={8} style={{ display: 'flex' }}><Typography.Text type="secondary">\u6700\u8fd1\u66f4\u65b0\uff1a{item.updatedAt || '-'}</Typography.Text><Space size={[6, 6]} wrap>{item.stages.map((stage) => <Tag key={stage} color="geekblue">{stage}</Tag>)}</Space></Space></Card>)}</Space>;
 }
-
 function normalizeMemberPayload(values: MemberFormValues): CreateSettingsMemberPayload { return { name: values.name.trim(), email: values.email.trim(), department: values.department, title: values.title, status: values.status, roles: normalizeList(values.roles), dingtalkBound: Boolean(values.dingtalkBound) }; }
 function normalizeCreateRolePayload(values: RoleFormValues): CreateSettingsRolePayload { return { key: normalizeMachineKey(values.key), name: values.name.trim(), scope: values.scope, description: values.description.trim(), permissions: normalizeList(values.permissions) }; }
 function normalizeUpdateRolePayload(values: RoleFormValues): UpdateSettingsRolePayload { return { name: values.name.trim(), scope: values.scope, description: values.description.trim(), permissions: normalizeList(values.permissions) }; }
