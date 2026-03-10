@@ -6,16 +6,34 @@
     "scope": "org",
     "description": "Full access to delivery, reporting, and global settings.",
     "permissions": [
+      "requirement.view.related",
       "requirement.create.project",
       "requirement.review.create.project",
       "requirement.execution.generate.project",
+      "project.view.related",
       "project.create.org",
+      "execution.view.related",
       "execution.create.project",
+      "execution.task.update.related",
+      "worklog.view.related",
+      "worklog.create.self",
+      "worklog.update.self",
+      "daily_task.view.self",
+      "daily_task.create.self",
+      "daily_task.update.self",
+      "bug.view.related",
+      "bug.create.related",
+      "bug.update.related",
       "bug.submit.related",
+      "report.daily.generate.self",
+      "report.weekly.generate.self",
+      "schedule.view.related",
       "settings.member.manage.org",
       "settings.role.manage.org",
       "settings.policy.manage.org",
+      "settings.dictionary.view.org",
       "settings.dictionary.manage.org",
+      "settings.workflow.view.org",
       "settings.workflow.manage.org"
     ]
   },
@@ -26,7 +44,14 @@
     "scope": "org",
     "description": "Manages members, role templates, and baseline policies.",
     "permissions": [
+      "requirement.view.related",
+      "project.view.related",
       "project.create.org",
+      "execution.view.related",
+      "bug.view.related",
+      "report.daily.generate.self",
+      "report.weekly.generate.self",
+      "schedule.view.related",
       "settings.member.manage.org",
       "settings.role.manage.org",
       "settings.policy.manage.org",
@@ -41,10 +66,14 @@
     "scope": "project",
     "description": "Coordinates requirements, execution planning, and defect submission within projects.",
     "permissions": [
+      "requirement.view.related",
       "requirement.create.project",
       "requirement.review.create.project",
       "requirement.execution.generate.project",
+      "project.view.related",
+      "execution.view.related",
       "execution.create.project",
+      "bug.view.related",
       "bug.submit.related",
       "schedule.view.related"
     ]
@@ -56,9 +85,14 @@
     "scope": "project",
     "description": "Owns requirement quality, review readiness, and execution handoff.",
     "permissions": [
+      "requirement.view.related",
       "requirement.create.project",
       "requirement.review.create.project",
       "requirement.execution.generate.project",
+      "project.view.related",
+      "execution.view.related",
+      "bug.view.related",
+      "schedule.view.related",
       "report.daily.generate.self"
     ]
   },
@@ -69,14 +103,21 @@
     "scope": "self",
     "description": "Maintains task progress, worklogs, daily tasks, and related bugs.",
     "permissions": [
+      "project.view.related",
+      "execution.view.related",
       "execution.task.update.related",
+      "worklog.view.related",
       "worklog.create.self",
       "worklog.update.self",
+      "daily_task.view.self",
       "daily_task.create.self",
       "daily_task.update.self",
+      "bug.view.related",
       "bug.create.related",
       "bug.update.related",
-      "report.weekly.generate.self"
+      "report.daily.generate.self",
+      "report.weekly.generate.self",
+      "schedule.view.related"
     ]
   },
   {

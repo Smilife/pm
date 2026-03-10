@@ -8,6 +8,7 @@ import type {
   CreateExecutionTaskPayload,
   CreateProjectPayload,
   CreateRequirementPayload,
+  CreateSettingsMemberPayload,
   CreateWorklogPayload,
   DailyReportDraft,
   DailyTask,
@@ -33,6 +34,7 @@ import type {
   UpdateExecutionPayload,
   UpdateExecutionTaskPayload,
   UpdateRequirementPayload,
+  UpdateSettingsMemberPayload,
   UpdateWorklogPayload,
   WeeklyReportDraft,
   Worklog,
@@ -728,6 +730,38 @@ export const pmApi = {
   async getSettingsMembers(): Promise<SettingsMember[]> {
     const data = await request<any>('/settings/members');
     return Array.isArray(data?.items) ? data.items.map(mapSettingsMember) : [];
+  },
+  async createSettingsMember(payload: CreateSettingsMemberPayload): Promise<SettingsMember> {
+    const data = await request<any>('/settings/members', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: payload.name,
+        email: payload.email,
+        department: payload.department,
+        title: payload.title,
+        status: payload.status,
+        roles: payload.roles,
+        dingtalk_bound: payload.dingtalkBound,
+      }),
+    });
+
+    return mapSettingsMember(data);
+  },
+  async updateSettingsMember(id: number, payload: UpdateSettingsMemberPayload): Promise<SettingsMember> {
+    const data = await request<any>(`/settings/members/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        name: payload.name,
+        email: payload.email,
+        department: payload.department,
+        title: payload.title,
+        status: payload.status,
+        roles: payload.roles,
+        dingtalk_bound: payload.dingtalkBound,
+      }),
+    });
+
+    return mapSettingsMember(data);
   },
   async getSettingsRoles(): Promise<SettingsRole[]> {
     const data = await request<any>('/settings/roles');

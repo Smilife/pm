@@ -13,7 +13,7 @@ This repository contains a working full-stack prototype for an internal R and D 
 - Daily and weekly report generation
 - Team and execution gantt views
 - Multi-account demo login with permission-aware navigation
-- Organization settings overview for members, roles, policies, dictionaries, and workflows
+- Organization settings with member management plus role, policy, dictionary, and workflow visibility
 
 The current version is designed as a practical V1 prototype rather than a production-ready deployment.
 
@@ -48,7 +48,7 @@ The current version is designed as a practical V1 prototype rather than a produc
 - Daily report generation
 - Weekly report generation with worklog highlights
 - Team gantt and execution gantt views
-- Settings center for members, roles, policy bundles, dictionaries, and workflows
+- Settings center with member invite/edit plus role, policy, dictionary, and workflow visibility
 - Product, architecture, permission, and API documentation
 
 ## Repository Structure
@@ -141,7 +141,7 @@ npm run build
 
 - Add record-level backend scope checks for project, requirement, and execution ownership
 - Replace JSON storage with a real database layer
-- Add editable settings actions instead of read-only overview cards
+- Expand settings editing beyond members into roles, dictionaries, and workflows
 - Add notification center and DingTalk integration flows
 - Split frontend bundles by route
 

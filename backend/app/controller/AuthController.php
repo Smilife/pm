@@ -43,6 +43,13 @@ final class AuthController
             return Response::error(401, 'invalid_credentials', [], $request->requestId);
         }
 
+        $updatedUser = $this->store->update('users', (int) ($user['id'] ?? 0), [
+            'last_login_at' => date('c'),
+        ]);
+        if ($updatedUser !== null) {
+            $user = $updatedUser;
+        }
+
         return Response::success([
             'token' => Auth::tokenForUser($user),
             'user' => $this->sanitizeUser($user),

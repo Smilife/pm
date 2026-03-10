@@ -51,6 +51,8 @@ final class Authorization
         ['POST', '/bugs/batch-submit', 'bug.submit.related'],
 
         ['GET', '/settings/members', 'settings.member.manage.org'],
+        ['POST', '/settings/members', 'settings.member.manage.org'],
+        ['PATCH', '/settings/members/{id}', 'settings.member.manage.org'],
         ['GET', '/settings/roles', 'settings.role.manage.org'],
         ['GET', '/settings/policies', 'settings.policy.manage.org'],
         ['GET', '/settings/dictionaries', 'settings.dictionary.view.org'],

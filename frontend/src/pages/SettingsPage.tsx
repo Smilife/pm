@@ -1,15 +1,36 @@
-import { useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Alert, Card, Empty, Result, Space, Statistic, Table, Tabs, Tag, Typography } from 'antd';
+import { useMemo, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  Alert,
+  Button,
+  Card,
+  Empty,
+  Form,
+  Input,
+  Modal,
+  Result,
+  Select,
+  Space,
+  Statistic,
+  Switch,
+  Table,
+  Tabs,
+  Tag,
+  Typography,
+  message,
+} from 'antd';
+import type { FormInstance } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { PageHeader } from '../components/PageHeader';
 import { formatApiError, pmApi } from '../services/api';
 import type {
+  CreateSettingsMemberPayload,
   SettingsDictionary,
   SettingsMember,
   SettingsPolicy,
   SettingsRole,
   SettingsWorkflow,
+  UpdateSettingsMemberPayload,
 } from '../services/types';
 import { useAuthStore } from '../store/authStore';
 
@@ -21,47 +42,7 @@ const settingsPermissions = {
   workflows: 'settings.workflow.view.org',
 } as const;
 
-const memberColumns: ColumnsType<SettingsMember> = [
-  {
-    title: 'Member',
-    dataIndex: 'name',
-    render: (_value, record) => (
-      <Space direction="vertical" size={0}>
-        <Typography.Text strong>{record.name}</Typography.Text>
-        <Typography.Text type="secondary">{record.title}</Typography.Text>
-      </Space>
-    ),
-  },
-  { title: 'Department', dataIndex: 'department', width: 180 },
-  {
-    title: 'Status',
-    dataIndex: 'status',
-    width: 120,
-    render: (value: SettingsMember['status']) => <Tag color={value === 'Active' ? 'success' : 'warning'}>{value}</Tag>,
-  },
-  {
-    title: 'Roles',
-    dataIndex: 'roles',
-    width: 260,
-    render: (value: string[]) => (
-      <Space size={[4, 4]} wrap>
-        {value.map((item) => (
-          <Tag key={item} color="blue">
-            {item}
-          </Tag>
-        ))}
-      </Space>
-    ),
-  },
-  { title: 'Permissions', dataIndex: 'permissionCount', width: 120 },
-  {
-    title: 'DingTalk',
-    dataIndex: 'dingtalkBound',
-    width: 120,
-    render: (value: boolean) => <Tag color={value ? 'success' : 'default'}>{value ? 'Bound' : 'Not bound'}</Tag>,
-  },
-  { title: 'Last login', dataIndex: 'lastLoginAt', width: 180 },
-];
+type MemberFormValues = CreateSettingsMemberPayload;
 
 const roleColumns: ColumnsType<SettingsRole> = [
   {
@@ -84,23 +65,29 @@ export function SettingsPage() {
   const user = useAuthStore((state) => state.user);
   const roles = useAuthStore((state) => state.roles);
   const permissions = useAuthStore((state) => state.permissions);
-
-  const canViewMembers = permissions.includes(settingsPermissions.members);
+  const canManageMembers = permissions.includes(settingsPermissions.members);
   const canViewRoles = permissions.includes(settingsPermissions.roles);
   const canViewPolicies = permissions.includes(settingsPermissions.policies);
   const canViewDictionaries = permissions.includes(settingsPermissions.dictionaries);
   const canViewWorkflows = permissions.includes(settingsPermissions.workflows);
-  const canViewAny = canViewMembers || canViewRoles || canViewPolicies || canViewDictionaries || canViewWorkflows;
+  const canViewAny = canManageMembers || canViewRoles || canViewPolicies || canViewDictionaries || canViewWorkflows;
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editingMember, setEditingMember] = useState<SettingsMember | null>(null);
+  const [messageApi, contextHolder] = message.useMessage();
+  const [createForm] = Form.useForm<MemberFormValues>();
+  const [editForm] = Form.useForm<MemberFormValues>();
+  const queryClient = useQueryClient();
 
   const membersQuery = useQuery({
     queryKey: ['settings-members'],
     queryFn: pmApi.getSettingsMembers,
-    enabled: canViewMembers,
+    enabled: canManageMembers,
   });
   const rolesQuery = useQuery({
     queryKey: ['settings-roles'],
     queryFn: pmApi.getSettingsRoles,
-    enabled: canViewRoles,
+    enabled: canViewRoles || canManageMembers,
   });
   const policiesQuery = useQuery({
     queryKey: ['settings-policies'],
@@ -118,6 +105,101 @@ export function SettingsPage() {
     enabled: canViewWorkflows,
   });
 
+  const createMemberMutation = useMutation<SettingsMember, unknown, CreateSettingsMemberPayload>({
+    mutationFn: (payload) => pmApi.createSettingsMember(payload),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['settings-members'] }),
+        queryClient.invalidateQueries({ queryKey: ['settings-roles'] }),
+      ]);
+      setCreateModalOpen(false);
+      createForm.resetFields();
+      messageApi.success('Member invited. Default password is demo123.');
+    },
+    onError: (error) => {
+      messageApi.error(formatApiError(error));
+    },
+  });
+
+  const updateMemberMutation = useMutation<SettingsMember, unknown, { id: number; payload: UpdateSettingsMemberPayload }>({
+    mutationFn: ({ id, payload }) => pmApi.updateSettingsMember(id, payload),
+    onSuccess: async (updated) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['settings-members'] }),
+        queryClient.invalidateQueries({ queryKey: ['settings-roles'] }),
+      ]);
+      if (updated.id === user?.id) {
+        await useAuthStore.getState().bootstrap();
+      }
+      setEditModalOpen(false);
+      setEditingMember(null);
+      editForm.resetFields();
+      messageApi.success('Member updated.');
+    },
+    onError: (error) => {
+      messageApi.error(formatApiError(error));
+    },
+  });
+
+  const roleOptions = useMemo(
+    () => (rolesQuery.data ?? []).map((item) => ({ label: item.name, value: item.key })),
+    [rolesQuery.data],
+  );
+
+  const openCreateModal = () => {
+    if (!canManageMembers) {
+      messageApi.warning('Your current role cannot manage members.');
+      return;
+    }
+
+    createForm.setFieldsValue({
+      name: '',
+      email: '',
+      department: 'Engineering',
+      title: 'Execution Member',
+      status: 'Invited',
+      roles: ['execution_member'],
+      dingtalkBound: false,
+    });
+    setCreateModalOpen(true);
+  };
+
+  const openEditModal = (member: SettingsMember) => {
+    if (!canManageMembers) {
+      messageApi.warning('Your current role cannot manage members.');
+      return;
+    }
+
+    setEditingMember(member);
+    editForm.setFieldsValue({
+      name: member.name,
+      email: member.email,
+      department: member.department,
+      title: member.title,
+      status: member.status,
+      roles: member.roles,
+      dingtalkBound: member.dingtalkBound,
+    });
+    setEditModalOpen(true);
+  };
+
+  const handleCreateMember = async () => {
+    const values = await createForm.validateFields();
+    createMemberMutation.mutate(normalizeMemberPayload(values));
+  };
+
+  const handleUpdateMember = async () => {
+    if (!editingMember) {
+      return;
+    }
+
+    const values = await editForm.validateFields();
+    updateMemberMutation.mutate({
+      id: editingMember.id,
+      payload: normalizeMemberPayload(values),
+    });
+  };
+
   const summary = useMemo(
     () => ({
       members: membersQuery.data?.length ?? 0,
@@ -129,6 +211,59 @@ export function SettingsPage() {
     }),
     [dictionariesQuery.data, membersQuery.data, policiesQuery.data, rolesQuery.data, workflowsQuery.data],
   );
+
+  const memberColumns: ColumnsType<SettingsMember> = [
+    {
+      title: 'Member',
+      dataIndex: 'name',
+      render: (_value, record) => (
+        <Space direction="vertical" size={0}>
+          <Typography.Text strong>{record.name}</Typography.Text>
+          <Typography.Text type="secondary">{record.email}</Typography.Text>
+        </Space>
+      ),
+    },
+    { title: 'Department', dataIndex: 'department', width: 180 },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      width: 120,
+      render: (value: SettingsMember['status']) => <Tag color={value === 'Active' ? 'success' : 'warning'}>{value}</Tag>,
+    },
+    {
+      title: 'Roles',
+      dataIndex: 'roles',
+      width: 260,
+      render: (value: string[]) => (
+        <Space size={[4, 4]} wrap>
+          {value.map((item) => (
+            <Tag key={item} color="blue">
+              {item}
+            </Tag>
+          ))}
+        </Space>
+      ),
+    },
+    { title: 'Permissions', dataIndex: 'permissionCount', width: 120 },
+    {
+      title: 'DingTalk',
+      dataIndex: 'dingtalkBound',
+      width: 120,
+      render: (value: boolean) => <Tag color={value ? 'success' : 'default'}>{value ? 'Bound' : 'Not bound'}</Tag>,
+    },
+    { title: 'Last login', dataIndex: 'lastLoginAt', width: 180, render: (value: string) => value || '-' },
+    {
+      title: 'Actions',
+      key: 'actions',
+      width: 120,
+      render: (_value, record) =>
+        canManageMembers ? (
+          <Button size="small" onClick={() => openEditModal(record)}>
+            Edit
+          </Button>
+        ) : null,
+    },
+  ];
 
   if (!canViewAny) {
     return (
@@ -146,11 +281,32 @@ export function SettingsPage() {
     children: JSX.Element;
   }[];
 
-  if (canViewMembers) {
+  if (canManageMembers) {
     tabs.push({
       key: 'members',
       label: 'Members',
-      children: renderMembersPanel(membersQuery.data ?? [], membersQuery.isLoading, membersQuery.error),
+      children: (
+        <Space direction="vertical" size={16} style={{ display: 'flex' }}>
+          <Alert
+            type="info"
+            showIcon
+            message="Invited members use the default password demo123 until you replace auth with a real identity flow."
+            description="Role selection automatically recomputes the member's permission set from the current role templates."
+          />
+          {membersQuery.error ? (
+            <Alert type="error" showIcon message="Failed to load members" description={formatApiError(membersQuery.error)} />
+          ) : (
+            <Table
+              rowKey="id"
+              columns={memberColumns}
+              dataSource={membersQuery.data ?? []}
+              loading={membersQuery.isLoading}
+              pagination={false}
+              scroll={{ x: 1320 }}
+            />
+          )}
+        </Space>
+      ),
     });
   }
 
@@ -188,13 +344,21 @@ export function SettingsPage() {
 
   return (
     <Space direction="vertical" size={20} className="page-stack">
+      {contextHolder}
       <PageHeader
         title="Settings"
-        description="Read-only organization settings center for members, role templates, policy bundles, shared dictionaries, and workflow baselines."
+        description="Organization settings center for members, role templates, policy bundles, shared dictionaries, and workflow baselines."
         extra={
-          <Space direction="vertical" size={0}>
-            <Typography.Text strong>{user?.name ?? 'Unknown user'}</Typography.Text>
-            <Typography.Text type="secondary">{roles.join(', ') || 'No roles loaded'}</Typography.Text>
+          <Space>
+            <Space direction="vertical" size={0}>
+              <Typography.Text strong>{user?.name ?? 'Unknown user'}</Typography.Text>
+              <Typography.Text type="secondary">{roles.join(', ') || 'No roles loaded'}</Typography.Text>
+            </Space>
+            {canManageMembers ? (
+              <Button type="primary" onClick={openCreateModal}>
+                Invite member
+              </Button>
+            ) : null}
           </Space>
         }
       />
@@ -202,8 +366,8 @@ export function SettingsPage() {
       <Alert
         type="info"
         showIcon
-        message="This settings center is backed by demo JSON data and current route-level permissions."
-        description="It is ready for review, role validation, and future inline editing work."
+        message="Settings now support real member management while keeping role, policy, dictionary, and workflow tabs as overview views."
+        description="This gives the demo workspace a realistic way to add accounts and test permission-aware navigation end to end."
       />
 
       <Space size={16} wrap>
@@ -232,25 +396,97 @@ export function SettingsPage() {
       <Card>
         <Tabs items={tabs} />
       </Card>
+
+      <Modal
+        title="Invite member"
+        open={createModalOpen}
+        onCancel={() => setCreateModalOpen(false)}
+        onOk={handleCreateMember}
+        okText="Invite"
+        confirmLoading={createMemberMutation.isPending}
+      >
+        <MemberEditorForm form={createForm} roleOptions={roleOptions} roleLoading={rolesQuery.isLoading} />
+      </Modal>
+
+      <Modal
+        title={editingMember ? `Edit ${editingMember.name}` : 'Edit member'}
+        open={editModalOpen}
+        onCancel={() => {
+          setEditModalOpen(false);
+          setEditingMember(null);
+        }}
+        onOk={handleUpdateMember}
+        okText="Save"
+        confirmLoading={updateMemberMutation.isPending}
+      >
+        <MemberEditorForm form={editForm} roleOptions={roleOptions} roleLoading={rolesQuery.isLoading} />
+      </Modal>
     </Space>
   );
 }
 
-function renderMembersPanel(items: SettingsMember[], loading: boolean, error: unknown) {
-  if (error) {
-    return <Alert type="error" showIcon message="Failed to load members" description={formatApiError(error)} />;
-  }
-
+function MemberEditorForm({
+  form,
+  roleOptions,
+  roleLoading,
+}: {
+  form: FormInstance<MemberFormValues>;
+  roleOptions: Array<{ label: string; value: string }>;
+  roleLoading: boolean;
+}) {
   return (
-    <Table
-      rowKey="id"
-      columns={memberColumns}
-      dataSource={items}
-      loading={loading}
-      pagination={false}
-      scroll={{ x: 1180 }}
-    />
+    <Form form={form} layout="vertical">
+      <Form.Item label="Name" name="name" rules={[{ required: true, message: 'Enter a member name.' }]}>
+        <Input placeholder="Example: Zhang Wei" />
+      </Form.Item>
+      <Form.Item
+        label="Email"
+        name="email"
+        rules={[
+          { required: true, message: 'Enter a member email.' },
+          { type: 'email', message: 'Enter a valid email.' },
+        ]}
+      >
+        <Input placeholder="name@example.com" />
+      </Form.Item>
+      <Space size={12} style={{ width: '100%' }} align="start">
+        <Form.Item label="Department" name="department" rules={[{ required: true, message: 'Enter a department.' }]} style={{ flex: 1 }}>
+          <Input />
+        </Form.Item>
+        <Form.Item label="Title" name="title" rules={[{ required: true, message: 'Enter a title.' }]} style={{ flex: 1 }}>
+          <Input />
+        </Form.Item>
+      </Space>
+      <Space size={12} style={{ width: '100%' }} align="start">
+        <Form.Item label="Status" name="status" rules={[{ required: true }]} style={{ flex: 1 }}>
+          <Select
+            options={[
+              { label: 'Invited', value: 'Invited' },
+              { label: 'Active', value: 'Active' },
+            ]}
+          />
+        </Form.Item>
+        <Form.Item label="Roles" name="roles" rules={[{ required: true, message: 'Select at least one role.' }]} style={{ flex: 2 }}>
+          <Select mode="multiple" options={roleOptions} loading={roleLoading} placeholder="Select roles" />
+        </Form.Item>
+      </Space>
+      <Form.Item label="DingTalk bound" name="dingtalkBound" valuePropName="checked">
+        <Switch checkedChildren="Bound" unCheckedChildren="Not bound" />
+      </Form.Item>
+    </Form>
   );
+}
+
+function normalizeMemberPayload(values: MemberFormValues): CreateSettingsMemberPayload {
+  return {
+    name: values.name.trim(),
+    email: values.email.trim(),
+    department: values.department.trim(),
+    title: values.title.trim(),
+    status: values.status,
+    roles: Array.isArray(values.roles) ? values.roles : [],
+    dingtalkBound: Boolean(values.dingtalkBound),
+  };
 }
 
 function renderRolesPanel(items: SettingsRole[], loading: boolean, error: unknown) {

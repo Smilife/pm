@@ -7,7 +7,7 @@ Lightweight PHP backend for the PM prototype.
 - Serves JSON APIs under `/api/v1`
 - Provides demo authentication with per-account tokens and permission summaries
 - Stores demo data in `backend/storage/data/*.json`
-- Supports requirements, projects, executions, tasks, worklogs, daily tasks, bugs, schedules, reports, and settings overview endpoints
+- Supports requirements, projects, executions, tasks, worklogs, daily tasks, bugs, schedules, reports, and settings member-management endpoints
 
 ## Key Files
 

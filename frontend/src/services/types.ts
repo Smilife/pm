@@ -285,18 +285,32 @@ export interface BatchSubmitBugsResult {
   skippedBugIds: number[];
 }
 
+export type SettingsMemberStatus = 'Active' | 'Invited';
+
 export interface SettingsMember {
   id: number;
   name: string;
   email: string;
   department: string;
   title: string;
-  status: 'Active' | 'Invited';
+  status: SettingsMemberStatus;
   roles: string[];
   permissionCount: number;
   dingtalkBound: boolean;
   lastLoginAt: string;
 }
+
+export interface CreateSettingsMemberPayload {
+  name: string;
+  email: string;
+  department: string;
+  title: string;
+  status: SettingsMemberStatus;
+  roles: string[];
+  dingtalkBound: boolean;
+}
+
+export interface UpdateSettingsMemberPayload extends CreateSettingsMemberPayload {}
 
 export interface SettingsRole {
   id: number;

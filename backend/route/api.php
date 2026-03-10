@@ -66,6 +66,8 @@ return [
     ['POST', '/bugs/batch-submit', [BugController::class, 'batchSubmit']],
 
     ['GET', '/settings/members', [SettingsController::class, 'members']],
+    ['POST', '/settings/members', [SettingsController::class, 'storeMember']],
+    ['PATCH', '/settings/members/{id}', [SettingsController::class, 'updateMember']],
     ['GET', '/settings/roles', [SettingsController::class, 'roles']],
     ['GET', '/settings/policies', [SettingsController::class, 'policies']],
     ['GET', '/settings/dictionaries', [SettingsController::class, 'dictionaries']],
