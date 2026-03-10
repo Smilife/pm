@@ -24,34 +24,34 @@ const columns = (
   canUpdate: boolean,
 ): ColumnsType<DailyTask> => [
   { title: 'ID', dataIndex: 'id', width: 90 },
-  { title: 'Title', dataIndex: 'title' },
-  { title: 'Owner', dataIndex: 'ownerName', width: 140 },
-  { title: 'Status', dataIndex: 'status', width: 140, render: (value: string) => <StatusTag value={value} /> },
-  { title: 'Due date', dataIndex: 'dueAt', width: 140 },
+  { title: '事项', dataIndex: 'title' },
+  { title: '负责人', dataIndex: 'ownerName', width: 140 },
+  { title: '状态', dataIndex: 'status', width: 140, render: (value: string) => <StatusTag value={value} /> },
+  { title: '截止日期', dataIndex: 'dueAt', width: 140 },
   {
-    title: 'Report',
+    title: '日报纳入',
     dataIndex: 'excludeFromReport',
     width: 140,
-    render: (value: boolean) => <Tag color={value ? 'default' : 'success'}>{value ? 'Excluded' : 'Included'}</Tag>,
+    render: (value: boolean) => <Tag color={value ? 'default' : 'success'}>{value ? '已排除' : '已纳入'}</Tag>,
   },
   {
-    title: 'Actions',
+    title: '操作',
     width: 260,
     render: (_, record) =>
       canUpdate ? (
         <Space>
           <Button size="small" onClick={() => onEdit(record)}>
-            Edit
+            编辑
           </Button>
           <Button size="small" onClick={() => onToggleReport(record)}>
-            {record.excludeFromReport ? 'Include' : 'Exclude'}
+            {record.excludeFromReport ? '纳入日报' : '排除日报'}
           </Button>
           <Button size="small" disabled={record.status === 'Done'} onClick={() => onMarkDone(record)}>
-            Mark done
+            标记完成
           </Button>
         </Space>
       ) : (
-        <Typography.Text type="secondary">View only</Typography.Text>
+        <Typography.Text type="secondary">仅查看</Typography.Text>
       ),
   },
 ];
@@ -81,7 +81,7 @@ export function DailyTasksPage() {
       ]);
       setCreateModalOpen(false);
       createForm.resetFields();
-      messageApi.success('Daily task created.');
+      messageApi.success('日常事项已创建。');
     },
     onError: (error) => {
       messageApi.error(formatApiError(error));
@@ -99,7 +99,7 @@ export function DailyTasksPage() {
       setEditModalOpen(false);
       setEditingTask(null);
       editForm.resetFields();
-      messageApi.success('Daily task updated.');
+      messageApi.success('日常事项已更新。');
     },
     onError: (error) => {
       messageApi.error(formatApiError(error));
@@ -117,7 +117,7 @@ export function DailyTasksPage() {
 
   const openCreateModal = () => {
     if (!canCreateDailyTask) {
-      messageApi.warning('Your current role cannot create daily tasks.');
+      messageApi.warning('当前角色没有创建日常事项的权限。');
       return;
     }
 
@@ -132,7 +132,7 @@ export function DailyTasksPage() {
 
   const openEditModal = (item: DailyTask) => {
     if (!canUpdateDailyTask) {
-      messageApi.warning('Your current role cannot edit daily tasks.');
+      messageApi.warning('当前角色没有编辑日常事项的权限。');
       return;
     }
 
@@ -149,7 +149,7 @@ export function DailyTasksPage() {
 
   const handleCreate = async () => {
     if (!canCreateDailyTask) {
-      messageApi.warning('Your current role cannot create daily tasks.');
+      messageApi.warning('当前角色没有创建日常事项的权限。');
       return;
     }
 
@@ -159,7 +159,7 @@ export function DailyTasksPage() {
 
   const handleUpdate = async () => {
     if (!canUpdateDailyTask) {
-      messageApi.warning('Your current role cannot edit daily tasks.');
+      messageApi.warning('当前角色没有编辑日常事项的权限。');
       return;
     }
 
@@ -173,7 +173,7 @@ export function DailyTasksPage() {
 
   const handleToggleReport = (item: DailyTask) => {
     if (!canUpdateDailyTask) {
-      messageApi.warning('Your current role cannot update daily tasks.');
+      messageApi.warning('当前角色没有更新日常事项的权限。');
       return;
     }
 
@@ -191,7 +191,7 @@ export function DailyTasksPage() {
 
   const handleMarkDone = (item: DailyTask) => {
     if (!canUpdateDailyTask) {
-      messageApi.warning('Your current role cannot update daily tasks.');
+      messageApi.warning('当前角色没有更新日常事项的权限。');
       return;
     }
 
@@ -211,12 +211,12 @@ export function DailyTasksPage() {
     <Space direction="vertical" size={20} className="page-stack">
       {contextHolder}
       <PageHeader
-        title="Daily tasks"
-        description="Track day-to-day items that should feed report generation, and quickly decide which ones are included in summaries."
+        title="日常事项"
+        description="管理会进入日报汇总的日常工作项，并快速决定哪些事项要纳入汇报。"
         extra={
           canCreateDailyTask ? (
             <Button type="primary" onClick={openCreateModal}>
-              Create daily task
+              新建日常事项
             </Button>
           ) : null
         }
@@ -224,10 +224,10 @@ export function DailyTasksPage() {
       <Alert
         type="info"
         showIcon
-        message={`Included in reports: ${summary.included} | Excluded: ${summary.excluded} | Done: ${summary.done}`}
-        description="Changes here immediately affect the next generated daily report draft."
+        message={`已纳入日报：${summary.included} | 已排除：${summary.excluded} | 已完成：${summary.done}`}
+        description="这里的改动会立即影响下一次生成的日报草稿。"
       />
-      <Card title="Daily task list">
+      <Card title="日常事项列表">
         <Table
           rowKey="id"
           columns={columns(openEditModal, handleToggleReport, handleMarkDone, canUpdateDailyTask)}
@@ -239,22 +239,22 @@ export function DailyTasksPage() {
       </Card>
 
       <Modal
-        title="Create daily task"
+        title="新建日常事项"
         open={createModalOpen}
         onCancel={() => setCreateModalOpen(false)}
         onOk={handleCreate}
-        okText="Create"
+        okText="创建"
         confirmLoading={createMutation.isPending}
       >
         <DailyTaskForm form={createForm} />
       </Modal>
 
       <Modal
-        title="Edit daily task"
+        title="编辑日常事项"
         open={editModalOpen}
         onCancel={() => setEditModalOpen(false)}
         onOk={handleUpdate}
-        okText="Save"
+        okText="保存"
         confirmLoading={updateMutation.isPending}
       >
         <DailyTaskForm form={editForm} />
@@ -266,19 +266,26 @@ export function DailyTasksPage() {
 function DailyTaskForm({ form }: { form: ReturnType<typeof Form.useForm<DailyTaskFormValues>>[0] }) {
   return (
     <Form form={form} layout="vertical">
-      <Form.Item label="Title" name="title" rules={[{ required: true, message: 'Enter a task title' }]}>
-        <Input placeholder="Example: Prepare requirement review notes" />
+      <Form.Item label="事项名称" name="title" rules={[{ required: true, message: '请输入事项名称' }]}>
+        <Input placeholder="例如：整理需求评审纪要" />
       </Form.Item>
-      <Form.Item label="Owner" name="ownerName" rules={[{ required: true, message: 'Enter an owner' }]}>
-        <Input placeholder="Example: Wang Jun" />
+      <Form.Item label="负责人" name="ownerName" rules={[{ required: true, message: '请输入负责人' }]}>
+        <Input placeholder="例如：王军" />
       </Form.Item>
-      <Form.Item label="Status" name="status" rules={[{ required: true, message: 'Select a status' }]}>
-        <Select options={[{ value: 'NotStarted' }, { value: 'InProgress' }, { value: 'Blocked' }, { value: 'Done' }]} />
+      <Form.Item label="状态" name="status" rules={[{ required: true, message: '请选择状态' }]}>
+        <Select
+          options={[
+            { label: '未开始', value: 'NotStarted' },
+            { label: '进行中', value: 'InProgress' },
+            { label: '阻塞', value: 'Blocked' },
+            { label: '完成', value: 'Done' },
+          ]}
+        />
       </Form.Item>
-      <Form.Item label="Due date" name="dueAt" rules={[{ required: true, message: 'Select a due date' }]}>
+      <Form.Item label="截止日期" name="dueAt" rules={[{ required: true, message: '请选择截止日期' }]}>
         <DatePicker style={{ width: '100%' }} />
       </Form.Item>
-      <Form.Item label="Exclude from report" name="excludeFromReport" valuePropName="checked">
+      <Form.Item label="排除出日报" name="excludeFromReport" valuePropName="checked">
         <Switch />
       </Form.Item>
     </Form>

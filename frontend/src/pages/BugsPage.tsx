@@ -41,6 +41,13 @@ const severityColorMap: Record<Bug['severity'], string> = {
   Critical: 'error',
 };
 
+const severityLabelMap: Record<Bug['severity'], string> = {
+  Low: '低',
+  Medium: '中',
+  High: '高',
+  Critical: '严重',
+};
+
 type BugFormValues = {
   title: string;
   severity: Bug['severity'];
@@ -58,27 +65,27 @@ type BugFormValues = {
 const columns: ColumnsType<Bug> = [
   { title: 'ID', dataIndex: 'id', width: 90 },
   {
-    title: 'Bug',
+    title: '缺陷标题',
     dataIndex: 'title',
     render: (value: string) => <Typography.Text strong>{value}</Typography.Text>,
   },
   {
-    title: 'Severity',
+    title: '严重程度',
     dataIndex: 'severity',
     width: 120,
-    render: (value: Bug['severity']) => <Tag color={severityColorMap[value]}>{value}</Tag>,
+    render: (value: Bug['severity']) => <Tag color={severityColorMap[value]}>{severityLabelMap[value]}</Tag>,
   },
-  { title: 'Priority', dataIndex: 'priority', width: 100 },
+  { title: '优先级', dataIndex: 'priority', width: 100 },
   {
-    title: 'Status',
+    title: '状态',
     dataIndex: 'status',
     width: 130,
     render: (value: Bug['status']) => <StatusTag value={value} />,
   },
-  { title: 'Linked to', dataIndex: 'linkName', width: 220 },
-  { title: 'Owner', dataIndex: 'ownerName', width: 140 },
-  { title: 'Reporter', dataIndex: 'reporterName', width: 140 },
-  { title: 'Updated at', dataIndex: 'updatedAt', width: 180 },
+  { title: '关联对象', dataIndex: 'linkName', width: 220 },
+  { title: '负责人', dataIndex: 'ownerName', width: 140 },
+  { title: '提单人', dataIndex: 'reporterName', width: 140 },
+  { title: '更新时间', dataIndex: 'updatedAt', width: 180 },
 ];
 
 export function BugsPage() {
@@ -147,7 +154,7 @@ export function BugsPage() {
       setCreateModalOpen(false);
       createForm.resetFields();
       setSelectedBugId(created.id);
-      messageApi.success('Bug created.');
+      messageApi.success('缺陷已创建。');
     },
     onError: (error) => {
       messageApi.error(formatApiError(error));
@@ -165,7 +172,7 @@ export function BugsPage() {
       ]);
       setEditModalOpen(false);
       editForm.resetFields();
-      messageApi.success('Bug updated.');
+      messageApi.success('缺陷已更新。');
     },
     onError: (error) => {
       messageApi.error(formatApiError(error));
@@ -193,7 +200,7 @@ export function BugsPage() {
 
   const openCreateModal = () => {
     if (!canCreateBugs) {
-      messageApi.warning('Your current role cannot create bugs.');
+      messageApi.warning('当前角色没有创建缺陷的权限。');
       return;
     }
 
@@ -222,13 +229,13 @@ export function BugsPage() {
 
   const openEditModal = () => {
     if (!canUpdateBugs) {
-      messageApi.warning('Your current role cannot edit bugs.');
+      messageApi.warning('当前角色没有编辑缺陷的权限。');
       return;
     }
 
     const detail = detailQuery.data;
     if (!detail) {
-      messageApi.info('Select a bug first.');
+      messageApi.info('请先选择一条缺陷。');
       return;
     }
 
@@ -250,7 +257,7 @@ export function BugsPage() {
 
   const handleCreate = async () => {
     if (!canCreateBugs) {
-      messageApi.warning('Your current role cannot create bugs.');
+      messageApi.warning('当前角色没有创建缺陷的权限。');
       return;
     }
 
@@ -260,7 +267,7 @@ export function BugsPage() {
 
   const handleUpdate = async () => {
     if (!canUpdateBugs) {
-      messageApi.warning('Your current role cannot edit bugs.');
+      messageApi.warning('当前角色没有编辑缺陷的权限。');
       return;
     }
 
@@ -277,13 +284,13 @@ export function BugsPage() {
 
   const handleBatchSubmit = (bugIds?: number[]) => {
     if (!canSubmitBugs) {
-      messageApi.warning('Your current role cannot submit bugs.');
+      messageApi.warning('当前角色没有提交缺陷的权限。');
       return;
     }
 
     const targetIds = bugIds && bugIds.length > 0 ? bugIds : selectedRowKeys;
     if (targetIds.length === 0) {
-      messageApi.info('Select at least one bug first.');
+      messageApi.info('请先选择至少一条缺陷。');
       return;
     }
 
@@ -294,18 +301,18 @@ export function BugsPage() {
     <Space direction="vertical" size={20} className="page-stack">
       {contextHolder}
       <PageHeader
-        title="Bugs"
-        description="Capture execution and project defects, keep reproduction details together, and quickly move draft bugs into the active triage queue."
+        title="缺陷"
+        description="记录项目和执行中的缺陷，沉淀复现信息，并快速把草稿缺陷提交到处理队列。"
         extra={
           <Space>
             {canSubmitBugs ? (
               <Button disabled={selectedRowKeys.length === 0} onClick={() => handleBatchSubmit()}>
-                Submit selected
+                批量提交
               </Button>
             ) : null}
             {canCreateBugs ? (
               <Button type="primary" onClick={openCreateModal}>
-                Create bug
+                新建缺陷
               </Button>
             ) : null}
           </Space>
@@ -316,12 +323,12 @@ export function BugsPage() {
         <Alert
           type="info"
           showIcon
-          message={`Selected ${selectedRowKeys.length} bugs | Draft: ${selectedDraftCount} | Resolved or closed: ${selectedClosedCount}`}
-          description="Batch submit moves draft or in-progress bugs into Open. Resolved and closed bugs are skipped automatically."
+          message={`已选 ${selectedRowKeys.length} 条缺陷 | 草稿 ${selectedDraftCount} 条 | 已解决或已关闭 ${selectedClosedCount} 条`}
+          description="批量提交会把草稿或处理中缺陷推进到已打开状态，已解决和已关闭项会自动跳过。"
         />
       ) : null}
 
-      <Card title="Bug list">
+      <Card title="缺陷列表">
         <Table
           rowKey="id"
           columns={columns}
@@ -344,7 +351,7 @@ export function BugsPage() {
       </Card>
 
       <Drawer
-        title={detailQuery.data?.title ?? 'Bug detail'}
+        title={detailQuery.data?.title ?? '缺陷详情'}
         open={selectedBugId !== null}
         width={760}
         onClose={() => setSelectedBugId(null)}
@@ -353,41 +360,41 @@ export function BugsPage() {
             <Space>
               {canSubmitBugs ? (
                 <Button onClick={() => handleBatchSubmit([detailQuery.data!.id])} loading={submitMutation.isPending}>
-                  Submit
+                  提交
                 </Button>
               ) : null}
-              {canUpdateBugs ? <Button onClick={openEditModal}>Edit</Button> : null}
+              {canUpdateBugs ? <Button onClick={openEditModal}>编辑</Button> : null}
               <StatusTag value={detailQuery.data.status} />
             </Space>
           ) : null
         }
       >
         {detailQuery.isLoading ? (
-          <Typography.Paragraph>Loading bug detail...</Typography.Paragraph>
+          <Typography.Paragraph>正在加载缺陷详情...</Typography.Paragraph>
         ) : detailQuery.data ? (
           <BugDetailContent bug={detailQuery.data} />
         ) : (
-          <Empty description="Select a bug to inspect details." />
+          <Empty description="请选择一条缺陷查看详情。" />
         )}
       </Drawer>
 
       <Modal
-        title="Create bug"
+        title="新建缺陷"
         open={createModalOpen}
         onCancel={() => setCreateModalOpen(false)}
         onOk={handleCreate}
-        okText="Create"
+        okText="创建"
         confirmLoading={createMutation.isPending}
       >
         <BugEditorForm form={createForm} projects={projectsQuery.data ?? []} executions={executionsQuery.data ?? []} />
       </Modal>
 
       <Modal
-        title="Edit bug"
+        title="编辑缺陷"
         open={editModalOpen}
         onCancel={() => setEditModalOpen(false)}
         onOk={handleUpdate}
-        okText="Save"
+        okText="保存"
         confirmLoading={updateMutation.isPending}
       >
         <BugEditorForm form={editForm} projects={projectsQuery.data ?? []} executions={executionsQuery.data ?? []} mode="edit" />
@@ -409,23 +416,23 @@ function BugEditorForm({ form, projects, executions, mode = 'create' }: BugEdito
 
   return (
     <Form form={form} layout="vertical">
-      <Form.Item label="Title" name="title" rules={[{ required: true, message: 'Enter a bug title.' }]}>
-        <Input placeholder="Example: Approval button stays disabled after review" />
+      <Form.Item label="缺陷标题" name="title" rules={[{ required: true, message: '请输入缺陷标题。' }]}>
+        <Input placeholder="例如：评审通过后按钮仍然不可点击" />
       </Form.Item>
 
       <Space size={12} style={{ width: '100%' }} align="start">
-        <Form.Item label="Severity" name="severity" rules={[{ required: true }]} style={{ flex: 1 }}>
+        <Form.Item label="严重程度" name="severity" rules={[{ required: true }]} style={{ flex: 1 }}>
           <Select
             options={[
-              { label: 'Low', value: 'Low' },
-              { label: 'Medium', value: 'Medium' },
-              { label: 'High', value: 'High' },
-              { label: 'Critical', value: 'Critical' },
+              { label: '低', value: 'Low' },
+              { label: '中', value: 'Medium' },
+              { label: '高', value: 'High' },
+              { label: '严重', value: 'Critical' },
             ]}
           />
         </Form.Item>
 
-        <Form.Item label="Priority" name="priority" rules={[{ required: true }]} style={{ flex: 1 }}>
+        <Form.Item label="优先级" name="priority" rules={[{ required: true }]} style={{ flex: 1 }}>
           <Select
             options={[
               { label: 'P0', value: 'P0' },
@@ -436,14 +443,14 @@ function BugEditorForm({ form, projects, executions, mode = 'create' }: BugEdito
         </Form.Item>
 
         {mode === 'edit' ? (
-          <Form.Item label="Status" name="status" rules={[{ required: true }]} style={{ flex: 1 }}>
+          <Form.Item label="状态" name="status" rules={[{ required: true }]} style={{ flex: 1 }}>
             <Select
               options={[
-                { label: 'Draft', value: 'Draft' },
-                { label: 'Open', value: 'Open' },
-                { label: 'In progress', value: 'InProgress' },
-                { label: 'Resolved', value: 'Resolved' },
-                { label: 'Closed', value: 'Closed' },
+                { label: '草稿', value: 'Draft' },
+                { label: '已打开', value: 'Open' },
+                { label: '处理中', value: 'InProgress' },
+                { label: '已解决', value: 'Resolved' },
+                { label: '已关闭', value: 'Closed' },
               ]}
             />
           </Form.Item>
@@ -451,16 +458,16 @@ function BugEditorForm({ form, projects, executions, mode = 'create' }: BugEdito
       </Space>
 
       <Space size={12} style={{ width: '100%' }} align="start">
-        <Form.Item label="Linked type" name="linkType" rules={[{ required: true }]} style={{ flex: 1 }}>
+        <Form.Item label="关联类型" name="linkType" rules={[{ required: true }]} style={{ flex: 1 }}>
           <Select
             options={[
-              { label: 'Execution', value: 'execution' },
-              { label: 'Project', value: 'project' },
+              { label: '执行', value: 'execution' },
+              { label: '项目', value: 'project' },
             ]}
           />
         </Form.Item>
 
-        <Form.Item label="Linked record" name="linkId" rules={[{ required: true, message: 'Select a linked record.' }]} style={{ flex: 2 }}>
+        <Form.Item label="关联记录" name="linkId" rules={[{ required: true, message: '请选择关联记录。' }]} style={{ flex: 2 }}>
           <Select
             showSearch
             optionFilterProp="label"
@@ -468,31 +475,31 @@ function BugEditorForm({ form, projects, executions, mode = 'create' }: BugEdito
               label: item.name,
               value: item.id,
             }))}
-            notFoundContent="No records available"
+            notFoundContent="暂无可选记录"
           />
         </Form.Item>
       </Space>
 
       <Space size={12} style={{ width: '100%' }} align="start">
-        <Form.Item label="Owner" name="ownerName" rules={[{ required: true }]} style={{ flex: 1 }}>
+        <Form.Item label="负责人" name="ownerName" rules={[{ required: true }]} style={{ flex: 1 }}>
           <Input />
         </Form.Item>
 
-        <Form.Item label="Reporter" name="reporterName" rules={[{ required: true }]} style={{ flex: 1 }}>
+        <Form.Item label="提单人" name="reporterName" rules={[{ required: true }]} style={{ flex: 1 }}>
           <Input />
         </Form.Item>
       </Space>
 
-      <Form.Item label="Reproduction steps" name="reproductionStepsText">
-        <Input.TextArea rows={5} placeholder="One step per line" />
+      <Form.Item label="复现步骤" name="reproductionStepsText">
+        <Input.TextArea rows={5} placeholder="每行填写一步" />
       </Form.Item>
 
-      <Form.Item label="Expected result" name="expectedResult">
-        <Input.TextArea rows={3} placeholder="Describe the expected result" />
+      <Form.Item label="期望结果" name="expectedResult">
+        <Input.TextArea rows={3} placeholder="描述期望结果" />
       </Form.Item>
 
-      <Form.Item label="Actual result" name="actualResult">
-        <Input.TextArea rows={3} placeholder="Describe the actual result" />
+      <Form.Item label="实际结果" name="actualResult">
+        <Input.TextArea rows={3} placeholder="描述实际结果" />
       </Form.Item>
     </Form>
   );
@@ -502,21 +509,21 @@ function BugDetailContent({ bug }: { bug: Bug }) {
   return (
     <Space direction="vertical" size={16} style={{ display: 'flex' }}>
       <Descriptions bordered size="small" column={2}>
-        <Descriptions.Item label="Status">
+        <Descriptions.Item label="状态">
           <StatusTag value={bug.status} />
         </Descriptions.Item>
-        <Descriptions.Item label="Severity">
-          <Tag color={severityColorMap[bug.severity]}>{bug.severity}</Tag>
+        <Descriptions.Item label="严重程度">
+          <Tag color={severityColorMap[bug.severity]}>{severityLabelMap[bug.severity]}</Tag>
         </Descriptions.Item>
-        <Descriptions.Item label="Priority">{bug.priority}</Descriptions.Item>
-        <Descriptions.Item label="Linked to">{bug.linkName || '-'}</Descriptions.Item>
-        <Descriptions.Item label="Owner">{bug.ownerName}</Descriptions.Item>
-        <Descriptions.Item label="Reporter">{bug.reporterName}</Descriptions.Item>
-        <Descriptions.Item label="Created at">{bug.createdAt || '-'}</Descriptions.Item>
-        <Descriptions.Item label="Submitted at">{bug.submittedAt || '-'}</Descriptions.Item>
+        <Descriptions.Item label="优先级">{bug.priority}</Descriptions.Item>
+        <Descriptions.Item label="关联对象">{bug.linkName || '-'}</Descriptions.Item>
+        <Descriptions.Item label="负责人">{bug.ownerName}</Descriptions.Item>
+        <Descriptions.Item label="提单人">{bug.reporterName}</Descriptions.Item>
+        <Descriptions.Item label="创建时间">{bug.createdAt || '-'}</Descriptions.Item>
+        <Descriptions.Item label="提交时间">{bug.submittedAt || '-'}</Descriptions.Item>
       </Descriptions>
 
-      <Card title="Reproduction steps" size="small">
+      <Card title="复现步骤" size="small">
         {bug.reproductionSteps.length > 0 ? (
           <List
             size="small"
@@ -524,23 +531,23 @@ function BugDetailContent({ bug }: { bug: Bug }) {
             renderItem={(item, index) => <List.Item>{`${index + 1}. ${item}`}</List.Item>}
           />
         ) : (
-          <Empty description="No reproduction steps recorded." image={Empty.PRESENTED_IMAGE_SIMPLE} />
+          <Empty description="暂无复现步骤" image={Empty.PRESENTED_IMAGE_SIMPLE} />
         )}
       </Card>
 
-      <Card title="Expected result" size="small">
+      <Card title="期望结果" size="small">
         {bug.expectedResult ? (
           <Typography.Paragraph style={{ marginBottom: 0 }}>{bug.expectedResult}</Typography.Paragraph>
         ) : (
-          <Empty description="No expected result recorded." image={Empty.PRESENTED_IMAGE_SIMPLE} />
+          <Empty description="暂无期望结果" image={Empty.PRESENTED_IMAGE_SIMPLE} />
         )}
       </Card>
 
-      <Card title="Actual result" size="small">
+      <Card title="实际结果" size="small">
         {bug.actualResult ? (
           <Typography.Paragraph style={{ marginBottom: 0 }}>{bug.actualResult}</Typography.Paragraph>
         ) : (
-          <Empty description="No actual result recorded." image={Empty.PRESENTED_IMAGE_SIMPLE} />
+          <Empty description="暂无实际结果" image={Empty.PRESENTED_IMAGE_SIMPLE} />
         )}
       </Card>
     </Space>
@@ -580,8 +587,8 @@ function buildBatchSubmitMessage(result: BatchSubmitBugsResult): string {
   const skippedCount = result.skippedBugIds.length;
 
   if (skippedCount > 0) {
-    return `Submitted ${submittedCount} bugs and skipped ${skippedCount} already finished or missing records.`;
+    return `已提交 ${submittedCount} 条缺陷，另有 ${skippedCount} 条已完成或不存在的记录被跳过。`;
   }
 
-  return `Submitted ${submittedCount} bugs to the active queue.`;
+  return `已提交 ${submittedCount} 条缺陷到处理队列。`;
 }

@@ -33,7 +33,7 @@ export function ProtectedAppShell() {
   const { bootstrapped, loading } = useBootstrapAuth();
 
   if (!bootstrapped || loading) {
-    return <FullScreenLoading message="Loading workspace..." />;
+    return <FullScreenLoading message="正在加载工作台..." />;
   }
 
   if (!token) {
@@ -49,7 +49,7 @@ export function PublicLoginRoute() {
   const { bootstrapped, loading } = useBootstrapAuth();
 
   if (!bootstrapped || loading) {
-    return <FullScreenLoading message="Checking session..." />;
+    return <FullScreenLoading message="正在检查登录状态..." />;
   }
 
   if (token) {
@@ -84,10 +84,10 @@ export function PermissionGuard({
     <Result
       status="403"
       title="403"
-      subTitle="Your current role does not include access to this page yet."
+      subTitle="当前角色暂时没有访问这个页面的权限。"
       extra={
         <Button type="primary" onClick={() => navigate('/workspace')}>
-          Back to workspace
+          返回工作台
         </Button>
       }
     />

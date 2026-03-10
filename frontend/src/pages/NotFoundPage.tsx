@@ -7,11 +7,11 @@ export function NotFoundPage() {
   return (
     <Result
       status="404"
-      title="Page not found"
-      subTitle="This route is not part of the current iteration yet."
+      title="页面不存在"
+      subTitle="当前迭代里还没有这个路由页面。"
       extra={
         <Button type="primary" onClick={() => navigate('/workspace')}>
-          Back to workspace
+          返回工作台
         </Button>
       }
     />

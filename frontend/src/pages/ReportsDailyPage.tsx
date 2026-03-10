@@ -24,7 +24,7 @@ export function ReportsDailyPage() {
     mutationFn: pmApi.generateDailyReport,
     onSuccess: (draft) => {
       queryClient.setQueryData(['daily-report'], draft);
-      messageApi.success('Daily report draft regenerated.');
+      messageApi.success('日报草稿已重新生成。');
     },
     onError: (error) => {
       messageApi.error(formatApiError(error));
@@ -42,7 +42,7 @@ export function ReportsDailyPage() {
 
   const handleRegenerate = () => {
     if (!canGenerateDailyReport) {
-      messageApi.warning('Your current role cannot regenerate daily reports.');
+      messageApi.warning('当前角色没有重新生成日报的权限。');
       return;
     }
 
@@ -53,29 +53,29 @@ export function ReportsDailyPage() {
     <Space direction="vertical" size={20} className="page-stack">
       {contextHolder}
       <PageHeader
-        title="Daily report"
-        description="Build the draft from execution changes and daily tasks, then leave room for human edits."
+        title="日报"
+        description="根据执行进展和日常事项生成日报草稿，同时保留人工补充空间。"
         extra={
           <Space>
-            {canViewDailyTasks ? <Button onClick={() => navigate('/daily-tasks')}>Manage daily tasks</Button> : null}
+            {canViewDailyTasks ? <Button onClick={() => navigate('/daily-tasks')}>管理日常事项</Button> : null}
             {canGenerateDailyReport ? (
               <Button type="primary" onClick={handleRegenerate} loading={regenerateMutation.isPending}>
-                Regenerate
+                重新生成
               </Button>
             ) : null}
           </Space>
         }
       />
       <Card loading={reportQuery.isLoading}>
-        <Typography.Text type="secondary">Generated at: {draft?.generatedAt ?? '-'}</Typography.Text>
+        <Typography.Text type="secondary">生成时间：{draft?.generatedAt ?? '-'}</Typography.Text>
       </Card>
-      <Card title="Completed" loading={reportQuery.isLoading}>
+      <Card title="已完成" loading={reportQuery.isLoading}>
         <List dataSource={draft?.completed ?? []} renderItem={(item) => <List.Item>{item}</List.Item>} />
       </Card>
-      <Card title="In progress" loading={reportQuery.isLoading}>
+      <Card title="进行中" loading={reportQuery.isLoading}>
         <List dataSource={draft?.inProgress ?? []} renderItem={(item) => <List.Item>{item}</List.Item>} />
       </Card>
-      <Card title="Risks" loading={reportQuery.isLoading}>
+      <Card title="风险项" loading={reportQuery.isLoading}>
         <Space wrap>
           {(draft?.risks ?? []).map((risk) => (
             <Tag key={risk} color="error">
@@ -84,21 +84,21 @@ export function ReportsDailyPage() {
           ))}
         </Space>
       </Card>
-      <Card title="Next steps" loading={reportQuery.isLoading}>
+      <Card title="下一步计划" loading={reportQuery.isLoading}>
         <List dataSource={draft?.nextSteps ?? []} renderItem={(item) => <List.Item>{item}</List.Item>} />
       </Card>
       {canViewDailyTasks ? (
         <Card
-          title="Daily tasks feeding this report"
-          extra={<Typography.Text type="secondary">Excluded items: {excludedCount}</Typography.Text>}
+          title="纳入本次日报的日常事项"
+          extra={<Typography.Text type="secondary">已排除：{excludedCount}</Typography.Text>}
           loading={dailyTasksQuery.isLoading}
         >
           <List
             dataSource={includedTasks}
-            locale={{ emptyText: 'No included daily tasks right now' }}
+            locale={{ emptyText: '当前没有纳入日报的日常事项。' }}
             renderItem={(item) => (
               <List.Item extra={<StatusTag value={item.status} />}>
-                <List.Item.Meta title={item.title} description={`${item.ownerName} | Due ${item.dueAt}`} />
+                <List.Item.Meta title={item.title} description={`${item.ownerName} | 截止 ${item.dueAt}`} />
               </List.Item>
             )}
           />

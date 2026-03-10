@@ -22,13 +22,13 @@ export function WorkspacePage() {
   return (
     <Space direction="vertical" size={20} className="page-stack">
       <PageHeader
-        title="Workspace"
-        description="Surface the most important items for today: owned executions, due items, blockers and report entry points."
+        title="工作台"
+        description="聚合今天最重要的工作项，包括我负责的执行、今日到期事项、阻塞项和报表入口。"
         extra={
           <Space>
-            {canViewBugs ? <Button onClick={() => navigate('/bugs')}>Open bugs</Button> : null}
+            {canViewBugs ? <Button onClick={() => navigate('/bugs')}>查看缺陷</Button> : null}
             <Button type="primary" onClick={() => navigate('/reports/daily')}>
-              Open daily report
+              打开日报
             </Button>
           </Space>
         }
@@ -36,28 +36,28 @@ export function WorkspacePage() {
       <Row gutter={[16, 16]}>
         <Col xs={24} md={12} xl={6}>
           <Card>
-            <Statistic title="Owned executions" value={summaryQuery.data?.myExecutions ?? 0} loading={summaryQuery.isLoading} />
+            <Statistic title="我负责的执行" value={summaryQuery.data?.myExecutions ?? 0} loading={summaryQuery.isLoading} />
           </Card>
         </Col>
         <Col xs={24} md={12} xl={6}>
           <Card>
-            <Statistic title="Due today" value={summaryQuery.data?.dueToday ?? 0} loading={summaryQuery.isLoading} />
+            <Statistic title="今日到期" value={summaryQuery.data?.dueToday ?? 0} loading={summaryQuery.isLoading} />
           </Card>
         </Col>
         <Col xs={24} md={12} xl={6}>
           <Card>
-            <Statistic title="Blocked" value={summaryQuery.data?.blocked ?? 0} loading={summaryQuery.isLoading} />
+            <Statistic title="阻塞项" value={summaryQuery.data?.blocked ?? 0} loading={summaryQuery.isLoading} />
           </Card>
         </Col>
         <Col xs={24} md={12} xl={6}>
           <Card>
-            <Statistic title="Reports pending" value={summaryQuery.data?.reportsReady ?? 0} loading={summaryQuery.isLoading} />
+            <Statistic title="待生成报表" value={summaryQuery.data?.reportsReady ?? 0} loading={summaryQuery.isLoading} />
           </Card>
         </Col>
       </Row>
       <Row gutter={[16, 16]}>
         <Col xs={24} xl={canViewBugs ? 14 : 24}>
-          <Card title="Key executions in progress">
+          <Card title="重点执行项">
             <List
               loading={executionQuery.isLoading}
               dataSource={executionQuery.data ?? []}
@@ -74,11 +74,11 @@ export function WorkspacePage() {
         </Col>
         {canViewBugs ? (
           <Col xs={24} xl={10}>
-            <Card title="Open bugs to watch" extra={<Typography.Text type="secondary">{openBugs.length} highlighted</Typography.Text>}>
+            <Card title="需要关注的缺陷" extra={<Typography.Text type="secondary">高亮 {openBugs.length} 条</Typography.Text>}>
               <List
                 loading={bugsQuery.isLoading}
                 dataSource={openBugs}
-                locale={{ emptyText: 'No open bugs in focus.' }}
+                locale={{ emptyText: '当前没有需要重点关注的未关闭缺陷。' }}
                 renderItem={(item) => (
                   <List.Item extra={<StatusTag value={item.status} />}>
                     <List.Item.Meta title={item.title} description={`${item.linkName} | ${item.ownerName} | ${item.priority}`} />

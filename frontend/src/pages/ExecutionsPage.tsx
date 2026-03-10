@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+﻿import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import {
@@ -43,6 +43,22 @@ import type {
 
 const { RangePicker } = DatePicker;
 
+const executionStatusOptions = [
+  { label: '未开始', value: 'NotStarted' },
+  { label: '进行中', value: 'InProgress' },
+  { label: '阻塞', value: 'Blocked' },
+  { label: '待验证', value: 'ToVerify' },
+  { label: '完成', value: 'Done' },
+  { label: '关闭', value: 'Closed' },
+];
+
+const taskStatusOptions = [
+  { label: '未开始', value: 'NotStarted' },
+  { label: '进行中', value: 'InProgress' },
+  { label: '阻塞', value: 'Blocked' },
+  { label: '完成', value: 'Done' },
+];
+
 type CreateExecutionFormValues = {
   name: string;
   projectId: number;
@@ -76,19 +92,19 @@ type WorklogFormValues = {
 
 const columns: ColumnsType<Execution> = [
   { title: 'ID', dataIndex: 'id', width: 90 },
-  { title: 'Execution', dataIndex: 'name' },
-  { title: 'Project', dataIndex: 'projectName', width: 200 },
-  { title: 'Owner', dataIndex: 'ownerName', width: 120 },
-  { title: 'Status', dataIndex: 'status', render: (value: string) => <StatusTag value={value} /> },
-  { title: 'Plan window', render: (_, record) => `${record.planStart} ~ ${record.planEnd}`, width: 220 },
+  { title: '执行名称', dataIndex: 'name' },
+  { title: '所属项目', dataIndex: 'projectName', width: 200 },
+  { title: '负责人', dataIndex: 'ownerName', width: 120 },
+  { title: '状态', dataIndex: 'status', render: (value: string) => <StatusTag value={value} /> },
+  { title: '计划时间', render: (_, record) => `${record.planStart} ~ ${record.planEnd}`, width: 220 },
   {
-    title: 'Actual progress',
+    title: '实际进度',
     dataIndex: 'actualProgress',
     width: 180,
     render: (value: number) => <Progress percent={value} size="small" />,
   },
   {
-    title: 'Plan progress',
+    title: '计划进度',
     dataIndex: 'planProgress',
     width: 180,
     render: (value: number) => <Progress percent={value} size="small" status="active" />,
@@ -168,7 +184,7 @@ export function ExecutionsPage() {
       setCreateModalOpen(false);
       createForm.resetFields();
       setSelectedExecutionId(created.id);
-      messageApi.success('Execution created.');
+      messageApi.success('执行已创建。');
     },
     onError: (error) => {
       messageApi.error(formatApiError(error));
@@ -188,7 +204,7 @@ export function ExecutionsPage() {
         queryClient.invalidateQueries({ queryKey: ['weekly-report'] }),
       ]);
       setEditModalOpen(false);
-      messageApi.success('Execution updated.');
+      messageApi.success('执行已更新。');
     },
     onError: (error) => {
       messageApi.error(formatApiError(error));
@@ -204,7 +220,7 @@ export function ExecutionsPage() {
       ]);
       setTaskModalOpen(false);
       taskForm.resetFields();
-      messageApi.success('Child task created.');
+      messageApi.success('子任务已创建。');
     },
     onError: (error) => {
       messageApi.error(formatApiError(error));
@@ -221,7 +237,7 @@ export function ExecutionsPage() {
       setEditTaskModalOpen(false);
       setEditingTask(null);
       editTaskForm.resetFields();
-      messageApi.success('Child task updated.');
+      messageApi.success('子任务已更新。');
     },
     onError: (error) => {
       messageApi.error(formatApiError(error));
@@ -237,7 +253,7 @@ export function ExecutionsPage() {
       ]);
       setWorklogModalOpen(false);
       worklogForm.resetFields();
-      messageApi.success('Worklog added.');
+      messageApi.success('工作日志已新增。');
     },
     onError: (error) => {
       messageApi.error(formatApiError(error));
@@ -254,7 +270,7 @@ export function ExecutionsPage() {
       setEditWorklogModalOpen(false);
       setEditingWorklog(null);
       editWorklogForm.resetFields();
-      messageApi.success('Worklog updated.');
+      messageApi.success('工作日志已更新。');
     },
     onError: (error) => {
       messageApi.error(formatApiError(error));
@@ -268,7 +284,7 @@ export function ExecutionsPage() {
 
   const openCreateModal = () => {
     if (!canManageExecutions) {
-      messageApi.warning('Your current role cannot create executions.');
+      messageApi.warning('当前角色没有创建执行的权限。');
       return;
     }
 
@@ -284,7 +300,7 @@ export function ExecutionsPage() {
 
   const openEditModal = () => {
     if (!canManageExecutions) {
-      messageApi.warning('Your current role cannot edit executions.');
+      messageApi.warning('当前角色没有编辑执行的权限。');
       return;
     }
 
@@ -306,7 +322,7 @@ export function ExecutionsPage() {
 
   const openTaskModal = () => {
     if (!canManageTasks) {
-      messageApi.warning('Your current role cannot manage child tasks.');
+      messageApi.warning('当前角色没有管理子任务的权限。');
       return;
     }
 
@@ -321,7 +337,7 @@ export function ExecutionsPage() {
 
   const openEditTaskModal = (task: ExecutionTask) => {
     if (!canManageTasks) {
-      messageApi.warning('Your current role cannot manage child tasks.');
+      messageApi.warning('当前角色没有管理子任务的权限。');
       return;
     }
 
@@ -337,7 +353,7 @@ export function ExecutionsPage() {
 
   const openWorklogModal = () => {
     if (!canCreateWorklogs) {
-      messageApi.warning('Your current role cannot add worklogs.');
+      messageApi.warning('当前角色没有新增工作日志的权限。');
       return;
     }
 
@@ -351,7 +367,7 @@ export function ExecutionsPage() {
 
   const openEditWorklogModal = (item: Worklog) => {
     if (!canEditWorklogs) {
-      messageApi.warning('Your current role cannot edit worklogs.');
+      messageApi.warning('当前角色没有编辑工作日志的权限。');
       return;
     }
 
@@ -367,7 +383,7 @@ export function ExecutionsPage() {
 
   const handleCreateExecution = async () => {
     if (!canManageExecutions) {
-      messageApi.warning('Your current role cannot create executions.');
+      messageApi.warning('当前角色没有创建执行的权限。');
       return;
     }
 
@@ -375,7 +391,7 @@ export function ExecutionsPage() {
     const project = projectsQuery.data?.find((item) => item.id === values.projectId);
 
     if (!project) {
-      messageApi.error('Target project was not found.');
+      messageApi.error('未找到目标项目。');
       return;
     }
 
@@ -392,7 +408,7 @@ export function ExecutionsPage() {
 
   const handleUpdateExecution = async () => {
     if (!canManageExecutions) {
-      messageApi.warning('Your current role cannot edit executions.');
+      messageApi.warning('当前角色没有编辑执行的权限。');
       return;
     }
 
@@ -417,7 +433,7 @@ export function ExecutionsPage() {
 
   const handleCreateTask = async () => {
     if (!canManageTasks) {
-      messageApi.warning('Your current role cannot manage child tasks.');
+      messageApi.warning('当前角色没有管理子任务的权限。');
       return;
     }
 
@@ -437,7 +453,7 @@ export function ExecutionsPage() {
 
   const handleUpdateTask = async () => {
     if (!canManageTasks) {
-      messageApi.warning('Your current role cannot manage child tasks.');
+      messageApi.warning('当前角色没有管理子任务的权限。');
       return;
     }
 
@@ -459,7 +475,7 @@ export function ExecutionsPage() {
 
   const handleCreateWorklog = async () => {
     if (!canCreateWorklogs) {
-      messageApi.warning('Your current role cannot add worklogs.');
+      messageApi.warning('当前角色没有新增工作日志的权限。');
       return;
     }
 
@@ -479,7 +495,7 @@ export function ExecutionsPage() {
 
   const handleUpdateWorklog = async () => {
     if (!canEditWorklogs) {
-      messageApi.warning('Your current role cannot edit worklogs.');
+      messageApi.warning('当前角色没有编辑工作日志的权限。');
       return;
     }
 
@@ -504,17 +520,17 @@ export function ExecutionsPage() {
     <Space direction="vertical" size={20} className="page-stack">
       {contextHolder}
       <PageHeader
-        title="Executions"
-        description="This page now supports creation, editing, task breakdown and worklog capture for weekly reporting."
+        title="执行"
+        description="支持执行创建、编辑、子任务拆解和工时记录，数据会联动周报。"
         extra={
           canManageExecutions ? (
             <Button type="primary" onClick={openCreateModal}>
-              Create execution
+              新建执行
             </Button>
           ) : null
         }
       />
-      <Card title="Execution list">
+      <Card title="执行列表">
         <Table
           rowKey="id"
           columns={columns}
@@ -529,16 +545,16 @@ export function ExecutionsPage() {
       </Card>
 
       <Drawer
-        title={detailQuery.data?.name ?? 'Execution detail'}
+        title={detailQuery.data?.name ?? '执行详情'}
         width={760}
         open={selectedExecutionId !== null}
         onClose={() => setSelectedExecutionId(null)}
         extra={
           detailQuery.data ? (
             <Space>
-              {canManageExecutions ? <Button onClick={openEditModal}>Edit execution</Button> : null}
-              {canManageTasks ? <Button onClick={openTaskModal}>Create child task</Button> : null}
-              {canCreateWorklogs ? <Button onClick={openWorklogModal}>Add worklog</Button> : null}
+              {canManageExecutions ? <Button onClick={openEditModal}>编辑执行</Button> : null}
+              {canManageTasks ? <Button onClick={openTaskModal}>新建子任务</Button> : null}
+              {canCreateWorklogs ? <Button onClick={openWorklogModal}>新增工作日志</Button> : null}
               <StatusTag value={detailQuery.data.status} />
             </Space>
           ) : null
@@ -547,7 +563,7 @@ export function ExecutionsPage() {
         {detailQuery.isLoading ? (
           <Card loading />
         ) : detailQuery.isError ? (
-          <Alert type="error" showIcon message="Execution detail request failed" description={formatApiError(detailQuery.error)} />
+          <Alert type="error" showIcon message="获取执行详情失败" description={formatApiError(detailQuery.error)} />
         ) : detailQuery.data ? (
           <ExecutionDetailContent
             detail={detailQuery.data}
@@ -563,31 +579,31 @@ export function ExecutionsPage() {
             canEditWorklogs={canEditWorklogs}
           />
         ) : (
-          <Empty description="Execution detail not found" />
+          <Empty description="未找到执行详情" />
         )}
       </Drawer>
 
-      <Modal title="Create execution" open={createModalOpen} onCancel={() => setCreateModalOpen(false)} onOk={handleCreateExecution} okText="Create" confirmLoading={createMutation.isPending}>
+      <Modal title="新建执行" open={createModalOpen} onCancel={() => setCreateModalOpen(false)} onOk={handleCreateExecution} okText="创建" confirmLoading={createMutation.isPending}>
         <CreateExecutionForm form={createForm} projects={projectsQuery.data ?? []} />
       </Modal>
 
-      <Modal title="Edit execution" open={editModalOpen} onCancel={() => setEditModalOpen(false)} onOk={handleUpdateExecution} okText="Save" confirmLoading={updateMutation.isPending}>
+      <Modal title="编辑执行" open={editModalOpen} onCancel={() => setEditModalOpen(false)} onOk={handleUpdateExecution} okText="保存" confirmLoading={updateMutation.isPending}>
         <EditExecutionForm form={editForm} />
       </Modal>
 
-      <Modal title="Create child task" open={taskModalOpen} onCancel={() => setTaskModalOpen(false)} onOk={handleCreateTask} okText="Create" confirmLoading={createTaskMutation.isPending}>
+      <Modal title="新建子任务" open={taskModalOpen} onCancel={() => setTaskModalOpen(false)} onOk={handleCreateTask} okText="创建" confirmLoading={createTaskMutation.isPending}>
         <TaskForm form={taskForm} />
       </Modal>
 
-      <Modal title="Edit child task" open={editTaskModalOpen} onCancel={() => setEditTaskModalOpen(false)} onOk={handleUpdateTask} okText="Save" confirmLoading={updateTaskMutation.isPending}>
+      <Modal title="编辑子任务" open={editTaskModalOpen} onCancel={() => setEditTaskModalOpen(false)} onOk={handleUpdateTask} okText="保存" confirmLoading={updateTaskMutation.isPending}>
         <TaskForm form={editTaskForm} />
       </Modal>
 
-      <Modal title="Add worklog" open={worklogModalOpen} onCancel={() => setWorklogModalOpen(false)} onOk={handleCreateWorklog} okText="Create" confirmLoading={createWorklogMutation.isPending}>
+      <Modal title="新增工作日志" open={worklogModalOpen} onCancel={() => setWorklogModalOpen(false)} onOk={handleCreateWorklog} okText="创建" confirmLoading={createWorklogMutation.isPending}>
         <WorklogForm form={worklogForm} />
       </Modal>
 
-      <Modal title="Edit worklog" open={editWorklogModalOpen} onCancel={() => setEditWorklogModalOpen(false)} onOk={handleUpdateWorklog} okText="Save" confirmLoading={updateWorklogMutation.isPending}>
+      <Modal title="编辑工作日志" open={editWorklogModalOpen} onCancel={() => setEditWorklogModalOpen(false)} onOk={handleUpdateWorklog} okText="保存" confirmLoading={updateWorklogMutation.isPending}>
         <WorklogForm form={editWorklogForm} />
       </Modal>
     </Space>
@@ -597,19 +613,19 @@ export function ExecutionsPage() {
 function CreateExecutionForm({ form, projects }: { form: FormInstance<CreateExecutionFormValues>; projects: Project[] }) {
   return (
     <Form form={form} layout="vertical">
-      <Form.Item label="Execution name" name="name" rules={[{ required: true, message: 'Enter an execution name' }]}>
-        <Input placeholder="Example: Implement requirement pool base APIs" />
+      <Form.Item label="执行名称" name="name" rules={[{ required: true, message: '请输入执行名称' }]}>
+        <Input placeholder="例如：实现需求池基础接口" />
       </Form.Item>
-      <Form.Item label="Project" name="projectId" rules={[{ required: true, message: 'Select a project' }]}>
+      <Form.Item label="所属项目" name="projectId" rules={[{ required: true, message: '请选择项目' }]}>
         <Select options={projects.map((item) => ({ label: `${item.name} (${item.code})`, value: item.id }))} />
       </Form.Item>
-      <Form.Item label="Owner" name="ownerName" rules={[{ required: true, message: 'Enter an owner' }]}>
-        <Input placeholder="Example: Wang Jun" />
+      <Form.Item label="负责人" name="ownerName" rules={[{ required: true, message: '请输入负责人' }]}>
+        <Input placeholder="例如：王军" />
       </Form.Item>
-      <Form.Item label="Status" name="status" rules={[{ required: true, message: 'Select a status' }]}>
-        <Select options={[{ value: 'NotStarted' }, { value: 'InProgress' }, { value: 'Blocked' }, { value: 'ToVerify' }]} />
+      <Form.Item label="状态" name="status" rules={[{ required: true, message: '请选择状态' }]}>
+        <Select options={executionStatusOptions.filter((item) => item.value !== 'Done' && item.value !== 'Closed')} />
       </Form.Item>
-      <Form.Item label="Plan range" name="planRange" rules={[{ required: true, message: 'Select a plan range' }]}>
+      <Form.Item label="计划时间" name="planRange" rules={[{ required: true, message: '请选择计划时间范围' }]}>
         <RangePicker style={{ width: '100%' }} />
       </Form.Item>
     </Form>
@@ -619,22 +635,22 @@ function CreateExecutionForm({ form, projects }: { form: FormInstance<CreateExec
 function EditExecutionForm({ form }: { form: FormInstance<EditExecutionFormValues> }) {
   return (
     <Form form={form} layout="vertical">
-      <Form.Item label="Execution name" name="name" rules={[{ required: true, message: 'Enter an execution name' }]}>
-        <Input placeholder="Example: Implement requirement pool base APIs" />
+      <Form.Item label="执行名称" name="name" rules={[{ required: true, message: '请输入执行名称' }]}>
+        <Input placeholder="例如：实现需求池基础接口" />
       </Form.Item>
-      <Form.Item label="Owner" name="ownerName" rules={[{ required: true, message: 'Enter an owner' }]}>
-        <Input placeholder="Example: Wang Jun" />
+      <Form.Item label="负责人" name="ownerName" rules={[{ required: true, message: '请输入负责人' }]}>
+        <Input placeholder="例如：王军" />
       </Form.Item>
-      <Form.Item label="Status" name="status" rules={[{ required: true, message: 'Select a status' }]}>
-        <Select options={[{ value: 'NotStarted' }, { value: 'InProgress' }, { value: 'Blocked' }, { value: 'ToVerify' }, { value: 'Done' }, { value: 'Closed' }]} />
+      <Form.Item label="状态" name="status" rules={[{ required: true, message: '请选择状态' }]}>
+        <Select options={executionStatusOptions} />
       </Form.Item>
-      <Form.Item label="Plan range" name="planRange" rules={[{ required: true, message: 'Select a plan range' }]}>
+      <Form.Item label="计划时间" name="planRange" rules={[{ required: true, message: '请选择计划时间范围' }]}>
         <RangePicker style={{ width: '100%' }} />
       </Form.Item>
-      <Form.Item label="Actual progress" name="actualProgress" rules={[{ required: true, message: 'Enter actual progress' }]}>
+      <Form.Item label="实际进度" name="actualProgress" rules={[{ required: true, message: '请输入实际进度' }]}>
         <InputNumber min={0} max={100} style={{ width: '100%' }} />
       </Form.Item>
-      <Form.Item label="Plan progress" name="planProgress" rules={[{ required: true, message: 'Enter plan progress' }]}>
+      <Form.Item label="计划进度" name="planProgress" rules={[{ required: true, message: '请输入计划进度' }]}>
         <InputNumber min={0} max={100} style={{ width: '100%' }} />
       </Form.Item>
     </Form>
@@ -644,16 +660,16 @@ function EditExecutionForm({ form }: { form: FormInstance<EditExecutionFormValue
 function TaskForm({ form }: { form: FormInstance<TaskFormValues> }) {
   return (
     <Form form={form} layout="vertical">
-      <Form.Item label="Task name" name="name" rules={[{ required: true, message: 'Enter a child task name' }]}>
-        <Input placeholder="Example: Implement API error handling" />
+      <Form.Item label="子任务名称" name="name" rules={[{ required: true, message: '请输入子任务名称' }]}>
+        <Input placeholder="例如：补齐 API 异常处理" />
       </Form.Item>
-      <Form.Item label="Owner" name="ownerName" rules={[{ required: true, message: 'Enter an owner' }]}>
-        <Input placeholder="Example: Wang Jun" />
+      <Form.Item label="负责人" name="ownerName" rules={[{ required: true, message: '请输入负责人' }]}>
+        <Input placeholder="例如：王军" />
       </Form.Item>
-      <Form.Item label="Status" name="status" rules={[{ required: true, message: 'Select a status' }]}>
-        <Select options={[{ value: 'NotStarted' }, { value: 'InProgress' }, { value: 'Blocked' }, { value: 'Done' }]} />
+      <Form.Item label="状态" name="status" rules={[{ required: true, message: '请选择状态' }]}>
+        <Select options={taskStatusOptions} />
       </Form.Item>
-      <Form.Item label="Actual progress" name="actualProgress" rules={[{ required: true, message: 'Enter progress' }]}>
+      <Form.Item label="实际进度" name="actualProgress" rules={[{ required: true, message: '请输入进度' }]}>
         <InputNumber min={0} max={100} style={{ width: '100%' }} />
       </Form.Item>
     </Form>
@@ -663,17 +679,17 @@ function TaskForm({ form }: { form: FormInstance<TaskFormValues> }) {
 function WorklogForm({ form }: { form: FormInstance<WorklogFormValues> }) {
   return (
     <Form form={form} layout="vertical">
-      <Form.Item label="Owner" name="ownerName" rules={[{ required: true, message: 'Enter an owner' }]}>
-        <Input placeholder="Example: Wang Jun" />
+      <Form.Item label="负责人" name="ownerName" rules={[{ required: true, message: '请输入负责人' }]}>
+        <Input placeholder="例如：王军" />
       </Form.Item>
-      <Form.Item label="Work date" name="workDate" rules={[{ required: true, message: 'Select a work date' }]}>
+      <Form.Item label="工作日期" name="workDate" rules={[{ required: true, message: '请选择工作日期' }]}>
         <DatePicker style={{ width: '100%' }} />
       </Form.Item>
-      <Form.Item label="Hours" name="hours" rules={[{ required: true, message: 'Enter hours worked' }]}>
+      <Form.Item label="工时" name="hours" rules={[{ required: true, message: '请输入工时' }]}>
         <InputNumber min={0.5} max={24} step={0.5} style={{ width: '100%' }} />
       </Form.Item>
-      <Form.Item label="Summary" name="summary" rules={[{ required: true, message: 'Describe the work completed' }]}>
-        <Input.TextArea rows={4} placeholder="Summarize what was done during this worklog entry." />
+      <Form.Item label="工作摘要" name="summary" rules={[{ required: true, message: '请填写工作摘要' }]}>
+        <Input.TextArea rows={4} placeholder="总结这次日志记录中完成的工作。" />
       </Form.Item>
     </Form>
   );
@@ -710,78 +726,78 @@ function ExecutionDetailContent({
         size="small"
         column={2}
         items={[
-          { key: 'project', label: 'Project', children: detail.projectName },
-          { key: 'owner', label: 'Owner', children: detail.ownerName },
-          { key: 'status', label: 'Status', children: <StatusTag value={detail.status} /> },
-          { key: 'window', label: 'Plan window', children: `${detail.planStart} ~ ${detail.planEnd}` },
-          { key: 'actual', label: 'Actual progress', children: `${detail.actualProgress}%` },
-          { key: 'plan', label: 'Plan progress', children: `${detail.planProgress}%` },
+          { key: 'project', label: '所属项目', children: detail.projectName },
+          { key: 'owner', label: '负责人', children: detail.ownerName },
+          { key: 'status', label: '状态', children: <StatusTag value={detail.status} /> },
+          { key: 'window', label: '计划时间', children: `${detail.planStart} ~ ${detail.planEnd}` },
+          { key: 'actual', label: '实际进度', children: `${detail.actualProgress}%` },
+          { key: 'plan', label: '计划进度', children: `${detail.planProgress}%` },
         ]}
       />
 
-      <Card title="Progress snapshot">
+      <Card title="进度快照">
         <Space direction="vertical" style={{ width: '100%' }}>
           <div>
-            <Typography.Text type="secondary">Actual progress</Typography.Text>
+            <Typography.Text type="secondary">实际进度</Typography.Text>
             <Progress percent={detail.actualProgress} />
           </div>
           <div>
-            <Typography.Text type="secondary">Plan progress</Typography.Text>
+            <Typography.Text type="secondary">计划进度</Typography.Text>
             <Progress percent={detail.planProgress} status="active" />
           </div>
         </Space>
       </Card>
 
-      <Card title="Linked requirements">
+      <Card title="关联需求">
         {detail.requirementIds.length > 0 ? (
-          <List dataSource={detail.requirementIds} renderItem={(item) => <List.Item>Requirement #{item}</List.Item>} />
+          <List dataSource={detail.requirementIds} renderItem={(item) => <List.Item>{`需求 #${item}`}</List.Item>} />
         ) : (
-          <Empty description="No linked requirements" />
+          <Empty description="暂无关联需求" />
         )}
       </Card>
 
-      <Card title="Child tasks">
+      <Card title="子任务">
         <List
           loading={tasksLoading}
           dataSource={tasks}
-          locale={{ emptyText: 'No child tasks yet' }}
+          locale={{ emptyText: '暂无子任务' }}
           renderItem={(task) => (
             <List.Item
               extra={
                 <Space>
                   {canEditTasks ? (
                     <Button size="small" onClick={() => onEditTask(task)}>
-                      Edit
+                      编辑
                     </Button>
                   ) : null}
                   <StatusTag value={task.status} />
                 </Space>
               }
             >
-              <List.Item.Meta title={task.name} description={`${task.ownerName} | Progress ${task.actualProgress}%`} />
+              <List.Item.Meta title={task.name} description={`${task.ownerName} | 进度 ${task.actualProgress}%`} />
             </List.Item>
           )}
         />
       </Card>
 
       {canViewWorklogs ? (
-        <Card title="Worklogs" extra={<Typography.Text type="secondary">Total logged: {worklogHours.toFixed(1)}h</Typography.Text>}>
+        <Card title="工作日志" extra={<Typography.Text type="secondary">累计工时：{worklogHours.toFixed(1)} 小时</Typography.Text>}>
           <List
             loading={worklogsLoading}
             dataSource={worklogs}
-            locale={{ emptyText: 'No worklogs yet' }}
+            locale={{ emptyText: '暂无工作日志' }}
             renderItem={(item) => (
               <List.Item
                 extra={
                   canEditWorklogs ? (
                     <Button size="small" onClick={() => onEditWorklog(item)}>
-                      Edit
+                      编辑
                     </Button>
                   ) : null
                 }
               >
                 <List.Item.Meta
-                  title={`${item.workDate} | ${item.ownerName} | ${item.hours.toFixed(1)}h`}
+                  title={`${item.workDate} | ${item.ownerName} | ${item.hours.toFixed(1)} 小时`}
                   description={item.summary}
                 />
               </List.Item>

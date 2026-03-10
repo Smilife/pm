@@ -363,32 +363,32 @@ function mapWeeklyReport(item: any): WeeklyReportDraft {
 
 function buildMaturityChecks(payload: CreateRequirementPayload | UpdateRequirementPayload) {
   return [
-    { key: 'acceptance', label: 'Acceptance criteria added', passed: payload.acceptanceCriteria.length > 0 },
-    { key: 'solution', label: 'Solution summary added', passed: Boolean(payload.solutionSummary.trim()) },
-    { key: 'impact', label: 'Impact scope defined', passed: payload.impactScope.length > 0 },
-    { key: 'risk', label: 'Risks and dependencies captured', passed: payload.risks.length > 0 },
-    { key: 'owner', label: 'Owner assigned', passed: Boolean(payload.ownerName.trim()) },
+    { key: 'acceptance', label: '\u5df2\u8865\u5145\u9a8c\u6536\u6807\u51c6', passed: payload.acceptanceCriteria.length > 0 },
+    { key: 'solution', label: '\u5df2\u8865\u5145\u65b9\u6848\u6458\u8981', passed: Boolean(payload.solutionSummary.trim()) },
+    { key: 'impact', label: '\u5df2\u660e\u786e\u5f71\u54cd\u8303\u56f4', passed: payload.impactScope.length > 0 },
+    { key: 'risk', label: '\u5df2\u8bb0\u5f55\u98ce\u9669\u4e0e\u4f9d\u8d56', passed: payload.risks.length > 0 },
+    { key: 'owner', label: '\u5df2\u6307\u6d3e\u8d1f\u8d23\u4eba', passed: Boolean(payload.ownerName.trim()) },
   ];
 }
 
 function mapRequirementStage(status: UpdateRequirementPayload['status']): string {
   switch (status) {
     case 'Draft':
-      return 'Drafting';
+      return '\u8349\u7a3f\u6574\u7406';
     case 'Understanding':
-      return 'Understanding';
+      return '\u9700\u6c42\u6f84\u6e05';
     case 'Confirmed':
-      return 'Confirmed';
+      return '\u5df2\u786e\u8ba4';
     case 'ToReview':
-      return 'Pending review';
+      return '\u5f85\u8bc4\u5ba1';
     case 'Reviewed':
-      return 'Reviewed';
+      return '\u5df2\u8bc4\u5ba1';
     case 'Scheduled':
-      return 'Scheduled';
+      return '\u5df2\u6392\u671f';
     case 'InDevelopment':
-      return 'In development';
+      return '\u5f00\u53d1\u4e2d';
     default:
-      return 'Drafting';
+      return '\u8349\u7a3f\u6574\u7406';
   }
 }
 
@@ -400,13 +400,19 @@ export function formatApiError(error: unknown): string {
         : [];
 
       if (failedChecks.length > 0) {
-        return `Maturity checks still failing: ${failedChecks.join(', ')}`;
+        return '\u6210\u719f\u5ea6\u68c0\u67e5\u672a\u901a\u8fc7\uff1a' + failedChecks.join('\u3001');
       }
+
+      return '\u6210\u719f\u5ea6\u68c0\u67e5\u672a\u901a\u8fc7\uff0c\u8bf7\u8865\u5145\u5fc5\u8981\u4fe1\u606f\u540e\u91cd\u8bd5\u3002';
     }
 
     if (error.message === 'forbidden') {
       const requiredPermission = String((error.data as any)?.required_permission ?? '').trim();
-      return requiredPermission ? `Missing permission: ${requiredPermission}` : 'Forbidden';
+      return requiredPermission ? '\u7f3a\u5c11\u6743\u9650\uff1a' + requiredPermission : '\u6ca1\u6709\u8bbf\u95ee\u6743\u9650\u3002';
+    }
+
+    if (error.message === 'unauthorized') {
+      return '\u767b\u5f55\u72b6\u6001\u5df2\u5931\u6548\uff0c\u8bf7\u91cd\u65b0\u767b\u5f55\u3002';
     }
 
     return error.message.replace(/_/g, ' ');
@@ -416,7 +422,7 @@ export function formatApiError(error: unknown): string {
     return error.message;
   }
 
-  return 'Request failed.';
+  return '\u8bf7\u6c42\u5931\u8d25\u3002';
 }
 
 export const pmApi = {

@@ -18,7 +18,7 @@ export function ReportsWeeklyPage() {
     mutationFn: pmApi.generateWeeklyReport,
     onSuccess: (draft) => {
       queryClient.setQueryData(['weekly-report'], draft);
-      messageApi.success('Weekly report regenerated.');
+      messageApi.success('周报已重新生成。');
     },
     onError: (error) => {
       messageApi.error(formatApiError(error));
@@ -29,7 +29,7 @@ export function ReportsWeeklyPage() {
 
   const handleRegenerate = () => {
     if (!canGenerateWeeklyReport) {
-      messageApi.warning('Your current role cannot regenerate weekly reports.');
+      messageApi.warning('当前角色没有重新生成周报的权限。');
       return;
     }
 
@@ -40,14 +40,14 @@ export function ReportsWeeklyPage() {
     <Space direction="vertical" size={20} className="page-stack">
       {contextHolder}
       <PageHeader
-        title="Weekly report"
-        description="Summarize progress across executions, daily tasks and execution worklogs into a single weekly narrative."
+        title="周报"
+        description="汇总执行进展、日常事项和工时日志，形成统一的周度产出说明。"
         extra={
           <Space>
-            {canViewExecutions ? <Button onClick={() => navigate('/executions')}>Manage executions</Button> : null}
+            {canViewExecutions ? <Button onClick={() => navigate('/executions')}>查看执行</Button> : null}
             {canGenerateWeeklyReport ? (
               <Button type="primary" onClick={handleRegenerate} loading={regenerateMutation.isPending}>
-                Regenerate
+                重新生成
               </Button>
             ) : null}
           </Space>
@@ -55,23 +55,23 @@ export function ReportsWeeklyPage() {
       />
       <Space wrap size={16}>
         <Card>
-          <Statistic title="Total logged hours" value={draft?.totalHours ?? 0} suffix="h" loading={reportQuery.isLoading} />
+          <Statistic title="总工时" value={draft?.totalHours ?? 0} suffix="h" loading={reportQuery.isLoading} />
         </Card>
         <Card>
-          <Statistic title="Worklog highlights" value={worklogCount} loading={reportQuery.isLoading} />
+          <Statistic title="工时亮点条数" value={worklogCount} loading={reportQuery.isLoading} />
         </Card>
       </Space>
       <Card loading={reportQuery.isLoading}>
-        <Typography.Text type="secondary">Generated at: {draft?.generatedAt ?? '-'}</Typography.Text>
+        <Typography.Text type="secondary">生成时间：{draft?.generatedAt ?? '-'}</Typography.Text>
         <Typography.Paragraph style={{ marginTop: 12 }}>{draft?.summary ?? '-'}</Typography.Paragraph>
       </Card>
-      <Card title="Completed" loading={reportQuery.isLoading}>
+      <Card title="已完成" loading={reportQuery.isLoading}>
         <List dataSource={draft?.completed ?? []} renderItem={(item) => <List.Item>{item}</List.Item>} />
       </Card>
-      <Card title="In progress" loading={reportQuery.isLoading}>
+      <Card title="进行中" loading={reportQuery.isLoading}>
         <List dataSource={draft?.inProgress ?? []} renderItem={(item) => <List.Item>{item}</List.Item>} />
       </Card>
-      <Card title="Risks" loading={reportQuery.isLoading}>
+      <Card title="风险项" loading={reportQuery.isLoading}>
         <Space wrap>
           {(draft?.risks ?? []).map((risk) => (
             <Tag key={risk} color="error">
@@ -80,10 +80,10 @@ export function ReportsWeeklyPage() {
           ))}
         </Space>
       </Card>
-      <Card title="Next week" loading={reportQuery.isLoading}>
+      <Card title="下周计划" loading={reportQuery.isLoading}>
         <List dataSource={draft?.nextWeek ?? []} renderItem={(item) => <List.Item>{item}</List.Item>} />
       </Card>
-      <Card title="Worklog highlights" loading={reportQuery.isLoading}>
+      <Card title="工时亮点" loading={reportQuery.isLoading}>
         <List dataSource={draft?.worklogHighlights ?? []} renderItem={(item) => <List.Item>{item}</List.Item>} />
       </Card>
     </Space>

@@ -3,6 +3,12 @@ import { Alert, Button, Card, Form, Input, Space, Typography } from 'antd';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 
+const authErrorMap: Record<string, string> = {
+  invalid_credentials: '账号或密码错误',
+  missing_credentials: '请输入账号和密码',
+  unauthorized: '登录状态已失效',
+};
+
 export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -17,8 +23,8 @@ export function LoginPage() {
       const target = typeof location.state?.from === 'string' ? location.state.from : '/workspace';
       navigate(target, { replace: true });
     } catch (error) {
-      const message = error instanceof Error ? error.message.replace(/_/g, ' ') : 'Login failed';
-      setErrorMessage(message);
+      const rawMessage = error instanceof Error ? error.message : 'Login failed';
+      setErrorMessage(authErrorMap[rawMessage] ?? '登录失败，请稍后重试');
     }
   };
 
@@ -27,33 +33,33 @@ export function LoginPage() {
       <Card className="auth-card">
         <Space direction="vertical" size={20} style={{ width: '100%' }}>
           <div>
-            <Typography.Title level={2}>Sign in</Typography.Title>
+            <Typography.Title level={2}>登录系统</Typography.Title>
             <Typography.Paragraph>
-              Use one of the demo accounts to explore the project management workspace with different role permissions.
+              使用演示账号进入团队项目管理平台，不同账号会看到不同的权限范围。
             </Typography.Paragraph>
           </div>
           <Alert
             type="info"
             showIcon
-            message="Demo accounts"
+            message="演示账号"
             description={
               <Space direction="vertical" size={4}>
-                <Typography.Text>Admin: `wangjun@example.com` / `demo123`</Typography.Text>
-                <Typography.Text>Execution member: `chenjing@example.com` / `demo123`</Typography.Text>
-                <Typography.Text>Read only: `sunmei@example.com` / `demo123`</Typography.Text>
+                <Typography.Text>管理员：wangjun@example.com / demo123</Typography.Text>
+                <Typography.Text>执行成员：chenjing@example.com / demo123</Typography.Text>
+                <Typography.Text>只读成员：sunmei@example.com / demo123</Typography.Text>
               </Space>
             }
           />
           {errorMessage ? <Alert type="error" showIcon message={errorMessage} /> : null}
           <Form layout="vertical" initialValues={{ account: 'wangjun@example.com', password: 'demo123' }} onFinish={handleFinish}>
-            <Form.Item label="Account" name="account" rules={[{ required: true, message: 'Enter your account' }]}>
-              <Input placeholder="Email or username" autoComplete="username" />
+            <Form.Item label="账号" name="account" rules={[{ required: true, message: '请输入账号' }]}>
+              <Input placeholder="邮箱或用户名" autoComplete="username" />
             </Form.Item>
-            <Form.Item label="Password" name="password" rules={[{ required: true, message: 'Enter your password' }]}>
-              <Input.Password placeholder="Password" autoComplete="current-password" />
+            <Form.Item label="密码" name="password" rules={[{ required: true, message: '请输入密码' }]}>
+              <Input.Password placeholder="请输入密码" autoComplete="current-password" />
             </Form.Item>
             <Button type="primary" htmlType="submit" block loading={loading}>
-              Sign in
+              登录
             </Button>
           </Form>
         </Space>

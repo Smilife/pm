@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+﻿import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import dayjs, { type Dayjs } from 'dayjs';
 import {
@@ -43,10 +43,10 @@ import type {
 const { RangePicker } = DatePicker;
 
 const reviewResultLabelMap: Record<ReviewResult, string> = {
-  approved: 'Approved',
-  rejected: 'Rejected',
-  delayed: 'Delayed',
-  supplement_required: 'Need more info',
+  approved: '已通过',
+  rejected: '已驳回',
+  delayed: '延后处理',
+  supplement_required: '需要补充信息',
 };
 
 const reviewResultColorMap: Record<ReviewResult, string> = {
@@ -56,18 +56,59 @@ const reviewResultColorMap: Record<ReviewResult, string> = {
   supplement_required: 'processing',
 };
 
+const requirementStatusOptions = [
+  { label: '草稿', value: 'Draft' },
+  { label: '需求澄清', value: 'Understanding' },
+  { label: '已确认', value: 'Confirmed' },
+  { label: '待评审', value: 'ToReview' },
+  { label: '已评审', value: 'Reviewed' },
+  { label: '已排期', value: 'Scheduled' },
+  { label: '开发中', value: 'InDevelopment' },
+];
+
+const priorityOptions = [
+  { label: 'P0', value: 'P0' },
+  { label: 'P1', value: 'P1' },
+  { label: 'P2', value: 'P2' },
+];
+
+const maturityCheckLabelMap: Record<string, string> = {
+  acceptance: '已补充验收标准',
+  solution: '已补充方案摘要',
+  impact: '已明确影响范围',
+  risk: '已记录风险与依赖',
+  owner: '已指派负责人',
+};
+
+const stageLabelMap: Record<string, string> = {
+  Drafting: '草稿整理',
+  Understanding: '需求澄清',
+  Confirmed: '已确认',
+  'Pending review': '待评审',
+  Reviewed: '已评审',
+  Scheduled: '已排期',
+  'In development': '开发中',
+  草稿整理: '草稿整理',
+  需求澄清: '需求澄清',
+  已确认: '已确认',
+  待评审: '待评审',
+  已评审: '已评审',
+  已排期: '已排期',
+  开发中: '开发中',
+};
+
 const columns: ColumnsType<Requirement> = [
   { title: 'ID', dataIndex: 'id', width: 90 },
   {
-    title: 'Requirement',
+    title: '需求名称',
     dataIndex: 'title',
     render: (value: string) => <Typography.Text strong>{value}</Typography.Text>,
   },
-  { title: 'Status', dataIndex: 'status', render: (value: string) => <StatusTag value={value} /> },
-  { title: 'Priority', dataIndex: 'priority', width: 90 },
-  { title: 'Owner', dataIndex: 'ownerName', width: 120 },
-  { title: 'Target release', dataIndex: 'expectedReleaseAt', width: 140 },
-  { title: 'Linked executions', dataIndex: 'linkedExecutionCount', width: 140 },
+  { title: '状态', dataIndex: 'status', render: (value: string) => <StatusTag value={value} /> },
+  { title: '优先级', dataIndex: 'priority', width: 90 },
+  { title: '负责人', dataIndex: 'ownerName', width: 140 },
+  { title: '目标版本', dataIndex: 'expectedReleaseAt', width: 140 },
+  { title: '关联执行数', dataIndex: 'linkedExecutionCount', width: 140 },
 ];
 
 type RequirementCreateFormValues = {
@@ -133,7 +174,7 @@ export function RequirementsPage() {
       createForm.resetFields();
       setSelectedRequirementId(created.id);
       reviewForm.setFieldsValue({ reviewerName: currentUserName, result: 'approved', comment: '' });
-      messageApi.success('Requirement created.');
+      messageApi.success('需求已创建。');
     },
     onError: (error) => {
       messageApi.error(formatApiError(error));
@@ -148,7 +189,7 @@ export function RequirementsPage() {
         queryClient.invalidateQueries({ queryKey: ['requirement-detail', updated.id] }),
       ]);
       setEditModalOpen(false);
-      messageApi.success('Requirement updated.');
+      messageApi.success('需求已更新。');
     },
     onError: (error) => {
       messageApi.error(formatApiError(error));
@@ -162,7 +203,7 @@ export function RequirementsPage() {
         queryClient.invalidateQueries({ queryKey: ['requirements'] }),
         queryClient.invalidateQueries({ queryKey: ['requirement-detail', result.id] }),
       ]);
-      messageApi.success('Requirement submitted for review.');
+      messageApi.success('需求已提交评审。');
     },
     onError: (error) => {
       messageApi.error(formatApiError(error));
@@ -179,7 +220,7 @@ export function RequirementsPage() {
       ]);
       reviewForm.resetFields();
       reviewForm.setFieldsValue({ reviewerName: currentUserName, result: 'approved', comment: '' });
-      messageApi.success('Review record saved and requirement status updated.');
+      messageApi.success('评审记录已保存，需求状态已同步更新。');
     },
     onError: (error) => {
       messageApi.error(formatApiError(error));
@@ -203,10 +244,10 @@ export function RequirementsPage() {
       const createdCount = result.items.length;
       const skippedCount = result.skippedRequirementIds.length;
       if (skippedCount > 0) {
-        messageApi.warning(`Created ${createdCount} executions and skipped ${skippedCount} requirements due to status rules.`);
+        messageApi.warning(`已生成 ${createdCount} 条执行，另有 ${skippedCount} 条因状态不符合规则被跳过。`);
         return;
       }
-      messageApi.success(`Created ${createdCount} executions.`);
+      messageApi.success(`已生成 ${createdCount} 条执行。`);
     },
     onError: (error) => {
       messageApi.error(formatApiError(error));
@@ -215,13 +256,13 @@ export function RequirementsPage() {
 
   const openGenerateModal = (ids?: number[]) => {
     if (!canGenerateExecutions) {
-      messageApi.warning('Your current role cannot generate executions.');
+      messageApi.warning('当前角色没有生成执行的权限。');
       return;
     }
 
     const requirementIds = ids && ids.length > 0 ? ids : selectedRowKeys;
     if (requirementIds.length === 0) {
-      messageApi.info('Select at least one requirement first.');
+      messageApi.info('请先选择至少一条需求。');
       return;
     }
 
@@ -239,7 +280,7 @@ export function RequirementsPage() {
 
   const openCreateModal = () => {
     if (!canManageRequirements) {
-      messageApi.warning('Your current role cannot create requirements.');
+      messageApi.warning('当前角色没有创建需求的权限。');
       return;
     }
 
@@ -256,7 +297,7 @@ export function RequirementsPage() {
 
   const openEditModal = () => {
     if (!canManageRequirements) {
-      messageApi.warning('Your current role cannot edit requirements.');
+      messageApi.warning('当前角色没有编辑需求的权限。');
       return;
     }
 
@@ -282,7 +323,7 @@ export function RequirementsPage() {
 
   const handleCreateRequirement = async () => {
     if (!canManageRequirements) {
-      messageApi.warning('Your current role cannot create requirements.');
+      messageApi.warning('当前角色没有创建需求的权限。');
       return;
     }
 
@@ -292,7 +333,7 @@ export function RequirementsPage() {
 
   const handleUpdateRequirement = async () => {
     if (!canManageRequirements) {
-      messageApi.warning('Your current role cannot edit requirements.');
+      messageApi.warning('当前角色没有编辑需求的权限。');
       return;
     }
 
@@ -312,7 +353,7 @@ export function RequirementsPage() {
 
   const handleSubmitReview = async () => {
     if (!canReviewRequirements) {
-      messageApi.warning('Your current role cannot add review records.');
+      messageApi.warning('当前角色没有新增评审记录的权限。');
       return;
     }
 
@@ -326,7 +367,7 @@ export function RequirementsPage() {
 
   const handleSubmitForReview = () => {
     if (!canReviewRequirements) {
-      messageApi.warning('Your current role cannot submit requirements for review.');
+      messageApi.warning('当前角色没有提交评审的权限。');
       return;
     }
 
@@ -339,7 +380,7 @@ export function RequirementsPage() {
 
   const handleGenerateExecutions = async () => {
     if (!canGenerateExecutions) {
-      messageApi.warning('Your current role cannot generate executions.');
+      messageApi.warning('当前角色没有生成执行的权限。');
       return;
     }
 
@@ -347,7 +388,7 @@ export function RequirementsPage() {
     const project = projectsQuery.data?.find((item) => item.id === values.projectId);
 
     if (!project) {
-      messageApi.error('Target project was not found.');
+      messageApi.error('未找到目标项目。');
       return;
     }
 
@@ -366,26 +407,26 @@ export function RequirementsPage() {
     <Space direction="vertical" size={20} className="page-stack">
       {contextHolder}
       <PageHeader
-        title="Requirements"
-        description="This screen now supports creation, editing, review transition, review records and batch generation of executions."
+        title="需求池"
+        description="支持需求创建、编辑、送审、评审记录和批量生成执行。"
         extra={
           canGenerateExecutions || canManageRequirements ? (
             <Space>
               {canGenerateExecutions ? (
                 <Button onClick={() => openGenerateModal()} disabled={selectedRowKeys.length === 0}>
-                  Batch generate executions
+                  批量生成执行
                 </Button>
               ) : null}
               {canManageRequirements ? (
                 <Button type="primary" onClick={openCreateModal}>
-                  Create requirement
+                  新建需求
                 </Button>
               ) : null}
             </Space>
           ) : null
         }
       />
-      <Card title="Requirement list" extra={<Typography.Text type="secondary">Selected {selectedRowKeys.length}</Typography.Text>}>
+      <Card title="需求列表" extra={<Typography.Text type="secondary">已选 {selectedRowKeys.length} 条</Typography.Text>}>
         <Table
           rowKey="id"
           columns={columns}
@@ -406,14 +447,14 @@ export function RequirementsPage() {
       </Card>
 
       <Drawer
-        title={detailQuery.data?.title ?? 'Requirement detail'}
+        title={detailQuery.data?.title ?? '需求详情'}
         width={720}
         open={selectedRequirementId !== null}
         onClose={() => setSelectedRequirementId(null)}
         extra={
           detailQuery.data ? (
             <Space>
-              {canManageRequirements ? <Button onClick={openEditModal}>Edit</Button> : null}
+              {canManageRequirements ? <Button onClick={openEditModal}>编辑</Button> : null}
               {canReviewRequirements ? (
                 <Button
                   type="primary"
@@ -421,12 +462,12 @@ export function RequirementsPage() {
                   disabled={!canSubmitReview}
                   loading={submitForReviewMutation.isPending}
                 >
-                  Submit for review
+                  提交评审
                 </Button>
               ) : null}
               {canGenerateExecutions ? (
                 <Button onClick={() => openGenerateModal(selectedRequirementId !== null ? [selectedRequirementId] : [])}>
-                  Generate execution
+                  生成执行
                 </Button>
               ) : null}
               <StatusTag value={detailQuery.data.status} />
@@ -437,7 +478,7 @@ export function RequirementsPage() {
         {detailQuery.isLoading ? (
           <Card loading />
         ) : detailQuery.isError ? (
-          <Alert type="error" showIcon message="Requirement detail request failed" description={formatApiError(detailQuery.error)} />
+          <Alert type="error" showIcon message="获取需求详情失败" description={formatApiError(detailQuery.error)} />
         ) : detailQuery.data ? (
           <RequirementDetailContent
             detail={detailQuery.data}
@@ -447,16 +488,16 @@ export function RequirementsPage() {
             canReviewRequirements={canReviewRequirements}
           />
         ) : (
-          <Empty description="Requirement detail not found" />
+          <Empty description="未找到需求详情" />
         )}
       </Drawer>
 
       <Modal
-        title="Create requirement"
+        title="新建需求"
         open={createModalOpen}
         onCancel={() => setCreateModalOpen(false)}
         onOk={handleCreateRequirement}
-        okText="Create"
+        okText="创建"
         confirmLoading={createMutation.isPending}
         width={760}
       >
@@ -464,11 +505,11 @@ export function RequirementsPage() {
       </Modal>
 
       <Modal
-        title="Edit requirement"
+        title="编辑需求"
         open={editModalOpen}
         onCancel={() => setEditModalOpen(false)}
         onOk={handleUpdateRequirement}
-        okText="Save"
+        okText="保存"
         confirmLoading={updateMutation.isPending}
         width={760}
       >
@@ -476,24 +517,24 @@ export function RequirementsPage() {
       </Modal>
 
       <Modal
-        title="Batch generate executions"
+        title="批量生成执行"
         open={generateModalOpen}
         onCancel={() => setGenerateModalOpen(false)}
         onOk={handleGenerateExecutions}
-        okText="Generate"
+        okText="生成"
         confirmLoading={generateMutation.isPending}
       >
         <Space direction="vertical" size={16} style={{ width: '100%' }}>
           <Alert
             type="info"
             showIcon
-            message={`This run will process ${selectedRows.length} requirements`}
-            description={selectedRows.map((item) => item.title).join(', ') || 'No requirements selected'}
+            message={`本次将处理 ${selectedRows.length} 条需求`}
+            description={selectedRows.map((item) => item.title).join('，') || '当前未选择需求'}
           />
           <Form form={generateForm} layout="vertical">
-            <Form.Item label="Target project" name="projectId" rules={[{ required: true, message: 'Select a target project' }]}>
+            <Form.Item label="目标项目" name="projectId" rules={[{ required: true, message: '请选择目标项目' }]}>
               <Select
-                placeholder="Select a project"
+                placeholder="请选择项目"
                 options={(projectsQuery.data ?? []).map((item: Project) => ({
                   label: `${item.name} (${item.code})`,
                   value: item.id,
@@ -501,9 +542,9 @@ export function RequirementsPage() {
               />
             </Form.Item>
             <Form.Item
-              label="Plan range"
+              label="计划时间"
               name="planRange"
-              rules={[{ required: true, message: 'Select a plan start and end date' }]}
+              rules={[{ required: true, message: '请选择计划开始和结束日期' }]}
             >
               <RangePicker style={{ width: '100%' }} />
             </Form.Item>
@@ -523,69 +564,59 @@ function RequirementEditorForm({
 }) {
   return (
     <Form form={form} layout="vertical">
-      <Form.Item label="Title" name="title" rules={[{ required: true, message: 'Enter a requirement title' }]}>
-        <Input placeholder="Example: Requirement review and batch execution generation" />
+      <Form.Item label="需求标题" name="title" rules={[{ required: true, message: '请输入需求标题' }]}>
+        <Input placeholder="例如：需求评审与批量生成执行" />
       </Form.Item>
       {mode === 'edit' ? (
-        <Form.Item label="Status" name="status" rules={[{ required: true, message: 'Select a status' }]}>
-          <Select
-            options={[
-              { value: 'Draft' },
-              { value: 'Understanding' },
-              { value: 'Confirmed' },
-              { value: 'ToReview' },
-              { value: 'Reviewed' },
-              { value: 'Scheduled' },
-              { value: 'InDevelopment' },
-            ]}
-          />
+        <Form.Item label="状态" name="status" rules={[{ required: true, message: '请选择状态' }]}>
+          <Select options={requirementStatusOptions} />
         </Form.Item>
       ) : null}
       <Space size={16} style={{ width: '100%' }}>
-        <Form.Item label="Priority" name="priority" rules={[{ required: true, message: 'Select a priority' }]} style={{ flex: 1 }}>
-          <Select options={[{ value: 'P0' }, { value: 'P1' }, { value: 'P2' }]} />
+        <Form.Item label="优先级" name="priority" rules={[{ required: true, message: '请选择优先级' }]} style={{ flex: 1 }}>
+          <Select options={priorityOptions} />
         </Form.Item>
-        <Form.Item label="Owner" name="ownerName" rules={[{ required: true, message: 'Enter an owner' }]} style={{ flex: 1 }}>
-          <Input placeholder="Example: Wang Jun" />
+        <Form.Item label="负责人" name="ownerName" rules={[{ required: true, message: '请输入负责人' }]} style={{ flex: 1 }}>
+          <Input placeholder="例如：王军" />
         </Form.Item>
         <Form.Item
-          label="Target release"
+          label="目标版本"
           name="expectedReleaseAt"
-          rules={[{ required: true, message: 'Select a target release date' }]}
+          rules={[{ required: true, message: '请选择目标版本日期' }]}
           style={{ flex: 1 }}
         >
           <DatePicker style={{ width: '100%' }} />
         </Form.Item>
       </Space>
-      <Form.Item label="Description" name="description" rules={[{ required: true, message: 'Add a short requirement description' }]}>
-        <Input.TextArea rows={3} placeholder="Describe the business problem and the expected outcome." />
+      <Form.Item label="需求描述" name="description" rules={[{ required: true, message: '请填写需求描述' }]}>
+        <Input.TextArea rows={3} placeholder="描述业务问题和期望结果。" />
       </Form.Item>
-      <Form.Item label="Solution summary" name="solutionSummary" rules={[{ required: true, message: 'Add a solution summary' }]}>
-        <Input.TextArea rows={3} placeholder="Describe the planned approach." />
+      <Form.Item label="方案摘要" name="solutionSummary" rules={[{ required: true, message: '请填写方案摘要' }]}>
+        <Input.TextArea rows={3} placeholder="描述计划采用的解决方案。" />
       </Form.Item>
       <Form.Item
-        label="Acceptance criteria"
+        label="验收标准"
         name="acceptanceCriteriaText"
-        rules={[{ required: true, message: 'Add at least one acceptance criterion' }]}
-        extra="Enter one item per line."
+        rules={[{ required: true, message: '请至少填写一条验收标准' }]}
+        extra="每行填写一项。"
       >
-        <Input.TextArea rows={4} placeholder={'Acceptance point 1\nAcceptance point 2'} />
+        <Input.TextArea rows={4} placeholder={'验收点 1\n验收点 2'} />
       </Form.Item>
       <Form.Item
-        label="Impact scope"
+        label="影响范围"
         name="impactScopeText"
-        rules={[{ required: true, message: 'Add at least one impact item' }]}
-        extra="Enter one item per line."
+        rules={[{ required: true, message: '请至少填写一条影响范围' }]}
+        extra="每行填写一项。"
       >
-        <Input.TextArea rows={3} placeholder={'Requirement pool\nExecution management'} />
+        <Input.TextArea rows={3} placeholder={'需求池\n执行管理'} />
       </Form.Item>
       <Form.Item
-        label="Risks and dependencies"
+        label="风险与依赖"
         name="risksText"
-        rules={[{ required: true, message: 'Add at least one risk or dependency' }]}
-        extra="Enter one item per line."
+        rules={[{ required: true, message: '请至少填写一条风险或依赖' }]}
+        extra="每行填写一项。"
       >
-        <Input.TextArea rows={3} placeholder="Dependency on review quality" />
+        <Input.TextArea rows={3} placeholder="例如：依赖评审质量与排期确认" />
       </Form.Item>
     </Form>
   );
@@ -612,60 +643,60 @@ function RequirementDetailContent({
         size="small"
         column={2}
         items={[
-          { key: 'status', label: 'Status', children: <StatusTag value={detail.status} /> },
-          { key: 'stage', label: 'Stage', children: detail.currentStage },
-          { key: 'priority', label: 'Priority', children: detail.priority },
-          { key: 'owner', label: 'Owner', children: detail.ownerName },
-          { key: 'release', label: 'Target release', children: detail.expectedReleaseAt },
-          { key: 'executionCount', label: 'Linked executions', children: detail.linkedExecutionCount },
+          { key: 'status', label: '状态', children: <StatusTag value={detail.status} /> },
+          { key: 'stage', label: '当前阶段', children: formatRequirementStage(detail.currentStage) },
+          { key: 'priority', label: '优先级', children: detail.priority },
+          { key: 'owner', label: '负责人', children: detail.ownerName },
+          { key: 'release', label: '目标版本', children: detail.expectedReleaseAt },
+          { key: 'executionCount', label: '关联执行数', children: detail.linkedExecutionCount },
         ]}
       />
 
-      <Card title="Description">
+      <Card title="需求描述">
         <Typography.Paragraph>{detail.description}</Typography.Paragraph>
-        <Typography.Text strong>Solution summary</Typography.Text>
-        <Typography.Paragraph>{detail.solutionSummary}</Typography.Paragraph>
+        <Typography.Text strong>方案摘要</Typography.Text>
+        <Typography.Paragraph style={{ marginBottom: 0 }}>{detail.solutionSummary}</Typography.Paragraph>
       </Card>
 
-      <Card title="Maturity checks">
+      <Card title="成熟度检查">
         {failedChecks.length > 0 ? (
           <Alert
             type="warning"
             showIcon
-            message="Some review prerequisites are still missing"
-            description={failedChecks.map((item) => item.label).join(', ')}
+            message="仍有评审前置项未补齐"
+            description={failedChecks.map((item) => formatMaturityCheckLabel(item.key, item.label)).join('、')}
             style={{ marginBottom: 16 }}
           />
         ) : (
           <Alert
             type="success"
             showIcon
-            message="Maturity checks are complete. This item can move through review or execution generation."
+            message="成熟度检查已通过，可以继续评审或生成执行。"
             style={{ marginBottom: 16 }}
           />
         )}
         <Space wrap>
           {detail.maturityChecks.map((item) => (
             <Tag key={item.key} color={item.passed ? 'success' : 'warning'}>
-              {item.label}
+              {formatMaturityCheckLabel(item.key, item.label)}
             </Tag>
           ))}
         </Space>
       </Card>
 
-      <Card title="Acceptance criteria">
+      <Card title="验收标准">
         <List dataSource={detail.acceptanceCriteria} renderItem={(item) => <List.Item>{item}</List.Item>} />
       </Card>
 
-      <Card title="Impact and risk">
-        <Typography.Text strong>Impact scope</Typography.Text>
+      <Card title="影响范围与风险">
+        <Typography.Text strong>影响范围</Typography.Text>
         <List dataSource={detail.impactScope} renderItem={(item) => <List.Item>{item}</List.Item>} />
         <Divider />
-        <Typography.Text strong>Risks and dependencies</Typography.Text>
+        <Typography.Text strong>风险与依赖</Typography.Text>
         <List dataSource={detail.risks} renderItem={(item) => <List.Item>{item}</List.Item>} />
       </Card>
 
-      <Card title="Review history">
+      <Card title="评审记录">
         {detail.reviews.length > 0 ? (
           <Timeline
             items={detail.reviews.map((item) => ({
@@ -684,45 +715,45 @@ function RequirementDetailContent({
                     <Tag color={reviewResultColorMap[item.result]}>{reviewResultLabelMap[item.result]}</Tag>
                     <Typography.Text type="secondary">{item.reviewedAt}</Typography.Text>
                   </Space>
-                  <Typography.Paragraph>{item.comment}</Typography.Paragraph>
+                  <Typography.Paragraph style={{ marginBottom: 0 }}>{item.comment}</Typography.Paragraph>
                 </Space>
               ),
             }))}
           />
         ) : (
-          <Empty description="No review records yet" />
+          <Empty description="暂无评审记录" />
         )}
       </Card>
 
       {canReviewRequirements ? (
-        <Card title="Add a review record">
+        <Card title="新增评审记录">
           <Form form={reviewForm} layout="vertical">
-            <Form.Item label="Reviewer" name="reviewerName" rules={[{ required: true, message: 'Enter a reviewer name' }]}>
-              <Input placeholder="Example: Wang Jun" />
+            <Form.Item label="评审人" name="reviewerName" rules={[{ required: true, message: '请输入评审人姓名' }]}>
+              <Input placeholder="例如：王军" />
             </Form.Item>
-            <Form.Item label="Decision" name="result" rules={[{ required: true, message: 'Select a review decision' }]}>
+            <Form.Item label="评审结论" name="result" rules={[{ required: true, message: '请选择评审结论' }]}>
               <Radio.Group optionType="button" buttonStyle="solid">
-                <Radio.Button value="approved">Approve</Radio.Button>
-                <Radio.Button value="rejected">Reject</Radio.Button>
-                <Radio.Button value="delayed">Delay</Radio.Button>
-                <Radio.Button value="supplement_required">Need more info</Radio.Button>
+                <Radio.Button value="approved">通过</Radio.Button>
+                <Radio.Button value="rejected">驳回</Radio.Button>
+                <Radio.Button value="delayed">延后</Radio.Button>
+                <Radio.Button value="supplement_required">补充信息</Radio.Button>
               </Radio.Group>
             </Form.Item>
-            <Form.Item label="Comment" name="comment" rules={[{ required: true, message: 'Write a short review comment' }]}>
-              <Input.TextArea rows={4} placeholder="Capture the decision, open questions and next steps." />
+            <Form.Item label="评审意见" name="comment" rules={[{ required: true, message: '请填写评审意见' }]}>
+              <Input.TextArea rows={4} placeholder="记录决策、待补充问题和下一步动作。" />
             </Form.Item>
             <Button type="primary" loading={reviewSubmitting} onClick={onSubmitReview}>
-              Save review record
+              保存评审记录
             </Button>
           </Form>
         </Card>
       ) : null}
 
-      <Card title="Linked executions">
+      <Card title="关联执行">
         {detail.linkedExecutionNames.length > 0 ? (
           <List dataSource={detail.linkedExecutionNames} renderItem={(item) => <List.Item>{item}</List.Item>} />
         ) : (
-          <Empty description="No linked executions yet" />
+          <Empty description="暂无关联执行" />
         )}
       </Card>
     </Space>
@@ -754,4 +785,12 @@ function toRequirementDraftPayload(
 
 function canSubmitForReview(detail: RequirementDetail): boolean {
   return ['Draft', 'Understanding', 'Confirmed'].includes(detail.status);
+}
+
+function formatRequirementStage(value: string): string {
+  return stageLabelMap[value] ?? value;
+}
+
+function formatMaturityCheckLabel(key: string, label: string): string {
+  return maturityCheckLabelMap[key] ?? label;
 }

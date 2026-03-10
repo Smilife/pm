@@ -12,7 +12,7 @@ export function PlaceholderPage({ title, description }: PlaceholderPageProps) {
       <PageHeader title={title} description={description} />
       <Card>
         <Typography.Paragraph>
-          The route is wired into navigation. Tables, filters and real API calls will be added in the next pass.
+          这个路由已经接入导航，后续会继续补齐表格、筛选器和真实接口联动。
         </Typography.Paragraph>
       </Card>
     </div>

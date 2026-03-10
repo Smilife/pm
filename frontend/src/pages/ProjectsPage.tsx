@@ -10,12 +10,12 @@ import type { CreateProjectPayload, Project } from '../services/types';
 
 const columns: ColumnsType<Project> = [
   { title: 'ID', dataIndex: 'id', width: 90 },
-  { title: 'Project', dataIndex: 'name' },
-  { title: 'Code', dataIndex: 'code', width: 120 },
-  { title: 'Owner', dataIndex: 'ownerName', width: 120 },
-  { title: 'Status', dataIndex: 'status', render: (value: string) => <StatusTag value={value} /> },
-  { title: 'Executions', dataIndex: 'executionCount', width: 100 },
-  { title: 'Risks', dataIndex: 'riskCount', width: 100 },
+  { title: '项目名称', dataIndex: 'name' },
+  { title: '项目编码', dataIndex: 'code', width: 120 },
+  { title: '负责人', dataIndex: 'ownerName', width: 120 },
+  { title: '状态', dataIndex: 'status', render: (value: string) => <StatusTag value={value} /> },
+  { title: '执行数', dataIndex: 'executionCount', width: 100 },
+  { title: '风险数', dataIndex: 'riskCount', width: 100 },
 ];
 
 export function ProjectsPage() {
@@ -33,7 +33,7 @@ export function ProjectsPage() {
       await queryClient.invalidateQueries({ queryKey: ['projects'] });
       setCreateModalOpen(false);
       form.resetFields();
-      messageApi.success('Project created.');
+      messageApi.success('项目已创建。');
     },
     onError: (error) => {
       messageApi.error(formatApiError(error));
@@ -42,7 +42,7 @@ export function ProjectsPage() {
 
   const openCreateModal = () => {
     if (!canCreateProject) {
-      messageApi.warning('Your current role cannot create projects.');
+      messageApi.warning('当前角色没有创建项目的权限。');
       return;
     }
 
@@ -52,7 +52,7 @@ export function ProjectsPage() {
 
   const handleCreateProject = async () => {
     if (!canCreateProject) {
-      messageApi.warning('Your current role cannot create projects.');
+      messageApi.warning('当前角色没有创建项目的权限。');
       return;
     }
 
@@ -69,39 +69,45 @@ export function ProjectsPage() {
     <Space direction="vertical" size={20} className="page-stack">
       {contextHolder}
       <PageHeader
-        title="Projects"
-        description="Keep this page quiet and managerial: health, ownership and overall project signals."
+        title="项目"
+        description="用于查看项目健康度、负责人和整体执行规模，保持管理视角的稳定输出。"
         extra={
           canCreateProject ? (
             <Button type="primary" onClick={openCreateModal}>
-              Create project
+              新建项目
             </Button>
           ) : null
         }
       />
-      <Card title="Project list">
+      <Card title="项目列表">
         <Table rowKey="id" columns={columns} dataSource={query.data ?? []} loading={query.isLoading} pagination={false} />
       </Card>
       <Modal
-        title="Create project"
+        title="新建项目"
         open={createModalOpen}
         onCancel={() => setCreateModalOpen(false)}
         onOk={handleCreateProject}
-        okText="Create"
+        okText="创建"
         confirmLoading={createMutation.isPending}
       >
         <Form form={form} layout="vertical">
-          <Form.Item label="Project name" name="name" rules={[{ required: true, message: 'Enter a project name' }]}>
-            <Input placeholder="Example: Project Management Platform V1" />
+          <Form.Item label="项目名称" name="name" rules={[{ required: true, message: '请输入项目名称' }]}>
+            <Input placeholder="例如：团队项目管理平台 V1" />
           </Form.Item>
-          <Form.Item label="Project code" name="code" rules={[{ required: true, message: 'Enter a project code' }]}>
-            <Input placeholder="Example: PM-V1" />
+          <Form.Item label="项目编码" name="code" rules={[{ required: true, message: '请输入项目编码' }]}>
+            <Input placeholder="例如：PM-V1" />
           </Form.Item>
-          <Form.Item label="Owner" name="ownerName" rules={[{ required: true, message: 'Enter an owner' }]}>
-            <Input placeholder="Example: Wang Jun" />
+          <Form.Item label="负责人" name="ownerName" rules={[{ required: true, message: '请输入负责人' }]}>
+            <Input placeholder="例如：王军" />
           </Form.Item>
-          <Form.Item label="Status" name="status" rules={[{ required: true, message: 'Select a status' }]}>
-            <Select options={[{ value: 'Active' }, { value: 'Risk' }, { value: 'Done' }]} />
+          <Form.Item label="状态" name="status" rules={[{ required: true, message: '请选择状态' }]}>
+            <Select
+              options={[
+                { label: '进行中', value: 'Active' },
+                { label: '风险', value: 'Risk' },
+                { label: '完成', value: 'Done' },
+              ]}
+            />
           </Form.Item>
         </Form>
       </Modal>

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+﻿import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Alert, Card, Progress, Segmented, Space, Statistic, Table, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
@@ -11,41 +11,41 @@ import type { ExecutionScheduleItem, TeamScheduleItem } from '../services/types'
 type ViewMode = 'team' | 'execution';
 
 const teamColumns: ColumnsType<TeamScheduleItem & { overlapCount: number }> = [
-  { title: 'Owner', dataIndex: 'ownerName', width: 140 },
-  { title: 'Execution', dataIndex: 'name' },
-  { title: 'Project', dataIndex: 'projectName', width: 220 },
+  { title: '负责人', dataIndex: 'ownerName', width: 140 },
+  { title: '执行名称', dataIndex: 'name' },
+  { title: '所属项目', dataIndex: 'projectName', width: 220 },
   {
-    title: 'Window',
+    title: '计划窗口',
     width: 220,
     render: (_, record) => `${record.planStart} ~ ${record.planEnd}`,
   },
-  { title: 'Status', dataIndex: 'status', width: 140, render: (value: string) => <StatusTag value={value} /> },
+  { title: '状态', dataIndex: 'status', width: 140, render: (value: string) => <StatusTag value={value} /> },
   {
-    title: 'Progress',
+    title: '进度',
     width: 220,
     render: (_, record) => <ScheduleProgress actual={record.actualProgress} plan={record.planProgress} />,
   },
   {
-    title: 'Conflicts',
+    title: '冲突',
     dataIndex: 'overlapCount',
     width: 120,
-    render: (value: number) => (value > 0 ? <Tag color="error">{value} overlap(s)</Tag> : <Tag color="success">Clear</Tag>),
+    render: (value: number) => (value > 0 ? <Tag color="error">重叠 {value} 项</Tag> : <Tag color="success">正常</Tag>),
   },
 ];
 
 const executionColumns: ColumnsType<ExecutionScheduleItem> = [
-  { title: 'Task', dataIndex: 'name' },
-  { title: 'Execution', dataIndex: 'executionName', width: 240 },
-  { title: 'Project', dataIndex: 'projectName', width: 220 },
-  { title: 'Owner', dataIndex: 'ownerName', width: 140 },
+  { title: '子任务', dataIndex: 'name' },
+  { title: '所属执行', dataIndex: 'executionName', width: 240 },
+  { title: '所属项目', dataIndex: 'projectName', width: 220 },
+  { title: '负责人', dataIndex: 'ownerName', width: 140 },
   {
-    title: 'Inherited window',
+    title: '继承时间窗',
     width: 220,
     render: (_, record) => `${record.planStart || '-'} ~ ${record.planEnd || '-'}`,
   },
-  { title: 'Status', dataIndex: 'status', width: 140, render: (value: string) => <StatusTag value={value} /> },
+  { title: '状态', dataIndex: 'status', width: 140, render: (value: string) => <StatusTag value={value} /> },
   {
-    title: 'Progress',
+    title: '进度',
     dataIndex: 'actualProgress',
     width: 180,
     render: (value: number) => <Progress percent={value} size="small" />,
@@ -70,13 +70,13 @@ export function GanttPage() {
   return (
     <Space direction="vertical" size={20} className="page-stack">
       <PageHeader
-        title="Gantt"
-        description="Use this page to spot schedule overlaps by owner and review the child-task breakdown behind active executions."
+        title="甘特图"
+        description="用于发现负责人排期冲突，并查看活跃执行背后的子任务拆解情况。"
         extra={
           <Segmented<ViewMode>
             options={[
-              { label: 'Team schedule', value: 'team' },
-              { label: 'Execution breakdown', value: 'execution' },
+              { label: '团队排期', value: 'team' },
+              { label: '执行拆解', value: 'execution' },
             ]}
             value={view}
             onChange={(value) => setView(value)}
@@ -86,16 +86,16 @@ export function GanttPage() {
 
       <Space size={16} wrap>
         <Card>
-          <Statistic title="Scheduled executions" value={teamQuery.data?.length ?? 0} loading={teamQuery.isLoading} />
+          <Statistic title="排期中的执行" value={teamQuery.data?.length ?? 0} loading={teamQuery.isLoading} />
         </Card>
         <Card>
-          <Statistic title="Owners with conflicts" value={ownerConflictCount} loading={teamQuery.isLoading} />
+          <Statistic title="存在冲突的负责人" value={ownerConflictCount} loading={teamQuery.isLoading} />
         </Card>
         <Card>
-          <Statistic title="Blocked executions" value={blockedCount} loading={teamQuery.isLoading} />
+          <Statistic title="阻塞中的执行" value={blockedCount} loading={teamQuery.isLoading} />
         </Card>
         <Card>
-          <Statistic title="Child tasks in view" value={executionQuery.data?.length ?? 0} loading={executionQuery.isLoading} />
+          <Statistic title="当前视图子任务数" value={executionQuery.data?.length ?? 0} loading={executionQuery.isLoading} />
         </Card>
       </Space>
 
@@ -103,20 +103,20 @@ export function GanttPage() {
         <Alert
           type="warning"
           showIcon
-          message="Overlapping schedule windows detected"
-          description="Review the highlighted owners below and rebalance plan windows before conflicts turn into delivery risk."
+          message="检测到计划窗口重叠"
+          description="请优先检查下方高亮负责人，尽快调整计划时间，避免冲突演变为交付风险。"
         />
       ) : (
         <Alert
           type="success"
           showIcon
-          message="No overlapping owner windows detected in the current seed data"
-          description="This page will highlight scheduling conflicts automatically as more execution data is added."
+          message="当前种子数据中未发现负责人排期重叠"
+          description="随着执行数据继续补充，这个页面会自动标记新的排期冲突。"
         />
       )}
 
       {view === 'team' ? (
-        <Card title="Team schedule overview" extra={<Typography.Text type="secondary">Rows are grouped by owner mentally; conflicts are flagged per row.</Typography.Text>}>
+        <Card title="团队排期总览" extra={<Typography.Text type="secondary">表格按负责人理解即可，冲突会在每一行直接标记。</Typography.Text>}>
           <Table
             rowKey="id"
             columns={teamColumns}
@@ -127,7 +127,7 @@ export function GanttPage() {
           />
         </Card>
       ) : (
-        <Card title="Execution breakdown view" extra={<Typography.Text type="secondary">Child tasks inherit the parent execution schedule window for now.</Typography.Text>}>
+        <Card title="执行拆解视图" extra={<Typography.Text type="secondary">当前子任务默认继承父执行的计划时间窗口。</Typography.Text>}>
           <Table
             rowKey="id"
             columns={executionColumns}
@@ -146,11 +146,11 @@ function ScheduleProgress({ actual, plan }: { actual: number; plan: number }) {
   return (
     <Space direction="vertical" size={4} style={{ width: 180 }}>
       <div>
-        <Typography.Text type="secondary">Actual</Typography.Text>
+        <Typography.Text type="secondary">实际</Typography.Text>
         <Progress percent={actual} size="small" />
       </div>
       <div>
-        <Typography.Text type="secondary">Plan</Typography.Text>
+        <Typography.Text type="secondary">计划</Typography.Text>
         <Progress percent={plan} size="small" status="active" />
       </div>
     </Space>

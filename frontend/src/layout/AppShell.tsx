@@ -35,16 +35,16 @@ type NavItem = {
 };
 
 const navItems: NavItem[] = [
-  { key: '/workspace', icon: <HomeOutlined />, label: 'Workspace' },
-  { key: '/requirements', icon: <ContainerOutlined />, label: 'Requirements', permission: 'requirement.view.related' },
-  { key: '/projects', icon: <ProjectOutlined />, label: 'Projects', permission: 'project.view.related' },
-  { key: '/executions', icon: <ProfileOutlined />, label: 'Executions', permission: 'execution.view.related' },
-  { key: '/bugs', icon: <BugOutlined />, label: 'Bugs', permission: 'bug.view.related' },
-  { key: '/daily-tasks', icon: <CheckSquareOutlined />, label: 'Daily Tasks', permission: 'daily_task.view.self' },
-  { key: '/reports/daily', icon: <FileTextOutlined />, label: 'Daily Report', permission: 'report.daily.generate.self' },
-  { key: '/reports/weekly', icon: <ReadOutlined />, label: 'Weekly Report', permission: 'report.weekly.generate.self' },
-  { key: '/gantt', icon: <CalendarOutlined />, label: 'Gantt', permission: 'schedule.view.related' },
-  { key: '/settings', icon: <AppstoreOutlined />, label: 'Settings', permissions: settingsPermissions },
+  { key: '/workspace', icon: <HomeOutlined />, label: '工作台' },
+  { key: '/requirements', icon: <ContainerOutlined />, label: '需求池', permission: 'requirement.view.related' },
+  { key: '/projects', icon: <ProjectOutlined />, label: '项目', permission: 'project.view.related' },
+  { key: '/executions', icon: <ProfileOutlined />, label: '执行', permission: 'execution.view.related' },
+  { key: '/bugs', icon: <BugOutlined />, label: '缺陷', permission: 'bug.view.related' },
+  { key: '/daily-tasks', icon: <CheckSquareOutlined />, label: '日常事项', permission: 'daily_task.view.self' },
+  { key: '/reports/daily', icon: <FileTextOutlined />, label: '日报', permission: 'report.daily.generate.self' },
+  { key: '/reports/weekly', icon: <ReadOutlined />, label: '周报', permission: 'report.weekly.generate.self' },
+  { key: '/gantt', icon: <CalendarOutlined />, label: '甘特图', permission: 'schedule.view.related' },
+  { key: '/settings', icon: <AppstoreOutlined />, label: '设置中心', permissions: settingsPermissions },
 ];
 
 export function AppShell() {
@@ -79,8 +79,8 @@ export function AppShell() {
           <span className="brand-badge">PM</span>
           {!collapsed ? (
             <div>
-              <Typography.Text strong>Project Management Platform</Typography.Text>
-              <Typography.Paragraph>One workspace from requirement to report.</Typography.Paragraph>
+              <Typography.Text strong>团队项目管理平台</Typography.Text>
+              <Typography.Paragraph>覆盖从需求到汇报的一体化工作台。</Typography.Paragraph>
             </div>
           ) : null}
         </div>
@@ -91,16 +91,16 @@ export function AppShell() {
           <Space size="middle">
             <Button type="text" icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />} onClick={toggleCollapsed} />
             <div>
-              <Typography.Text strong>R and D Management Mainline</Typography.Text>
-              <Typography.Paragraph>Current focus: auth, delivery, defects, reports, and settings.</Typography.Paragraph>
+              <Typography.Text strong>研发项目主线协同</Typography.Text>
+              <Typography.Paragraph>当前已覆盖登录、需求、执行、缺陷、工时、报表与设置中心。</Typography.Paragraph>
             </div>
           </Space>
           <Space size="middle" align="center">
             <div className="header-user">
-              <Typography.Text strong>{user?.name ?? 'Unknown user'}</Typography.Text>
+              <Typography.Text strong>{user?.name ?? '未知用户'}</Typography.Text>
               <Typography.Paragraph>{user?.email ?? '-'}</Typography.Paragraph>
             </div>
-            <Button onClick={handleLogout}>Sign out</Button>
+            <Button onClick={handleLogout}>退出登录</Button>
           </Space>
         </Header>
         <Content className="app-content">
