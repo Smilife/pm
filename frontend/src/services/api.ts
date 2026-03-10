@@ -8,7 +8,11 @@ import type {
   CreateExecutionTaskPayload,
   CreateProjectPayload,
   CreateRequirementPayload,
+  CreateSettingsDictionaryPayload,
   CreateSettingsMemberPayload,
+  CreateSettingsPolicyPayload,
+  CreateSettingsRolePayload,
+  CreateSettingsWorkflowPayload,
   CreateWorklogPayload,
   DailyReportDraft,
   DailyTask,
@@ -777,6 +781,20 @@ export const pmApi = {
     const data = await request<any>('/settings/roles');
     return Array.isArray(data?.items) ? data.items.map(mapSettingsRole) : [];
   },
+  async createSettingsRole(payload: CreateSettingsRolePayload): Promise<SettingsRole> {
+    const data = await request<any>('/settings/roles', {
+      method: 'POST',
+      body: JSON.stringify({
+        key: payload.key,
+        name: payload.name,
+        scope: payload.scope,
+        description: payload.description,
+        permissions: payload.permissions,
+      }),
+    });
+
+    return mapSettingsRole(data);
+  },
   async updateSettingsRole(id: number, payload: UpdateSettingsRolePayload): Promise<SettingsRole> {
     const data = await request<any>(`/settings/roles/${id}`, {
       method: 'PATCH',
@@ -793,6 +811,19 @@ export const pmApi = {
   async getSettingsPolicies(): Promise<SettingsPolicy[]> {
     const data = await request<any>('/settings/policies');
     return Array.isArray(data?.items) ? data.items.map(mapSettingsPolicy) : [];
+  },
+  async createSettingsPolicy(payload: CreateSettingsPolicyPayload): Promise<SettingsPolicy> {
+    const data = await request<any>('/settings/policies', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: payload.name,
+        scope: payload.scope,
+        description: payload.description,
+        permissions: payload.permissions,
+      }),
+    });
+
+    return mapSettingsPolicy(data);
   },
   async updateSettingsPolicy(id: number, payload: UpdateSettingsPolicyPayload): Promise<SettingsPolicy> {
     const data = await request<any>(`/settings/policies/${id}`, {
@@ -811,6 +842,18 @@ export const pmApi = {
     const data = await request<any>('/settings/dictionaries');
     return Array.isArray(data?.items) ? data.items.map(mapSettingsDictionary) : [];
   },
+  async createSettingsDictionary(payload: CreateSettingsDictionaryPayload): Promise<SettingsDictionary> {
+    const data = await request<any>('/settings/dictionaries', {
+      method: 'POST',
+      body: JSON.stringify({
+        key: payload.key,
+        name: payload.name,
+        values: payload.values,
+      }),
+    });
+
+    return mapSettingsDictionary(data);
+  },
   async updateSettingsDictionary(id: number, payload: UpdateSettingsDictionaryPayload): Promise<SettingsDictionary> {
     const data = await request<any>(`/settings/dictionaries/${id}`, {
       method: 'PATCH',
@@ -825,6 +868,19 @@ export const pmApi = {
   async getSettingsWorkflows(): Promise<SettingsWorkflow[]> {
     const data = await request<any>('/settings/workflows');
     return Array.isArray(data?.items) ? data.items.map(mapSettingsWorkflow) : [];
+  },
+  async createSettingsWorkflow(payload: CreateSettingsWorkflowPayload): Promise<SettingsWorkflow> {
+    const data = await request<any>('/settings/workflows', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: payload.name,
+        scope: payload.scope,
+        stages: payload.stages,
+        enabled: payload.enabled,
+      }),
+    });
+
+    return mapSettingsWorkflow(data);
   },
   async updateSettingsWorkflow(id: number, payload: UpdateSettingsWorkflowPayload): Promise<SettingsWorkflow> {
     const data = await request<any>(`/settings/workflows/${id}`, {

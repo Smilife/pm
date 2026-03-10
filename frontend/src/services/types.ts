@@ -322,6 +322,14 @@ export interface SettingsRole {
   permissions: string[];
 }
 
+export interface CreateSettingsRolePayload {
+  key: string;
+  name: string;
+  scope: 'org' | 'project' | 'self';
+  description: string;
+  permissions: string[];
+}
+
 export interface UpdateSettingsRolePayload {
   name: string;
   scope: 'org' | 'project' | 'self';
@@ -331,6 +339,13 @@ export interface UpdateSettingsRolePayload {
 
 export interface SettingsPolicy {
   id: number;
+  name: string;
+  scope: 'org' | 'project' | 'self';
+  description: string;
+  permissions: string[];
+}
+
+export interface CreateSettingsPolicyPayload {
   name: string;
   scope: 'org' | 'project' | 'self';
   description: string;
@@ -352,6 +367,12 @@ export interface SettingsDictionary {
   updatedAt: string;
 }
 
+export interface CreateSettingsDictionaryPayload {
+  key: string;
+  name: string;
+  values: string[];
+}
+
 export interface UpdateSettingsDictionaryPayload {
   name: string;
   values: string[];
@@ -364,6 +385,13 @@ export interface SettingsWorkflow {
   stages: string[];
   enabled: boolean;
   updatedAt: string;
+}
+
+export interface CreateSettingsWorkflowPayload {
+  name: string;
+  scope: 'org' | 'project' | 'self';
+  stages: string[];
+  enabled: boolean;
 }
 
 export interface UpdateSettingsWorkflowPayload {

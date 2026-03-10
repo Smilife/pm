@@ -24,7 +24,11 @@ import type { ColumnsType } from 'antd/es/table';
 import { PageHeader } from '../components/PageHeader';
 import { formatApiError, pmApi } from '../services/api';
 import type {
+  CreateSettingsDictionaryPayload,
   CreateSettingsMemberPayload,
+  CreateSettingsPolicyPayload,
+  CreateSettingsRolePayload,
+  CreateSettingsWorkflowPayload,
   SettingsDictionary,
   SettingsMember,
   SettingsPolicy,
@@ -79,10 +83,10 @@ const memberStatusOptions = [
 ] as const;
 
 type MemberFormValues = CreateSettingsMemberPayload;
-type RoleFormValues = UpdateSettingsRolePayload;
-type PolicyFormValues = UpdateSettingsPolicyPayload;
-type DictionaryFormValues = UpdateSettingsDictionaryPayload;
-type WorkflowFormValues = UpdateSettingsWorkflowPayload;
+type RoleFormValues = CreateSettingsRolePayload;
+type PolicyFormValues = CreateSettingsPolicyPayload;
+type DictionaryFormValues = CreateSettingsDictionaryPayload;
+type WorkflowFormValues = CreateSettingsWorkflowPayload;
 
 export function SettingsPage() {
   const currentUser = useAuthStore((state) => state.user);
@@ -104,10 +108,15 @@ export function SettingsPage() {
 
   const [createMemberModalOpen, setCreateMemberModalOpen] = useState(false);
   const [editMemberModalOpen, setEditMemberModalOpen] = useState(false);
+  const [createRoleModalOpen, setCreateRoleModalOpen] = useState(false);
   const [editRoleModalOpen, setEditRoleModalOpen] = useState(false);
+  const [createPolicyModalOpen, setCreatePolicyModalOpen] = useState(false);
   const [editPolicyModalOpen, setEditPolicyModalOpen] = useState(false);
+  const [createDictionaryModalOpen, setCreateDictionaryModalOpen] = useState(false);
   const [editDictionaryModalOpen, setEditDictionaryModalOpen] = useState(false);
+  const [createWorkflowModalOpen, setCreateWorkflowModalOpen] = useState(false);
   const [editWorkflowModalOpen, setEditWorkflowModalOpen] = useState(false);
+
   const [editingMember, setEditingMember] = useState<SettingsMember | null>(null);
   const [editingRole, setEditingRole] = useState<SettingsRole | null>(null);
   const [editingPolicy, setEditingPolicy] = useState<SettingsPolicy | null>(null);
@@ -116,9 +125,13 @@ export function SettingsPage() {
 
   const [createMemberForm] = Form.useForm<MemberFormValues>();
   const [editMemberForm] = Form.useForm<MemberFormValues>();
+  const [createRoleForm] = Form.useForm<RoleFormValues>();
   const [editRoleForm] = Form.useForm<RoleFormValues>();
+  const [createPolicyForm] = Form.useForm<PolicyFormValues>();
   const [editPolicyForm] = Form.useForm<PolicyFormValues>();
+  const [createDictionaryForm] = Form.useForm<DictionaryFormValues>();
   const [editDictionaryForm] = Form.useForm<DictionaryFormValues>();
+  const [createWorkflowForm] = Form.useForm<WorkflowFormValues>();
   const [editWorkflowForm] = Form.useForm<WorkflowFormValues>();
 
   const membersQuery = useQuery({ queryKey: ['settings-members'], queryFn: pmApi.getSettingsMembers, enabled: canManageMembers });
@@ -126,6 +139,7 @@ export function SettingsPage() {
   const policiesQuery = useQuery({ queryKey: ['settings-policies'], queryFn: pmApi.getSettingsPolicies, enabled: canViewPolicies });
   const dictionariesQuery = useQuery({ queryKey: ['settings-dictionaries'], queryFn: pmApi.getSettingsDictionaries, enabled: canViewDictionaries });
   const workflowsQuery = useQuery({ queryKey: ['settings-workflows'], queryFn: pmApi.getSettingsWorkflows, enabled: canViewWorkflows });
+
   const permissionOptions = useMemo(() => {
     const values = new Set<string>();
     for (const role of rolesQuery.data ?? []) {
@@ -157,7 +171,6 @@ export function SettingsPage() {
     }),
     [membersQuery.data, rolesQuery.data, policiesQuery.data, dictionariesQuery.data, workflowsQuery.data],
   );
-
   const createMemberMutation = useMutation({
     mutationFn: (payload: CreateSettingsMemberPayload) => pmApi.createSettingsMember(payload),
     onSuccess: async () => {
@@ -190,6 +203,17 @@ export function SettingsPage() {
     onError: (error) => messageApi.error(formatApiError(error)),
   });
 
+  const createRoleMutation = useMutation({
+    mutationFn: (payload: CreateSettingsRolePayload) => pmApi.createSettingsRole(payload),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['settings-roles'] });
+      setCreateRoleModalOpen(false);
+      createRoleForm.resetFields();
+      messageApi.success('\u89d2\u8272\u6a21\u677f\u5df2\u521b\u5efa\u3002');
+    },
+    onError: (error) => messageApi.error(formatApiError(error)),
+  });
+
   const updateRoleMutation = useMutation({
     mutationFn: ({ id, payload }: { id: number; payload: UpdateSettingsRolePayload }) => pmApi.updateSettingsRole(id, payload),
     onSuccess: async (updated) => {
@@ -208,6 +232,17 @@ export function SettingsPage() {
     onError: (error) => messageApi.error(formatApiError(error)),
   });
 
+  const createPolicyMutation = useMutation({
+    mutationFn: (payload: CreateSettingsPolicyPayload) => pmApi.createSettingsPolicy(payload),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['settings-policies'] });
+      setCreatePolicyModalOpen(false);
+      createPolicyForm.resetFields();
+      messageApi.success('\u7b56\u7565\u5305\u5df2\u521b\u5efa\u3002');
+    },
+    onError: (error) => messageApi.error(formatApiError(error)),
+  });
+
   const updatePolicyMutation = useMutation({
     mutationFn: ({ id, payload }: { id: number; payload: UpdateSettingsPolicyPayload }) => pmApi.updateSettingsPolicy(id, payload),
     onSuccess: async () => {
@@ -220,6 +255,17 @@ export function SettingsPage() {
     onError: (error) => messageApi.error(formatApiError(error)),
   });
 
+  const createDictionaryMutation = useMutation({
+    mutationFn: (payload: CreateSettingsDictionaryPayload) => pmApi.createSettingsDictionary(payload),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['settings-dictionaries'] });
+      setCreateDictionaryModalOpen(false);
+      createDictionaryForm.resetFields();
+      messageApi.success('\u5171\u4eab\u5b57\u5178\u5df2\u521b\u5efa\u3002');
+    },
+    onError: (error) => messageApi.error(formatApiError(error)),
+  });
+
   const updateDictionaryMutation = useMutation({
     mutationFn: ({ id, payload }: { id: number; payload: UpdateSettingsDictionaryPayload }) => pmApi.updateSettingsDictionary(id, payload),
     onSuccess: async () => {
@@ -228,6 +274,17 @@ export function SettingsPage() {
       setEditingDictionary(null);
       editDictionaryForm.resetFields();
       messageApi.success('\u5171\u4eab\u5b57\u5178\u5df2\u66f4\u65b0\u3002');
+    },
+    onError: (error) => messageApi.error(formatApiError(error)),
+  });
+
+  const createWorkflowMutation = useMutation({
+    mutationFn: (payload: CreateSettingsWorkflowPayload) => pmApi.createSettingsWorkflow(payload),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['settings-workflows'] });
+      setCreateWorkflowModalOpen(false);
+      createWorkflowForm.resetFields();
+      messageApi.success('\u6d41\u7a0b\u6a21\u677f\u5df2\u521b\u5efa\u3002');
     },
     onError: (error) => messageApi.error(formatApiError(error)),
   });
@@ -277,20 +334,36 @@ export function SettingsPage() {
     editMemberForm.setFieldsValue({ name: member.name, email: member.email, department: member.department, title: member.title, status: member.status, roles: member.roles, dingtalkBound: member.dingtalkBound });
     setEditMemberModalOpen(true);
   };
+  const openCreateRoleModal = () => {
+    createRoleForm.setFieldsValue({ key: '', name: '', scope: 'org', description: '', permissions: [] });
+    setCreateRoleModalOpen(true);
+  };
   const openEditRoleModal = (role: SettingsRole) => {
     setEditingRole(role);
-    editRoleForm.setFieldsValue({ name: role.name, scope: role.scope, description: role.description, permissions: role.permissions });
+    editRoleForm.setFieldsValue({ key: role.key, name: role.name, scope: role.scope, description: role.description, permissions: role.permissions });
     setEditRoleModalOpen(true);
+  };
+  const openCreatePolicyModal = () => {
+    createPolicyForm.setFieldsValue({ name: '', scope: 'org', description: '', permissions: [] });
+    setCreatePolicyModalOpen(true);
   };
   const openEditPolicyModal = (policy: SettingsPolicy) => {
     setEditingPolicy(policy);
     editPolicyForm.setFieldsValue({ name: policy.name, scope: policy.scope, description: policy.description, permissions: policy.permissions });
     setEditPolicyModalOpen(true);
   };
+  const openCreateDictionaryModal = () => {
+    createDictionaryForm.setFieldsValue({ key: '', name: '', values: [] });
+    setCreateDictionaryModalOpen(true);
+  };
   const openEditDictionaryModal = (dictionary: SettingsDictionary) => {
     setEditingDictionary(dictionary);
-    editDictionaryForm.setFieldsValue({ name: dictionary.name, values: dictionary.values });
+    editDictionaryForm.setFieldsValue({ key: dictionary.key, name: dictionary.name, values: dictionary.values });
     setEditDictionaryModalOpen(true);
+  };
+  const openCreateWorkflowModal = () => {
+    createWorkflowForm.setFieldsValue({ name: '', scope: 'org', stages: [], enabled: true });
+    setCreateWorkflowModalOpen(true);
   };
   const openEditWorkflowModal = (workflow: SettingsWorkflow) => {
     setEditingWorkflow(workflow);
@@ -311,7 +384,7 @@ export function SettingsPage() {
     tabs.push({
       key: 'roles',
       label: '\u89d2\u8272',
-      children: rolesQuery.error ? <Alert type="error" showIcon message="\u8bfb\u53d6\u89d2\u8272\u6a21\u677f\u5931\u8d25" description={formatApiError(rolesQuery.error)} /> : <Table rowKey="id" columns={roleColumns} dataSource={rolesQuery.data ?? []} loading={rolesQuery.isLoading} pagination={false} expandable={{ expandedRowRender: (record) => <Space size={[6, 6]} wrap>{record.permissions.map((item) => <Tag key={item}>{item}</Tag>)}</Space>, rowExpandable: (record) => record.permissions.length > 0 }} scroll={{ x: 1080 }} />,
+      children: <Space direction="vertical" size={16} style={{ display: 'flex' }}>{canManageRoles ? <Button type="primary" onClick={openCreateRoleModal}>\u65b0\u589e\u89d2\u8272\u6a21\u677f</Button> : null}{rolesQuery.error ? <Alert type="error" showIcon message="\u8bfb\u53d6\u89d2\u8272\u6a21\u677f\u5931\u8d25" description={formatApiError(rolesQuery.error)} /> : <Table rowKey="id" columns={roleColumns} dataSource={rolesQuery.data ?? []} loading={rolesQuery.isLoading} pagination={false} expandable={{ expandedRowRender: (record) => <Space size={[6, 6]} wrap>{record.permissions.map((item) => <Tag key={item}>{item}</Tag>)}</Space>, rowExpandable: (record) => record.permissions.length > 0 }} scroll={{ x: 1080 }} />}</Space>,
     });
   }
 
@@ -319,7 +392,7 @@ export function SettingsPage() {
     tabs.push({
       key: 'policies',
       label: '\u7b56\u7565',
-      children: renderPoliciesPanel(policiesQuery.data ?? [], policiesQuery.isLoading, policiesQuery.error, canManagePolicies, openEditPolicyModal),
+      children: renderPoliciesPanel(policiesQuery.data ?? [], policiesQuery.isLoading, policiesQuery.error, canManagePolicies, openCreatePolicyModal, openEditPolicyModal),
     });
   }
 
@@ -327,7 +400,7 @@ export function SettingsPage() {
     tabs.push({
       key: 'dictionaries',
       label: '\u5b57\u5178',
-      children: renderDictionariesPanel(dictionariesQuery.data ?? [], dictionariesQuery.isLoading, dictionariesQuery.error, canManageDictionaries, openEditDictionaryModal),
+      children: renderDictionariesPanel(dictionariesQuery.data ?? [], dictionariesQuery.isLoading, dictionariesQuery.error, canManageDictionaries, openCreateDictionaryModal, openEditDictionaryModal),
     });
   }
 
@@ -335,7 +408,7 @@ export function SettingsPage() {
     tabs.push({
       key: 'workflows',
       label: '\u6d41\u7a0b',
-      children: renderWorkflowsPanel(workflowsQuery.data ?? [], workflowsQuery.isLoading, workflowsQuery.error, canManageWorkflows, openEditWorkflowModal),
+      children: renderWorkflowsPanel(workflowsQuery.data ?? [], workflowsQuery.isLoading, workflowsQuery.error, canManageWorkflows, openCreateWorkflowModal, openEditWorkflowModal),
     });
   }
 
@@ -347,7 +420,7 @@ export function SettingsPage() {
     <Space direction="vertical" size={20} className="page-stack">
       {contextHolder}
       <PageHeader title="\u8bbe\u7f6e\u4e2d\u5fc3" description="\u7edf\u4e00\u67e5\u770b\u4e0e\u7ef4\u62a4\u6210\u5458\u3001\u89d2\u8272\u6a21\u677f\u3001\u7b56\u7565\u5305\u3001\u5171\u4eab\u5b57\u5178\u548c\u6d41\u7a0b\u6a21\u677f\u3002" extra={<Space><Space direction="vertical" size={0}><Typography.Text strong>{currentUser?.name ?? '\u672a\u77e5\u7528\u6237'}</Typography.Text><Typography.Text type="secondary">{formatRoleList(currentRoles)}</Typography.Text></Space>{canManageMembers ? <Button type="primary" onClick={openCreateMemberModal}>\u9080\u8bf7\u6210\u5458</Button> : null}</Space>} />
-      <Alert type="info" showIcon message="\u8bbe\u7f6e\u4e2d\u5fc3\u5df2\u7ecf\u652f\u6301\u771f\u5b9e\u7f16\u8f91\u3002" description="\u6210\u5458\u3001\u89d2\u8272\u6a21\u677f\u548c\u7b56\u7565\u5305\u53ef\u4ee5\u76f4\u63a5\u4fee\u6539\uff1b\u5171\u4eab\u5b57\u5178\u4e0e\u6d41\u7a0b\u6a21\u677f\u9700\u8981\u5177\u5907\u66f4\u9ad8\u7684\u8bbe\u7f6e\u6743\u9650\u65f6\u624d\u4f1a\u663e\u793a\u7f16\u8f91\u6309\u94ae\u3002" />
+      <Alert type="info" showIcon message="\u8bbe\u7f6e\u4e2d\u5fc3\u5df2\u7ecf\u652f\u6301\u65b0\u589e\u4e0e\u7f16\u8f91\u3002" description="\u73b0\u5728\u53ef\u4ee5\u7ef4\u62a4\u6210\u5458\uff0c\u4e5f\u53ef\u4ee5\u65b0\u589e\u89d2\u8272\u6a21\u677f\u3001\u7b56\u7565\u5305\u3001\u5171\u4eab\u5b57\u5178\u548c\u6d41\u7a0b\u6a21\u677f\u3002" />
       <Space size={16} wrap>
         <Card><Statistic title="\u6210\u5458\u6570" value={summary.members} /><Typography.Text type="secondary">\u542f\u7528\u4e2d\uff1a{summary.activeMembers}</Typography.Text></Card>
         <Card><Statistic title="\u89d2\u8272\u6a21\u677f" value={summary.roleTemplates} /><Typography.Text type="secondary">\u5f53\u524d\u8d26\u53f7\u89d2\u8272\uff1a{currentRoles.length}</Typography.Text></Card>
@@ -359,9 +432,13 @@ export function SettingsPage() {
 
       <Modal title="\u9080\u8bf7\u6210\u5458" open={createMemberModalOpen} onCancel={() => setCreateMemberModalOpen(false)} onOk={async () => createMemberMutation.mutate(normalizeMemberPayload(await createMemberForm.validateFields()))} okText="\u53d1\u9001\u9080\u8bf7" confirmLoading={createMemberMutation.isPending}><MemberEditorForm form={createMemberForm} roleOptions={roleOptions} roleLoading={rolesQuery.isLoading} /></Modal>
       <Modal title={editingMember ? `\u7f16\u8f91\u6210\u5458\uff1a${editingMember.name}` : '\u7f16\u8f91\u6210\u5458'} open={editMemberModalOpen} onCancel={() => { setEditMemberModalOpen(false); setEditingMember(null); }} onOk={async () => editingMember && updateMemberMutation.mutate({ id: editingMember.id, payload: normalizeMemberPayload(await editMemberForm.validateFields()) })} okText="\u4fdd\u5b58" confirmLoading={updateMemberMutation.isPending}><MemberEditorForm form={editMemberForm} roleOptions={roleOptions} roleLoading={rolesQuery.isLoading} /></Modal>
-      <Modal title={editingRole ? `\u7f16\u8f91\u89d2\u8272\uff1a${editingRole.name}` : '\u7f16\u8f91\u89d2\u8272'} open={editRoleModalOpen} onCancel={() => { setEditRoleModalOpen(false); setEditingRole(null); }} onOk={async () => editingRole && updateRoleMutation.mutate({ id: editingRole.id, payload: normalizeRolePayload(await editRoleForm.validateFields()) })} okText="\u4fdd\u5b58" width={760} confirmLoading={updateRoleMutation.isPending}><RoleEditorForm form={editRoleForm} roleKey={editingRole?.key ?? ''} permissionOptions={permissionOptions} /></Modal>
+      <Modal title="\u65b0\u589e\u89d2\u8272\u6a21\u677f" open={createRoleModalOpen} onCancel={() => setCreateRoleModalOpen(false)} onOk={async () => createRoleMutation.mutate(normalizeCreateRolePayload(await createRoleForm.validateFields()))} okText="\u521b\u5efa" width={760} confirmLoading={createRoleMutation.isPending}><RoleEditorForm form={createRoleForm} permissionOptions={permissionOptions} keyEditable /></Modal>
+      <Modal title={editingRole ? `\u7f16\u8f91\u89d2\u8272\uff1a${editingRole.name}` : '\u7f16\u8f91\u89d2\u8272'} open={editRoleModalOpen} onCancel={() => { setEditRoleModalOpen(false); setEditingRole(null); }} onOk={async () => editingRole && updateRoleMutation.mutate({ id: editingRole.id, payload: normalizeUpdateRolePayload(await editRoleForm.validateFields()) })} okText="\u4fdd\u5b58" width={760} confirmLoading={updateRoleMutation.isPending}><RoleEditorForm form={editRoleForm} permissionOptions={permissionOptions} roleKey={editingRole?.key ?? ''} /></Modal>
+      <Modal title="\u65b0\u589e\u7b56\u7565\u5305" open={createPolicyModalOpen} onCancel={() => setCreatePolicyModalOpen(false)} onOk={async () => createPolicyMutation.mutate(normalizePolicyPayload(await createPolicyForm.validateFields()))} okText="\u521b\u5efa" width={760} confirmLoading={createPolicyMutation.isPending}><PolicyEditorForm form={createPolicyForm} permissionOptions={permissionOptions} /></Modal>
       <Modal title={editingPolicy ? `\u7f16\u8f91\u7b56\u7565\uff1a${editingPolicy.name}` : '\u7f16\u8f91\u7b56\u7565'} open={editPolicyModalOpen} onCancel={() => { setEditPolicyModalOpen(false); setEditingPolicy(null); }} onOk={async () => editingPolicy && updatePolicyMutation.mutate({ id: editingPolicy.id, payload: normalizePolicyPayload(await editPolicyForm.validateFields()) })} okText="\u4fdd\u5b58" width={760} confirmLoading={updatePolicyMutation.isPending}><PolicyEditorForm form={editPolicyForm} permissionOptions={permissionOptions} /></Modal>
-      <Modal title={editingDictionary ? `\u7f16\u8f91\u5b57\u5178\uff1a${editingDictionary.name}` : '\u7f16\u8f91\u5b57\u5178'} open={editDictionaryModalOpen} onCancel={() => { setEditDictionaryModalOpen(false); setEditingDictionary(null); }} onOk={async () => editingDictionary && updateDictionaryMutation.mutate({ id: editingDictionary.id, payload: normalizeDictionaryPayload(await editDictionaryForm.validateFields()) })} okText="\u4fdd\u5b58" confirmLoading={updateDictionaryMutation.isPending}><DictionaryEditorForm form={editDictionaryForm} dictionaryKey={editingDictionary?.key ?? ''} /></Modal>
+      <Modal title="\u65b0\u589e\u5b57\u5178" open={createDictionaryModalOpen} onCancel={() => setCreateDictionaryModalOpen(false)} onOk={async () => createDictionaryMutation.mutate(normalizeCreateDictionaryPayload(await createDictionaryForm.validateFields()))} okText="\u521b\u5efa" confirmLoading={createDictionaryMutation.isPending}><DictionaryEditorForm form={createDictionaryForm} keyEditable /></Modal>
+      <Modal title={editingDictionary ? `\u7f16\u8f91\u5b57\u5178\uff1a${editingDictionary.name}` : '\u7f16\u8f91\u5b57\u5178'} open={editDictionaryModalOpen} onCancel={() => { setEditDictionaryModalOpen(false); setEditingDictionary(null); }} onOk={async () => editingDictionary && updateDictionaryMutation.mutate({ id: editingDictionary.id, payload: normalizeUpdateDictionaryPayload(await editDictionaryForm.validateFields()) })} okText="\u4fdd\u5b58" confirmLoading={updateDictionaryMutation.isPending}><DictionaryEditorForm form={editDictionaryForm} dictionaryKey={editingDictionary?.key ?? ''} /></Modal>
+      <Modal title="\u65b0\u589e\u6d41\u7a0b\u6a21\u677f" open={createWorkflowModalOpen} onCancel={() => setCreateWorkflowModalOpen(false)} onOk={async () => createWorkflowMutation.mutate(normalizeWorkflowPayload(await createWorkflowForm.validateFields()))} okText="\u521b\u5efa" confirmLoading={createWorkflowMutation.isPending}><WorkflowEditorForm form={createWorkflowForm} /></Modal>
       <Modal title={editingWorkflow ? `\u7f16\u8f91\u6d41\u7a0b\uff1a${editingWorkflow.name}` : '\u7f16\u8f91\u6d41\u7a0b'} open={editWorkflowModalOpen} onCancel={() => { setEditWorkflowModalOpen(false); setEditingWorkflow(null); }} onOk={async () => editingWorkflow && updateWorkflowMutation.mutate({ id: editingWorkflow.id, payload: normalizeWorkflowPayload(await editWorkflowForm.validateFields()) })} okText="\u4fdd\u5b58" confirmLoading={updateWorkflowMutation.isPending}><WorkflowEditorForm form={editWorkflowForm} /></Modal>
     </Space>
   );
@@ -370,46 +447,49 @@ function MemberEditorForm({ form, roleOptions, roleLoading }: { form: FormInstan
   return <Form form={form} layout="vertical"><Form.Item label="\u59d3\u540d" name="name" rules={[{ required: true, message: '\u8bf7\u8f93\u5165\u6210\u5458\u59d3\u540d\u3002' }]}><Input placeholder="Zhang Wei" /></Form.Item><Form.Item label="\u90ae\u7bb1" name="email" rules={[{ required: true, message: '\u8bf7\u8f93\u5165\u6210\u5458\u90ae\u7bb1\u3002' }, { type: 'email', message: '\u8bf7\u8f93\u5165\u6709\u6548\u90ae\u7bb1\u3002' }]}><Input placeholder="name@example.com" /></Form.Item><Space size={12} style={{ width: '100%' }} align="start"><Form.Item label="\u90e8\u95e8" name="department" rules={[{ required: true, message: '\u8bf7\u9009\u62e9\u90e8\u95e8\u3002' }]} style={{ flex: 1 }}><Select options={departmentOptions} placeholder="\u8bf7\u9009\u62e9\u90e8\u95e8" /></Form.Item><Form.Item label="\u5c97\u4f4d" name="title" rules={[{ required: true, message: '\u8bf7\u9009\u62e9\u5c97\u4f4d\u3002' }]} style={{ flex: 1 }}><Select options={titleOptions} placeholder="\u8bf7\u9009\u62e9\u5c97\u4f4d" /></Form.Item></Space><Space size={12} style={{ width: '100%' }} align="start"><Form.Item label="\u72b6\u6001" name="status" rules={[{ required: true }]} style={{ flex: 1 }}><Select options={memberStatusOptions.map((item) => ({ ...item }))} /></Form.Item><Form.Item label="\u89d2\u8272" name="roles" rules={[{ required: true, message: '\u8bf7\u81f3\u5c11\u9009\u62e9\u4e00\u4e2a\u89d2\u8272\u3002' }]} style={{ flex: 2 }}><Select mode="multiple" options={roleOptions} loading={roleLoading} placeholder="\u8bf7\u9009\u62e9\u89d2\u8272" /></Form.Item></Space><Form.Item label="\u9489\u9489\u7ed1\u5b9a" name="dingtalkBound" valuePropName="checked"><Switch checkedChildren="\u5df2\u7ed1\u5b9a" unCheckedChildren="\u672a\u7ed1\u5b9a" /></Form.Item></Form>;
 }
 
-function RoleEditorForm({ form, roleKey, permissionOptions }: { form: FormInstance<RoleFormValues>; roleKey: string; permissionOptions: Array<{ value: string; label: string }> }) {
-  return <Form form={form} layout="vertical"><Form.Item label="Role Key"><Input value={roleKey} disabled /></Form.Item><Space size={12} style={{ width: '100%' }} align="start"><Form.Item label="\u89d2\u8272\u540d\u79f0" name="name" rules={[{ required: true, message: '\u8bf7\u8f93\u5165\u89d2\u8272\u540d\u79f0\u3002' }]} style={{ flex: 1 }}><Input /></Form.Item><Form.Item label="\u8303\u56f4" name="scope" rules={[{ required: true, message: '\u8bf7\u9009\u62e9\u8303\u56f4\u3002' }]} style={{ width: 180 }}><Select options={scopeOptions} /></Form.Item></Space><Form.Item label="\u89d2\u8272\u8bf4\u660e" name="description" rules={[{ required: true, message: '\u8bf7\u8f93\u5165\u89d2\u8272\u8bf4\u660e\u3002' }]}><Input.TextArea rows={3} /></Form.Item><Form.Item label="\u6743\u9650\u70b9" name="permissions" rules={[{ required: true, message: '\u8bf7\u81f3\u5c11\u9009\u62e9\u4e00\u4e2a\u6743\u9650\u70b9\u3002' }]}><Select mode="multiple" options={permissionOptions} optionFilterProp="label" placeholder="\u8bf7\u9009\u62e9\u6743\u9650\u70b9" /></Form.Item></Form>;
+function RoleEditorForm({ form, permissionOptions, roleKey = '', keyEditable = false }: { form: FormInstance<RoleFormValues>; permissionOptions: Array<{ value: string; label: string }>; roleKey?: string; keyEditable?: boolean }) {
+  return <Form form={form} layout="vertical"><Form.Item label="Role Key" name="key" rules={[{ required: true, message: 'Please input role key.' }]}><Input disabled={!keyEditable} placeholder="e.g. qa_lead" /></Form.Item><Space size={12} style={{ width: '100%' }} align="start"><Form.Item label="\u89d2\u8272\u540d\u79f0" name="name" rules={[{ required: true, message: '\u8bf7\u8f93\u5165\u89d2\u8272\u540d\u79f0\u3002' }]} style={{ flex: 1 }}><Input placeholder={roleKey || 'QA Lead'} /></Form.Item><Form.Item label="\u8303\u56f4" name="scope" rules={[{ required: true, message: '\u8bf7\u9009\u62e9\u8303\u56f4\u3002' }]} style={{ width: 180 }}><Select options={scopeOptions} /></Form.Item></Space><Form.Item label="\u89d2\u8272\u8bf4\u660e" name="description" rules={[{ required: true, message: '\u8bf7\u8f93\u5165\u89d2\u8272\u8bf4\u660e\u3002' }]}><Input.TextArea rows={3} /></Form.Item><Form.Item label="\u6743\u9650\u70b9" name="permissions" rules={[{ required: true, message: '\u8bf7\u81f3\u5c11\u9009\u62e9\u4e00\u4e2a\u6743\u9650\u70b9\u3002' }]}><Select mode="multiple" options={permissionOptions} optionFilterProp="label" placeholder="\u8bf7\u9009\u62e9\u6743\u9650\u70b9" /></Form.Item></Form>;
 }
 
 function PolicyEditorForm({ form, permissionOptions }: { form: FormInstance<PolicyFormValues>; permissionOptions: Array<{ value: string; label: string }> }) {
   return <Form form={form} layout="vertical"><Space size={12} style={{ width: '100%' }} align="start"><Form.Item label="\u7b56\u7565\u540d\u79f0" name="name" rules={[{ required: true, message: '\u8bf7\u8f93\u5165\u7b56\u7565\u540d\u79f0\u3002' }]} style={{ flex: 1 }}><Input /></Form.Item><Form.Item label="\u8303\u56f4" name="scope" rules={[{ required: true, message: '\u8bf7\u9009\u62e9\u8303\u56f4\u3002' }]} style={{ width: 180 }}><Select options={scopeOptions} /></Form.Item></Space><Form.Item label="\u7b56\u7565\u8bf4\u660e" name="description" rules={[{ required: true, message: '\u8bf7\u8f93\u5165\u7b56\u7565\u8bf4\u660e\u3002' }]}><Input.TextArea rows={3} /></Form.Item><Form.Item label="\u6743\u9650\u70b9" name="permissions" rules={[{ required: true, message: '\u8bf7\u81f3\u5c11\u9009\u62e9\u4e00\u4e2a\u6743\u9650\u70b9\u3002' }]}><Select mode="multiple" options={permissionOptions} optionFilterProp="label" placeholder="\u8bf7\u9009\u62e9\u6743\u9650\u70b9" /></Form.Item></Form>;
 }
 
-function DictionaryEditorForm({ form, dictionaryKey }: { form: FormInstance<DictionaryFormValues>; dictionaryKey: string }) {
-  return <Form form={form} layout="vertical"><Form.Item label="Dictionary Key"><Input value={dictionaryKey} disabled /></Form.Item><Form.Item label="\u5b57\u5178\u540d\u79f0" name="name" rules={[{ required: true, message: '\u8bf7\u8f93\u5165\u5b57\u5178\u540d\u79f0\u3002' }]}><Input /></Form.Item><Form.Item label="\u5b57\u5178\u503c" name="values" rules={[{ required: true, message: '\u8bf7\u81f3\u5c11\u4fdd\u7559\u4e00\u4e2a\u5b57\u5178\u503c\u3002' }]}><Select mode="tags" tokenSeparators={[',']} placeholder="\u8f93\u5165\u540e\u56de\u8f66\uff0c\u652f\u6301\u76f4\u63a5\u589e\u5220\u679a\u4e3e\u503c" /></Form.Item></Form>;
+function DictionaryEditorForm({ form, dictionaryKey = '', keyEditable = false }: { form: FormInstance<DictionaryFormValues>; dictionaryKey?: string; keyEditable?: boolean }) {
+  return <Form form={form} layout="vertical"><Form.Item label="Dictionary Key" name="key" rules={[{ required: true, message: 'Please input dictionary key.' }]}><Input disabled={!keyEditable} placeholder="e.g. task_status" /></Form.Item><Form.Item label="\u5b57\u5178\u540d\u79f0" name="name" rules={[{ required: true, message: '\u8bf7\u8f93\u5165\u5b57\u5178\u540d\u79f0\u3002' }]}><Input placeholder={dictionaryKey || 'Task Status'} /></Form.Item><Form.Item label="\u5b57\u5178\u503c" name="values" rules={[{ required: true, message: '\u8bf7\u81f3\u5c11\u4fdd\u7559\u4e00\u4e2a\u5b57\u5178\u503c\u3002' }]}><Select mode="tags" tokenSeparators={[',']} placeholder="\u8f93\u5165\u540e\u56de\u8f66\uff0c\u652f\u6301\u76f4\u63a5\u589e\u5220\u679a\u4e3e\u503c" /></Form.Item></Form>;
 }
 
 function WorkflowEditorForm({ form }: { form: FormInstance<WorkflowFormValues> }) {
   return <Form form={form} layout="vertical"><Space size={12} style={{ width: '100%' }} align="start"><Form.Item label="\u6d41\u7a0b\u540d\u79f0" name="name" rules={[{ required: true, message: '\u8bf7\u8f93\u5165\u6d41\u7a0b\u540d\u79f0\u3002' }]} style={{ flex: 1 }}><Input /></Form.Item><Form.Item label="\u8303\u56f4" name="scope" rules={[{ required: true, message: '\u8bf7\u9009\u62e9\u8303\u56f4\u3002' }]} style={{ width: 180 }}><Select options={scopeOptions} /></Form.Item></Space><Form.Item label="\u6d41\u7a0b\u9636\u6bb5" name="stages" rules={[{ required: true, message: '\u8bf7\u81f3\u5c11\u4fdd\u7559\u4e00\u4e2a\u9636\u6bb5\u3002' }]}><Select mode="tags" tokenSeparators={[',']} placeholder="\u8f93\u5165\u540e\u56de\u8f66\uff0c\u652f\u6301\u76f4\u63a5\u589e\u5220\u9636\u6bb5" /></Form.Item><Form.Item label="\u542f\u7528\u72b6\u6001" name="enabled" valuePropName="checked"><Switch checkedChildren="\u542f\u7528" unCheckedChildren="\u505c\u7528" /></Form.Item></Form>;
 }
 
-function renderPoliciesPanel(items: SettingsPolicy[], loading: boolean, error: unknown, canManage: boolean, onEdit: (item: SettingsPolicy) => void) {
+function renderPoliciesPanel(items: SettingsPolicy[], loading: boolean, error: unknown, canManage: boolean, onCreate: () => void, onEdit: (item: SettingsPolicy) => void) {
   if (error) return <Alert type="error" showIcon message="\u8bfb\u53d6\u7b56\u7565\u5305\u5931\u8d25" description={formatApiError(error)} />;
-  if (!loading && items.length === 0) return <Empty description="\u6682\u65e0\u7b56\u7565\u5305\u3002" />;
-  return <Space direction="vertical" size={16} style={{ display: 'flex' }}>{items.map((item) => <Card key={item.id} size="small" title={item.name} extra={<Space><Tag>{formatScope(item.scope)}</Tag>{canManage ? <Button size="small" onClick={() => onEdit(item)}>\u7f16\u8f91</Button> : null}</Space>}><Space direction="vertical" size={12} style={{ display: 'flex' }}><Typography.Paragraph style={{ marginBottom: 0 }}>{item.description}</Typography.Paragraph><Space size={[6, 6]} wrap>{item.permissions.map((permission) => <Tag key={permission}>{permission}</Tag>)}</Space></Space></Card>)}</Space>;
+  if (!loading && items.length === 0) return <Space direction="vertical" size={16} style={{ display: 'flex' }}>{canManage ? <Button type="primary" onClick={onCreate}>\u65b0\u589e\u7b56\u7565\u5305</Button> : null}<Empty description="\u6682\u65e0\u7b56\u7565\u5305\u3002" /></Space>;
+  return <Space direction="vertical" size={16} style={{ display: 'flex' }}>{canManage ? <Button type="primary" onClick={onCreate}>\u65b0\u589e\u7b56\u7565\u5305</Button> : null}{items.map((item) => <Card key={item.id} size="small" title={item.name} extra={<Space><Tag>{formatScope(item.scope)}</Tag>{canManage ? <Button size="small" onClick={() => onEdit(item)}>\u7f16\u8f91</Button> : null}</Space>}><Space direction="vertical" size={12} style={{ display: 'flex' }}><Typography.Paragraph style={{ marginBottom: 0 }}>{item.description}</Typography.Paragraph><Space size={[6, 6]} wrap>{item.permissions.map((permission) => <Tag key={permission}>{permission}</Tag>)}</Space></Space></Card>)}</Space>;
 }
 
-function renderDictionariesPanel(items: SettingsDictionary[], loading: boolean, error: unknown, canManage: boolean, onEdit: (item: SettingsDictionary) => void) {
+function renderDictionariesPanel(items: SettingsDictionary[], loading: boolean, error: unknown, canManage: boolean, onCreate: () => void, onEdit: (item: SettingsDictionary) => void) {
   if (error) return <Alert type="error" showIcon message="\u8bfb\u53d6\u5171\u4eab\u5b57\u5178\u5931\u8d25" description={formatApiError(error)} />;
-  if (!loading && items.length === 0) return <Empty description="\u6682\u65e0\u5b57\u5178\u914d\u7f6e\u3002" />;
-  return <Space direction="vertical" size={16} style={{ display: 'flex' }}>{items.map((item) => <Card key={item.id} size="small" title={item.name} extra={<Space><Typography.Text type="secondary">{item.updatedAt || '-'}</Typography.Text>{canManage ? <Button size="small" onClick={() => onEdit(item)}>\u7f16\u8f91</Button> : null}</Space>}><Space direction="vertical" size={8} style={{ display: 'flex' }}><Typography.Text type="secondary">{item.key}</Typography.Text><Space size={[6, 6]} wrap>{item.values.map((value) => <Tag key={value} color="blue">{value}</Tag>)}</Space></Space></Card>)}</Space>;
+  if (!loading && items.length === 0) return <Space direction="vertical" size={16} style={{ display: 'flex' }}>{canManage ? <Button type="primary" onClick={onCreate}>\u65b0\u589e\u5b57\u5178</Button> : null}<Empty description="\u6682\u65e0\u5b57\u5178\u914d\u7f6e\u3002" /></Space>;
+  return <Space direction="vertical" size={16} style={{ display: 'flex' }}>{canManage ? <Button type="primary" onClick={onCreate}>\u65b0\u589e\u5b57\u5178</Button> : null}{items.map((item) => <Card key={item.id} size="small" title={item.name} extra={<Space><Typography.Text type="secondary">{item.updatedAt || '-'}</Typography.Text>{canManage ? <Button size="small" onClick={() => onEdit(item)}>\u7f16\u8f91</Button> : null}</Space>}><Space direction="vertical" size={8} style={{ display: 'flex' }}><Typography.Text type="secondary">{item.key}</Typography.Text><Space size={[6, 6]} wrap>{item.values.map((value) => <Tag key={value} color="blue">{value}</Tag>)}</Space></Space></Card>)}</Space>;
 }
 
-function renderWorkflowsPanel(items: SettingsWorkflow[], loading: boolean, error: unknown, canManage: boolean, onEdit: (item: SettingsWorkflow) => void) {
+function renderWorkflowsPanel(items: SettingsWorkflow[], loading: boolean, error: unknown, canManage: boolean, onCreate: () => void, onEdit: (item: SettingsWorkflow) => void) {
   if (error) return <Alert type="error" showIcon message="\u8bfb\u53d6\u6d41\u7a0b\u6a21\u677f\u5931\u8d25" description={formatApiError(error)} />;
-  if (!loading && items.length === 0) return <Empty description="\u6682\u65e0\u6d41\u7a0b\u6a21\u677f\u3002" />;
-  return <Space direction="vertical" size={16} style={{ display: 'flex' }}>{items.map((item) => <Card key={item.id} size="small" title={item.name} extra={<Space><Tag>{formatScope(item.scope)}</Tag><Tag color={item.enabled ? 'success' : 'default'}>{item.enabled ? '\u542f\u7528' : '\u505c\u7528'}</Tag>{canManage ? <Button size="small" onClick={() => onEdit(item)}>\u7f16\u8f91</Button> : null}</Space>}><Space direction="vertical" size={8} style={{ display: 'flex' }}><Typography.Text type="secondary">\u6700\u8fd1\u66f4\u65b0\uff1a{item.updatedAt || '-'}</Typography.Text><Space size={[6, 6]} wrap>{item.stages.map((stage) => <Tag key={stage} color="geekblue">{stage}</Tag>)}</Space></Space></Card>)}</Space>;
+  if (!loading && items.length === 0) return <Space direction="vertical" size={16} style={{ display: 'flex' }}>{canManage ? <Button type="primary" onClick={onCreate}>\u65b0\u589e\u6d41\u7a0b\u6a21\u677f</Button> : null}<Empty description="\u6682\u65e0\u6d41\u7a0b\u6a21\u677f\u3002" /></Space>;
+  return <Space direction="vertical" size={16} style={{ display: 'flex' }}>{canManage ? <Button type="primary" onClick={onCreate}>\u65b0\u589e\u6d41\u7a0b\u6a21\u677f</Button> : null}{items.map((item) => <Card key={item.id} size="small" title={item.name} extra={<Space><Tag>{formatScope(item.scope)}</Tag><Tag color={item.enabled ? 'success' : 'default'}>{item.enabled ? '\u542f\u7528' : '\u505c\u7528'}</Tag>{canManage ? <Button size="small" onClick={() => onEdit(item)}>\u7f16\u8f91</Button> : null}</Space>}><Space direction="vertical" size={8} style={{ display: 'flex' }}><Typography.Text type="secondary">\u6700\u8fd1\u66f4\u65b0\uff1a{item.updatedAt || '-'}</Typography.Text><Space size={[6, 6]} wrap>{item.stages.map((stage) => <Tag key={stage} color="geekblue">{stage}</Tag>)}</Space></Space></Card>)}</Space>;
 }
 
 function normalizeMemberPayload(values: MemberFormValues): CreateSettingsMemberPayload { return { name: values.name.trim(), email: values.email.trim(), department: values.department, title: values.title, status: values.status, roles: normalizeList(values.roles), dingtalkBound: Boolean(values.dingtalkBound) }; }
-function normalizeRolePayload(values: RoleFormValues): UpdateSettingsRolePayload { return { name: values.name.trim(), scope: values.scope, description: values.description.trim(), permissions: normalizeList(values.permissions) }; }
-function normalizePolicyPayload(values: PolicyFormValues): UpdateSettingsPolicyPayload { return { name: values.name.trim(), scope: values.scope, description: values.description.trim(), permissions: normalizeList(values.permissions) }; }
-function normalizeDictionaryPayload(values: DictionaryFormValues): UpdateSettingsDictionaryPayload { return { name: values.name.trim(), values: normalizeList(values.values) }; }
-function normalizeWorkflowPayload(values: WorkflowFormValues): UpdateSettingsWorkflowPayload { return { name: values.name.trim(), scope: values.scope, stages: normalizeList(values.stages), enabled: Boolean(values.enabled) }; }
+function normalizeCreateRolePayload(values: RoleFormValues): CreateSettingsRolePayload { return { key: normalizeMachineKey(values.key), name: values.name.trim(), scope: values.scope, description: values.description.trim(), permissions: normalizeList(values.permissions) }; }
+function normalizeUpdateRolePayload(values: RoleFormValues): UpdateSettingsRolePayload { return { name: values.name.trim(), scope: values.scope, description: values.description.trim(), permissions: normalizeList(values.permissions) }; }
+function normalizePolicyPayload(values: PolicyFormValues): CreateSettingsPolicyPayload { return { name: values.name.trim(), scope: values.scope, description: values.description.trim(), permissions: normalizeList(values.permissions) }; }
+function normalizeCreateDictionaryPayload(values: DictionaryFormValues): CreateSettingsDictionaryPayload { return { key: normalizeMachineKey(values.key), name: values.name.trim(), values: normalizeList(values.values) }; }
+function normalizeUpdateDictionaryPayload(values: DictionaryFormValues): UpdateSettingsDictionaryPayload { return { name: values.name.trim(), values: normalizeList(values.values) }; }
+function normalizeWorkflowPayload(values: WorkflowFormValues): CreateSettingsWorkflowPayload { return { name: values.name.trim(), scope: values.scope, stages: normalizeList(values.stages), enabled: Boolean(values.enabled) }; }
 function normalizeList(values: string[]): string[] { return Array.isArray(values) ? Array.from(new Set(values.map((item) => item.trim()).filter((item) => item.length > 0))) : []; }
+function normalizeMachineKey(value: string): string { return value.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, ''); }
 function formatScope(value: string): string { return scopeLabelMap[value] ?? value; }
 function formatDepartment(value: string): string { return departmentLabelMap[value] ?? value; }
 function formatTitle(value: string): string { return titleLabelMap[value] ?? value; }
