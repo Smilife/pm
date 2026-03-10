@@ -1,4 +1,4 @@
-﻿import type {
+import type {
   BatchSubmitBugsPayload,
   BatchSubmitBugsResult,
   Bug,
@@ -34,7 +34,11 @@
   UpdateExecutionPayload,
   UpdateExecutionTaskPayload,
   UpdateRequirementPayload,
+  UpdateSettingsDictionaryPayload,
   UpdateSettingsMemberPayload,
+  UpdateSettingsPolicyPayload,
+  UpdateSettingsRolePayload,
+  UpdateSettingsWorkflowPayload,
   UpdateWorklogPayload,
   WeeklyReportDraft,
   Worklog,
@@ -773,17 +777,67 @@ export const pmApi = {
     const data = await request<any>('/settings/roles');
     return Array.isArray(data?.items) ? data.items.map(mapSettingsRole) : [];
   },
+  async updateSettingsRole(id: number, payload: UpdateSettingsRolePayload): Promise<SettingsRole> {
+    const data = await request<any>(`/settings/roles/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        name: payload.name,
+        scope: payload.scope,
+        description: payload.description,
+        permissions: payload.permissions,
+      }),
+    });
+
+    return mapSettingsRole(data);
+  },
   async getSettingsPolicies(): Promise<SettingsPolicy[]> {
     const data = await request<any>('/settings/policies');
     return Array.isArray(data?.items) ? data.items.map(mapSettingsPolicy) : [];
+  },
+  async updateSettingsPolicy(id: number, payload: UpdateSettingsPolicyPayload): Promise<SettingsPolicy> {
+    const data = await request<any>(`/settings/policies/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        name: payload.name,
+        scope: payload.scope,
+        description: payload.description,
+        permissions: payload.permissions,
+      }),
+    });
+
+    return mapSettingsPolicy(data);
   },
   async getSettingsDictionaries(): Promise<SettingsDictionary[]> {
     const data = await request<any>('/settings/dictionaries');
     return Array.isArray(data?.items) ? data.items.map(mapSettingsDictionary) : [];
   },
+  async updateSettingsDictionary(id: number, payload: UpdateSettingsDictionaryPayload): Promise<SettingsDictionary> {
+    const data = await request<any>(`/settings/dictionaries/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        name: payload.name,
+        values: payload.values,
+      }),
+    });
+
+    return mapSettingsDictionary(data);
+  },
   async getSettingsWorkflows(): Promise<SettingsWorkflow[]> {
     const data = await request<any>('/settings/workflows');
     return Array.isArray(data?.items) ? data.items.map(mapSettingsWorkflow) : [];
+  },
+  async updateSettingsWorkflow(id: number, payload: UpdateSettingsWorkflowPayload): Promise<SettingsWorkflow> {
+    const data = await request<any>(`/settings/workflows/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        name: payload.name,
+        scope: payload.scope,
+        stages: payload.stages,
+        enabled: payload.enabled,
+      }),
+    });
+
+    return mapSettingsWorkflow(data);
   },
   async getTeamSchedule(): Promise<TeamScheduleItem[]> {
     const data = await request<any>('/schedules/team-gantt');

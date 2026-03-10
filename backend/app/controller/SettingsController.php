@@ -10,6 +10,8 @@ use App\Support\Response;
 
 final class SettingsController
 {
+    private const VALID_SCOPES = ['org', 'project', 'self'];
+
     private JsonStore $store;
 
     public function __construct()
@@ -99,72 +101,194 @@ final class SettingsController
 
     public function roles(Request $request, array $params): Response
     {
-        $users = $this->store->all('users');
-        $items = array_map(function (array $role) use ($users): array {
-            $roleKey = (string) ($role['key'] ?? '');
-            $userCount = count(array_filter(
-                $users,
-                static fn (array $user): bool => in_array($roleKey, is_array($user['roles'] ?? null) ? $user['roles'] : [], true)
-            ));
-
-            return [
-                'id' => (int) ($role['id'] ?? 0),
-                'key' => $roleKey,
-                'name' => (string) ($role['name'] ?? ''),
-                'scope' => (string) ($role['scope'] ?? 'org'),
-                'description' => (string) ($role['description'] ?? ''),
-                'user_count' => $userCount,
-                'permissions' => array_values(array_map(static fn ($item): string => (string) $item, is_array($role['permissions'] ?? null) ? $role['permissions'] : [])),
-            ];
-        }, $this->store->all('roles'));
+        $items = array_map(fn (array $role): array => $this->mapRole($role), $this->store->all('roles'));
 
         return Response::success(['items' => array_values($items), 'total' => count($items)], $request->requestId);
+    }
+
+    public function updateRole(Request $request, array $params): Response
+    {
+        $roleId = (int) ($params['id'] ?? 0);
+        $current = $this->store->find('roles', $roleId);
+
+        if ($current === null) {
+            return Response::error(404, 'role_not_found', [], $request->requestId);
+        }
+
+        $name = trim((string) ($request->body['name'] ?? ($current['name'] ?? '')));
+        $description = trim((string) ($request->body['description'] ?? ($current['description'] ?? '')));
+        $scope = (string) ($request->body['scope'] ?? ($current['scope'] ?? 'org'));
+        $permissions = $this->normalizePermissionList($request->body['permissions'] ?? ($current['permissions'] ?? []));
+
+        if ($name === '') {
+            return Response::error(422, 'missing_role_name', [], $request->requestId);
+        }
+
+        if (!$this->isValidScope($scope)) {
+            return Response::error(422, 'invalid_setting_scope', [], $request->requestId);
+        }
+
+        if ($description === '') {
+            return Response::error(422, 'missing_role_description', [], $request->requestId);
+        }
+
+        if ($permissions === []) {
+            return Response::error(422, 'missing_role_permissions', [], $request->requestId);
+        }
+
+        $updated = $this->store->update('roles', $roleId, [
+            'name' => $name,
+            'scope' => $scope,
+            'description' => $description,
+            'permissions' => $permissions,
+        ]);
+
+        if ($updated === null) {
+            return Response::error(404, 'role_not_found', [], $request->requestId);
+        }
+
+        $this->syncUsersForRole((string) ($current['key'] ?? ''));
+
+        return Response::success($this->mapRole($updated), $request->requestId);
     }
 
     public function policies(Request $request, array $params): Response
     {
-        $items = array_map(function (array $policy): array {
-            return [
-                'id' => (int) ($policy['id'] ?? 0),
-                'name' => (string) ($policy['name'] ?? ''),
-                'scope' => (string) ($policy['scope'] ?? 'org'),
-                'description' => (string) ($policy['description'] ?? ''),
-                'permissions' => array_values(array_map(static fn ($item): string => (string) $item, is_array($policy['permissions'] ?? null) ? $policy['permissions'] : [])),
-            ];
-        }, $this->store->all('policies'));
+        $items = array_map(fn (array $policy): array => $this->mapPolicy($policy), $this->store->all('policies'));
 
         return Response::success(['items' => array_values($items), 'total' => count($items)], $request->requestId);
+    }
+
+    public function updatePolicy(Request $request, array $params): Response
+    {
+        $policyId = (int) ($params['id'] ?? 0);
+        $current = $this->store->find('policies', $policyId);
+
+        if ($current === null) {
+            return Response::error(404, 'policy_not_found', [], $request->requestId);
+        }
+
+        $name = trim((string) ($request->body['name'] ?? ($current['name'] ?? '')));
+        $description = trim((string) ($request->body['description'] ?? ($current['description'] ?? '')));
+        $scope = (string) ($request->body['scope'] ?? ($current['scope'] ?? 'org'));
+        $permissions = $this->normalizePermissionList($request->body['permissions'] ?? ($current['permissions'] ?? []));
+
+        if ($name === '') {
+            return Response::error(422, 'missing_policy_name', [], $request->requestId);
+        }
+
+        if (!$this->isValidScope($scope)) {
+            return Response::error(422, 'invalid_setting_scope', [], $request->requestId);
+        }
+
+        if ($description === '') {
+            return Response::error(422, 'missing_policy_description', [], $request->requestId);
+        }
+
+        if ($permissions === []) {
+            return Response::error(422, 'missing_policy_permissions', [], $request->requestId);
+        }
+
+        $updated = $this->store->update('policies', $policyId, [
+            'name' => $name,
+            'scope' => $scope,
+            'description' => $description,
+            'permissions' => $permissions,
+        ]);
+
+        if ($updated === null) {
+            return Response::error(404, 'policy_not_found', [], $request->requestId);
+        }
+
+        return Response::success($this->mapPolicy($updated), $request->requestId);
     }
 
     public function dictionaries(Request $request, array $params): Response
     {
-        $items = array_map(function (array $dictionary): array {
-            return [
-                'id' => (int) ($dictionary['id'] ?? 0),
-                'key' => (string) ($dictionary['key'] ?? ''),
-                'name' => (string) ($dictionary['name'] ?? ''),
-                'values' => array_values(array_map(static fn ($item): string => (string) $item, is_array($dictionary['values'] ?? null) ? $dictionary['values'] : [])),
-                'updated_at' => (string) ($dictionary['updated_at'] ?? ''),
-            ];
-        }, $this->store->all('dictionaries'));
+        $items = array_map(fn (array $dictionary): array => $this->mapDictionary($dictionary), $this->store->all('dictionaries'));
 
         return Response::success(['items' => array_values($items), 'total' => count($items)], $request->requestId);
     }
 
+    public function updateDictionary(Request $request, array $params): Response
+    {
+        $dictionaryId = (int) ($params['id'] ?? 0);
+        $current = $this->store->find('dictionaries', $dictionaryId);
+
+        if ($current === null) {
+            return Response::error(404, 'dictionary_not_found', [], $request->requestId);
+        }
+
+        $name = trim((string) ($request->body['name'] ?? ($current['name'] ?? '')));
+        $values = $this->normalizeStringList($request->body['values'] ?? ($current['values'] ?? []));
+
+        if ($name === '') {
+            return Response::error(422, 'missing_dictionary_name', [], $request->requestId);
+        }
+
+        if ($values === []) {
+            return Response::error(422, 'missing_dictionary_values', [], $request->requestId);
+        }
+
+        $updated = $this->store->update('dictionaries', $dictionaryId, [
+            'name' => $name,
+            'values' => $values,
+            'updated_at' => date('c'),
+        ]);
+
+        if ($updated === null) {
+            return Response::error(404, 'dictionary_not_found', [], $request->requestId);
+        }
+
+        return Response::success($this->mapDictionary($updated), $request->requestId);
+    }
+
     public function workflows(Request $request, array $params): Response
     {
-        $items = array_map(function (array $workflow): array {
-            return [
-                'id' => (int) ($workflow['id'] ?? 0),
-                'name' => (string) ($workflow['name'] ?? ''),
-                'scope' => (string) ($workflow['scope'] ?? 'org'),
-                'stages' => array_values(array_map(static fn ($item): string => (string) $item, is_array($workflow['stages'] ?? null) ? $workflow['stages'] : [])),
-                'enabled' => (bool) ($workflow['enabled'] ?? false),
-                'updated_at' => (string) ($workflow['updated_at'] ?? ''),
-            ];
-        }, $this->store->all('workflows'));
+        $items = array_map(fn (array $workflow): array => $this->mapWorkflow($workflow), $this->store->all('workflows'));
 
         return Response::success(['items' => array_values($items), 'total' => count($items)], $request->requestId);
+    }
+
+    public function updateWorkflow(Request $request, array $params): Response
+    {
+        $workflowId = (int) ($params['id'] ?? 0);
+        $current = $this->store->find('workflows', $workflowId);
+
+        if ($current === null) {
+            return Response::error(404, 'workflow_not_found', [], $request->requestId);
+        }
+
+        $name = trim((string) ($request->body['name'] ?? ($current['name'] ?? '')));
+        $scope = (string) ($request->body['scope'] ?? ($current['scope'] ?? 'org'));
+        $stages = $this->normalizeStringList($request->body['stages'] ?? ($current['stages'] ?? []));
+        $enabled = array_key_exists('enabled', $request->body) ? (bool) $request->body['enabled'] : (bool) ($current['enabled'] ?? false);
+
+        if ($name === '') {
+            return Response::error(422, 'missing_workflow_name', [], $request->requestId);
+        }
+
+        if (!$this->isValidScope($scope)) {
+            return Response::error(422, 'invalid_setting_scope', [], $request->requestId);
+        }
+
+        if ($stages === []) {
+            return Response::error(422, 'missing_workflow_stages', [], $request->requestId);
+        }
+
+        $updated = $this->store->update('workflows', $workflowId, [
+            'name' => $name,
+            'scope' => $scope,
+            'stages' => $stages,
+            'enabled' => $enabled,
+            'updated_at' => date('c'),
+        ]);
+
+        if ($updated === null) {
+            return Response::error(404, 'workflow_not_found', [], $request->requestId);
+        }
+
+        return Response::success($this->mapWorkflow($updated), $request->requestId);
     }
 
     private function validateMemberRequest(Request $request, ?array $current = null): ?Response
@@ -194,8 +318,8 @@ final class SettingsController
 
     private function mapMember(array $user): array
     {
-        $permissions = is_array($user['permissions'] ?? null) ? $user['permissions'] : [];
         $roles = is_array($user['roles'] ?? null) ? $user['roles'] : [];
+        $permissions = $this->permissionsForRoles($roles);
 
         return [
             'id' => (int) ($user['id'] ?? 0),
@@ -211,6 +335,60 @@ final class SettingsController
         ];
     }
 
+    private function mapRole(array $role): array
+    {
+        $roleKey = (string) ($role['key'] ?? '');
+        $users = $this->store->all('users');
+        $userCount = count(array_filter(
+            $users,
+            static fn (array $user): bool => in_array($roleKey, is_array($user['roles'] ?? null) ? $user['roles'] : [], true)
+        ));
+
+        return [
+            'id' => (int) ($role['id'] ?? 0),
+            'key' => $roleKey,
+            'name' => (string) ($role['name'] ?? ''),
+            'scope' => (string) ($role['scope'] ?? 'org'),
+            'description' => (string) ($role['description'] ?? ''),
+            'user_count' => $userCount,
+            'permissions' => array_values(array_map(static fn ($item): string => (string) $item, is_array($role['permissions'] ?? null) ? $role['permissions'] : [])),
+        ];
+    }
+
+    private function mapPolicy(array $policy): array
+    {
+        return [
+            'id' => (int) ($policy['id'] ?? 0),
+            'name' => (string) ($policy['name'] ?? ''),
+            'scope' => (string) ($policy['scope'] ?? 'org'),
+            'description' => (string) ($policy['description'] ?? ''),
+            'permissions' => array_values(array_map(static fn ($item): string => (string) $item, is_array($policy['permissions'] ?? null) ? $policy['permissions'] : [])),
+        ];
+    }
+
+    private function mapDictionary(array $dictionary): array
+    {
+        return [
+            'id' => (int) ($dictionary['id'] ?? 0),
+            'key' => (string) ($dictionary['key'] ?? ''),
+            'name' => (string) ($dictionary['name'] ?? ''),
+            'values' => array_values(array_map(static fn ($item): string => (string) $item, is_array($dictionary['values'] ?? null) ? $dictionary['values'] : [])),
+            'updated_at' => (string) ($dictionary['updated_at'] ?? ''),
+        ];
+    }
+
+    private function mapWorkflow(array $workflow): array
+    {
+        return [
+            'id' => (int) ($workflow['id'] ?? 0),
+            'name' => (string) ($workflow['name'] ?? ''),
+            'scope' => (string) ($workflow['scope'] ?? 'org'),
+            'stages' => array_values(array_map(static fn ($item): string => (string) $item, is_array($workflow['stages'] ?? null) ? $workflow['stages'] : [])),
+            'enabled' => (bool) ($workflow['enabled'] ?? false),
+            'updated_at' => (string) ($workflow['updated_at'] ?? ''),
+        ];
+    }
+
     private function normalizeRoles(mixed $value): array
     {
         if (!is_array($value)) {
@@ -222,6 +400,26 @@ final class SettingsController
             static fn ($item): string => trim((string) $item),
             $value
         ), static fn (string $item): bool => $item !== '' && in_array($item, $roleKeys, true))));
+
+        return $normalized;
+    }
+
+    private function normalizePermissionList(mixed $value): array
+    {
+        return $this->normalizeStringList($value);
+    }
+
+    private function normalizeStringList(mixed $value): array
+    {
+        if (!is_array($value)) {
+            return [];
+        }
+
+        $normalized = array_values(array_unique(array_filter(array_map(
+            static fn ($item): string => trim((string) $item),
+            $value
+        ), static fn (string $item): bool => $item !== '')));
+        sort($normalized);
 
         return $normalized;
     }
@@ -249,6 +447,38 @@ final class SettingsController
         return $permissions;
     }
 
+    private function syncUsersForRole(string $roleKey): void
+    {
+        if ($roleKey === '') {
+            return;
+        }
+
+        $users = $this->store->all('users');
+        $changed = false;
+
+        foreach ($users as $index => $user) {
+            $roles = is_array($user['roles'] ?? null) ? $user['roles'] : [];
+            if (!in_array($roleKey, $roles, true)) {
+                continue;
+            }
+
+            $permissions = $this->permissionsForRoles($roles);
+            $existingPermissions = is_array($user['permissions'] ?? null) ? array_values(array_map(static fn ($item): string => (string) $item, $user['permissions'])) : [];
+            sort($existingPermissions);
+
+            if ($existingPermissions === $permissions) {
+                continue;
+            }
+
+            $users[$index]['permissions'] = $permissions;
+            $changed = true;
+        }
+
+        if ($changed) {
+            $this->store->replaceAll('users', $users);
+        }
+    }
+
     private function normalizeMemberStatus(string $status): string
     {
         return in_array($status, ['Active', 'Invited'], true) ? $status : 'Invited';
@@ -268,5 +498,10 @@ final class SettingsController
         }
 
         return false;
+    }
+
+    private function isValidScope(string $scope): bool
+    {
+        return in_array($scope, self::VALID_SCOPES, true);
     }
 }

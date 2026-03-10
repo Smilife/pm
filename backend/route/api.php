@@ -69,9 +69,13 @@ return [
     ['POST', '/settings/members', [SettingsController::class, 'storeMember']],
     ['PATCH', '/settings/members/{id}', [SettingsController::class, 'updateMember']],
     ['GET', '/settings/roles', [SettingsController::class, 'roles']],
+    ['PATCH', '/settings/roles/{id}', [SettingsController::class, 'updateRole']],
     ['GET', '/settings/policies', [SettingsController::class, 'policies']],
+    ['PATCH', '/settings/policies/{id}', [SettingsController::class, 'updatePolicy']],
     ['GET', '/settings/dictionaries', [SettingsController::class, 'dictionaries']],
+    ['PATCH', '/settings/dictionaries/{id}', [SettingsController::class, 'updateDictionary']],
     ['GET', '/settings/workflows', [SettingsController::class, 'workflows']],
+    ['PATCH', '/settings/workflows/{id}', [SettingsController::class, 'updateWorkflow']],
 
     ['GET', '/schedules/team-gantt', [ScheduleController::class, 'teamGantt']],
     ['GET', '/schedules/execution-gantt', [ScheduleController::class, 'executionGantt']],

@@ -54,9 +54,13 @@ final class Authorization
         ['POST', '/settings/members', 'settings.member.manage.org'],
         ['PATCH', '/settings/members/{id}', 'settings.member.manage.org'],
         ['GET', '/settings/roles', 'settings.role.manage.org'],
+        ['PATCH', '/settings/roles/{id}', 'settings.role.manage.org'],
         ['GET', '/settings/policies', 'settings.policy.manage.org'],
+        ['PATCH', '/settings/policies/{id}', 'settings.policy.manage.org'],
         ['GET', '/settings/dictionaries', 'settings.dictionary.view.org'],
+        ['PATCH', '/settings/dictionaries/{id}', 'settings.dictionary.manage.org'],
         ['GET', '/settings/workflows', 'settings.workflow.view.org'],
+        ['PATCH', '/settings/workflows/{id}', 'settings.workflow.manage.org'],
 
         ['GET', '/schedules/team-gantt', 'schedule.view.related'],
         ['GET', '/schedules/execution-gantt', 'schedule.view.related'],
