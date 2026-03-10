@@ -1,0 +1,46 @@
+[
+  {
+    "id": 1,
+    "name": "Delivery control baseline",
+    "scope": "org",
+    "description": "Default bundle for delivery leads who manage requirements, plans, and escalation decisions.",
+    "permissions": [
+      "requirement.create.project",
+      "requirement.review.create.project",
+      "requirement.execution.generate.project",
+      "execution.create.project",
+      "bug.submit.related",
+      "schedule.view.related"
+    ]
+  },
+  {
+    "id": 2,
+    "name": "Personal execution collaboration",
+    "scope": "self",
+    "description": "Lets engineers update their child tasks, logs, daily tasks, and related defects.",
+    "permissions": [
+      "execution.task.update.related",
+      "worklog.create.self",
+      "worklog.update.self",
+      "daily_task.create.self",
+      "daily_task.update.self",
+      "bug.create.related",
+      "bug.update.related",
+      "report.daily.generate.self",
+      "report.weekly.generate.self"
+    ]
+  },
+  {
+    "id": 3,
+    "name": "Organization settings control",
+    "scope": "org",
+    "description": "Grants access to member, role, policy, dictionary, and workflow management views.",
+    "permissions": [
+      "settings.member.manage.org",
+      "settings.role.manage.org",
+      "settings.policy.manage.org",
+      "settings.dictionary.view.org",
+      "settings.workflow.view.org"
+    ]
+  }
+]

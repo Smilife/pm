@@ -44,7 +44,7 @@ final class AuthController
         }
 
         return Response::success([
-            'token' => Auth::DEMO_TOKEN,
+            'token' => Auth::tokenForUser($user),
             'user' => $this->sanitizeUser($user),
         ], $request->requestId);
     }
@@ -60,23 +60,20 @@ final class AuthController
 
     public function me(Request $request, array $params): Response
     {
-        if (!Auth::isAuthorized($request)) {
+        $user = Auth::currentUser($request);
+        if ($user === null) {
             return Response::error(401, 'unauthorized', [], $request->requestId);
         }
 
-        $users = $this->store->all('users');
-
-        return Response::success($this->sanitizeUser($users[0] ?? []), $request->requestId);
+        return Response::success($this->sanitizeUser($user), $request->requestId);
     }
 
     public function permissions(Request $request, array $params): Response
     {
-        if (!Auth::isAuthorized($request)) {
+        $user = Auth::currentUser($request);
+        if ($user === null) {
             return Response::error(401, 'unauthorized', [], $request->requestId);
         }
-
-        $users = $this->store->all('users');
-        $user = $users[0] ?? [];
 
         return Response::success([
             'roles' => $user['roles'] ?? [],

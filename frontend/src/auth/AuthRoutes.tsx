@@ -60,11 +60,23 @@ export function PublicLoginRoute() {
   return <LoginPage />;
 }
 
-export function PermissionGuard({ permission, children }: { permission?: string; children: JSX.Element }) {
-  const permissions = useAuthStore((state) => state.permissions);
+export function PermissionGuard({
+  permission,
+  permissions: requiredPermissions,
+  children,
+}: {
+  permission?: string;
+  permissions?: string[];
+  children: JSX.Element;
+}) {
+  const currentPermissions = useAuthStore((state) => state.permissions);
   const navigate = useNavigate();
+  const hasSinglePermission = permission ? currentPermissions.includes(permission) : false;
+  const hasAnyRequiredPermission = Array.isArray(requiredPermissions)
+    ? requiredPermissions.some((item) => currentPermissions.includes(item))
+    : false;
 
-  if (!permission || permissions.includes(permission)) {
+  if ((!permission && (!requiredPermissions || requiredPermissions.length === 0)) || hasSinglePermission || hasAnyRequiredPermission) {
     return children;
   }
 

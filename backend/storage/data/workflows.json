@@ -1,0 +1,26 @@
+[
+  {
+    "id": 1,
+    "name": "Requirement Review Flow",
+    "scope": "org",
+    "stages": ["Draft", "Understanding", "Confirmed", "ToReview", "Reviewed", "Scheduled"],
+    "enabled": true,
+    "updated_at": "2026-03-10T09:00:00+08:00"
+  },
+  {
+    "id": 2,
+    "name": "Defect Triage Flow",
+    "scope": "project",
+    "stages": ["Draft", "Open", "InProgress", "Resolved", "Closed"],
+    "enabled": true,
+    "updated_at": "2026-03-09T18:40:00+08:00"
+  },
+  {
+    "id": 3,
+    "name": "Daily Report Draft Flow",
+    "scope": "self",
+    "stages": ["Collect", "Generate", "Review", "Share"],
+    "enabled": true,
+    "updated_at": "2026-03-09T18:55:00+08:00"
+  }
+]

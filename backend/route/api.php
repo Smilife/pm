@@ -11,6 +11,7 @@ use App\Controller\ProjectController;
 use App\Controller\ReportController;
 use App\Controller\RequirementController;
 use App\Controller\ScheduleController;
+use App\Controller\SettingsController;
 use App\Controller\SystemController;
 use App\Controller\WorklogController;
 
@@ -63,6 +64,12 @@ return [
     ['GET', '/bugs/{id}', [BugController::class, 'show']],
     ['PATCH', '/bugs/{id}', [BugController::class, 'update']],
     ['POST', '/bugs/batch-submit', [BugController::class, 'batchSubmit']],
+
+    ['GET', '/settings/members', [SettingsController::class, 'members']],
+    ['GET', '/settings/roles', [SettingsController::class, 'roles']],
+    ['GET', '/settings/policies', [SettingsController::class, 'policies']],
+    ['GET', '/settings/dictionaries', [SettingsController::class, 'dictionaries']],
+    ['GET', '/settings/workflows', [SettingsController::class, 'workflows']],
 
     ['GET', '/schedules/team-gantt', [ScheduleController::class, 'teamGantt']],
     ['GET', '/schedules/execution-gantt', [ScheduleController::class, 'executionGantt']],

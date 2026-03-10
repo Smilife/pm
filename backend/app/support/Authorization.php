@@ -50,6 +50,12 @@ final class Authorization
         ['PATCH', '/bugs/{id}', 'bug.update.related'],
         ['POST', '/bugs/batch-submit', 'bug.submit.related'],
 
+        ['GET', '/settings/members', 'settings.member.manage.org'],
+        ['GET', '/settings/roles', 'settings.role.manage.org'],
+        ['GET', '/settings/policies', 'settings.policy.manage.org'],
+        ['GET', '/settings/dictionaries', 'settings.dictionary.view.org'],
+        ['GET', '/settings/workflows', 'settings.workflow.view.org'],
+
         ['GET', '/schedules/team-gantt', 'schedule.view.related'],
         ['GET', '/schedules/execution-gantt', 'schedule.view.related'],
 
@@ -65,29 +71,17 @@ final class Authorization
             return null;
         }
 
-        if (!in_array($requiredPermission, self::permissions(), true)) {
+        if (!in_array($requiredPermission, self::permissionsForRequest($request), true)) {
             return Response::error(403, 'forbidden', ['required_permission' => $requiredPermission], $request->requestId);
         }
 
         return null;
     }
 
-    public static function currentUser(): array
+    public static function permissionsForRequest(Request $request): array
     {
-        $store = new JsonStore();
-        $users = $store->all('users');
-        $user = $users[0] ?? [];
-
-        return is_array($user) ? $user : [];
-    }
-
-    public static function permissions(): array
-    {
-        $permissions = self::currentUser()['permissions'] ?? [];
-
-        if (!is_array($permissions)) {
-            return [];
-        }
+        $user = Auth::currentUser($request);
+        $permissions = is_array($user['permissions'] ?? null) ? $user['permissions'] : [];
 
         return array_values(array_map(static fn ($item): string => (string) $item, $permissions));
     }

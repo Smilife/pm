@@ -22,6 +22,11 @@ import type {
   RequirementGenerateExecutionResult,
   RequirementReview,
   RequirementReviewPayload,
+  SettingsDictionary,
+  SettingsMember,
+  SettingsPolicy,
+  SettingsRole,
+  SettingsWorkflow,
   TeamScheduleItem,
   UpdateBugPayload,
   UpdateDailyTaskPayload,
@@ -270,6 +275,64 @@ function mapBug(item: any): Bug {
     createdAt: formatDateTime(item?.created_at),
     updatedAt: formatDateTime(item?.updated_at),
     submittedAt: formatDateTime(item?.submitted_at),
+  };
+}
+
+function mapSettingsMember(item: any): SettingsMember {
+  return {
+    id: Number(item?.id ?? 0),
+    name: String(item?.name ?? ''),
+    email: String(item?.email ?? ''),
+    department: String(item?.department ?? ''),
+    title: String(item?.title ?? ''),
+    status: item?.status ?? 'Active',
+    roles: toStringArray(item?.roles),
+    permissionCount: Number(item?.permission_count ?? 0),
+    dingtalkBound: Boolean(item?.dingtalk_bound),
+    lastLoginAt: formatDateTime(item?.last_login_at),
+  };
+}
+
+function mapSettingsRole(item: any): SettingsRole {
+  return {
+    id: Number(item?.id ?? 0),
+    key: String(item?.key ?? ''),
+    name: String(item?.name ?? ''),
+    scope: item?.scope ?? 'org',
+    description: String(item?.description ?? ''),
+    userCount: Number(item?.user_count ?? 0),
+    permissions: toStringArray(item?.permissions),
+  };
+}
+
+function mapSettingsPolicy(item: any): SettingsPolicy {
+  return {
+    id: Number(item?.id ?? 0),
+    name: String(item?.name ?? ''),
+    scope: item?.scope ?? 'org',
+    description: String(item?.description ?? ''),
+    permissions: toStringArray(item?.permissions),
+  };
+}
+
+function mapSettingsDictionary(item: any): SettingsDictionary {
+  return {
+    id: Number(item?.id ?? 0),
+    key: String(item?.key ?? ''),
+    name: String(item?.name ?? ''),
+    values: toStringArray(item?.values),
+    updatedAt: formatDateTime(item?.updated_at),
+  };
+}
+
+function mapSettingsWorkflow(item: any): SettingsWorkflow {
+  return {
+    id: Number(item?.id ?? 0),
+    name: String(item?.name ?? ''),
+    scope: item?.scope ?? 'org',
+    stages: toStringArray(item?.stages),
+    enabled: Boolean(item?.enabled),
+    updatedAt: formatDateTime(item?.updated_at),
   };
 }
 
@@ -661,6 +724,26 @@ export const pmApi = {
       items: Array.isArray(data?.items) ? data.items.map(mapBug) : [],
       skippedBugIds: toNumberArray(data?.skipped_bug_ids),
     };
+  },
+  async getSettingsMembers(): Promise<SettingsMember[]> {
+    const data = await request<any>('/settings/members');
+    return Array.isArray(data?.items) ? data.items.map(mapSettingsMember) : [];
+  },
+  async getSettingsRoles(): Promise<SettingsRole[]> {
+    const data = await request<any>('/settings/roles');
+    return Array.isArray(data?.items) ? data.items.map(mapSettingsRole) : [];
+  },
+  async getSettingsPolicies(): Promise<SettingsPolicy[]> {
+    const data = await request<any>('/settings/policies');
+    return Array.isArray(data?.items) ? data.items.map(mapSettingsPolicy) : [];
+  },
+  async getSettingsDictionaries(): Promise<SettingsDictionary[]> {
+    const data = await request<any>('/settings/dictionaries');
+    return Array.isArray(data?.items) ? data.items.map(mapSettingsDictionary) : [];
+  },
+  async getSettingsWorkflows(): Promise<SettingsWorkflow[]> {
+    const data = await request<any>('/settings/workflows');
+    return Array.isArray(data?.items) ? data.items.map(mapSettingsWorkflow) : [];
   },
   async getTeamSchedule(): Promise<TeamScheduleItem[]> {
     const data = await request<any>('/schedules/team-gantt');

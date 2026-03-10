@@ -1,6 +1,6 @@
 # PM
 
-A lightweight team project management platform prototype covering the full flow from requirements to execution and reports.
+A lightweight team project management platform prototype covering the full flow from requirements to execution, defects, reports, and organization settings.
 
 ## Overview
 
@@ -8,10 +8,12 @@ This repository contains a working full-stack prototype for an internal R and D 
 
 - Requirement intake and review
 - Project and execution tracking
-- Child tasks and worklogs
-- Daily tasks and auto-generated reports
+- Child tasks, worklogs, and daily tasks
+- Bug tracking and submission flow
+- Daily and weekly report generation
 - Team and execution gantt views
-- Login and permission-aware navigation
+- Multi-account demo login with permission-aware navigation
+- Organization settings overview for members, roles, policies, dictionaries, and workflows
 
 The current version is designed as a practical V1 prototype rather than a production-ready deployment.
 
@@ -35,16 +37,18 @@ The current version is designed as a practical V1 prototype rather than a produc
 
 ## Current Features
 
-- Login page with demo account
-- Permission-aware app shell and route guards
-- Workspace dashboard
+- Multi-account login page for admin, execution-member, and read-only demos
+- Permission-aware app shell, route guards, and route-level backend permission checks
+- Workspace dashboard with execution and bug focus areas
 - Requirement list, detail, edit, review, and batch execution generation
 - Project list and creation
 - Execution list, detail, edit, child task management, and worklogs
+- Bug list, detail, create, edit, and batch submit flow
 - Daily task creation, edit, status update, and report inclusion toggle
 - Daily report generation
 - Weekly report generation with worklog highlights
 - Team gantt and execution gantt views
+- Settings center for members, roles, policy bundles, dictionaries, and workflows
 - Product, architecture, permission, and API documentation
 
 ## Repository Structure
@@ -91,11 +95,12 @@ The Vite dev server proxies API requests to `http://127.0.0.1:8000`.
 
 ### 3. Sign in
 
-Demo account:
+Demo accounts:
 
 ```text
-account: wangjun@example.com
-password: demo123
+Admin: wangjun@example.com / demo123
+Execution member: chenjing@example.com / demo123
+Read only: sunmei@example.com / demo123
 ```
 
 ## Useful Commands
@@ -127,17 +132,17 @@ npm run build
 ## Current Limitations
 
 - The backend uses JSON files instead of MySQL.
-- Authentication uses a demo token flow for local development.
-- Permission control is implemented in the UI and at the request-entry level, but not yet as full backend RBAC for every business action.
+- Authentication is still a local demo token flow, even though it now switches by logged-in account.
+- Permission control is implemented at route level, but record-level scope checks are not complete yet.
 - The frontend production build currently reports a large chunk warning.
 - Some original planning documents were drafted before implementation and may describe a broader future scope than the code currently covers.
 
 ## Next Suggested Steps
 
-- Add fine-grained backend permission checks per business action
+- Add record-level backend scope checks for project, requirement, and execution ownership
 - Replace JSON storage with a real database layer
-- Add defect management
-- Add system settings and member management
+- Add editable settings actions instead of read-only overview cards
+- Add notification center and DingTalk integration flows
 - Split frontend bundles by route
 
 ## License

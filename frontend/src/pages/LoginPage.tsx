@@ -29,10 +29,21 @@ export function LoginPage() {
           <div>
             <Typography.Title level={2}>Sign in</Typography.Title>
             <Typography.Paragraph>
-              Use the demo account to enter the project management workspace.
+              Use one of the demo accounts to explore the project management workspace with different role permissions.
             </Typography.Paragraph>
           </div>
-          <Alert type="info" showIcon message="Demo account" description="Account: wangjun@example.com | Password: demo123" />
+          <Alert
+            type="info"
+            showIcon
+            message="Demo accounts"
+            description={
+              <Space direction="vertical" size={4}>
+                <Typography.Text>Admin: `wangjun@example.com` / `demo123`</Typography.Text>
+                <Typography.Text>Execution member: `chenjing@example.com` / `demo123`</Typography.Text>
+                <Typography.Text>Read only: `sunmei@example.com` / `demo123`</Typography.Text>
+              </Space>
+            }
+          />
           {errorMessage ? <Alert type="error" showIcon message={errorMessage} /> : null}
           <Form layout="vertical" initialValues={{ account: 'wangjun@example.com', password: 'demo123' }} onFinish={handleFinish}>
             <Form.Item label="Account" name="account" rules={[{ required: true, message: 'Enter your account' }]}>

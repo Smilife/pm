@@ -5,22 +5,15 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Support\Auth;
-use App\Support\JsonStore;
 use App\Support\Request;
 use App\Support\Response;
 
 final class PermissionController
 {
-    private JsonStore $store;
-
-    public function __construct()
-    {
-        $this->store = new JsonStore();
-    }
-
     public function check(Request $request, array $params): Response
     {
-        if (!Auth::isAuthorized($request)) {
+        $user = Auth::currentUser($request);
+        if ($user === null) {
             return Response::error(401, 'unauthorized', [], $request->requestId);
         }
 
@@ -30,8 +23,6 @@ final class PermissionController
             return Response::error(422, 'missing_permission', [], $request->requestId);
         }
 
-        $users = $this->store->all('users');
-        $user = $users[0] ?? [];
         $permissions = is_array($user['permissions'] ?? null) ? $user['permissions'] : [];
 
         return Response::success([

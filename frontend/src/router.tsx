@@ -9,8 +9,16 @@ import { DailyTasksPage } from './pages/DailyTasksPage';
 import { ReportsDailyPage } from './pages/ReportsDailyPage';
 import { ReportsWeeklyPage } from './pages/ReportsWeeklyPage';
 import { GanttPage } from './pages/GanttPage';
-import { PlaceholderPage } from './pages/PlaceholderPage';
+import { SettingsPage } from './pages/SettingsPage';
 import { NotFoundPage } from './pages/NotFoundPage';
+
+const settingsPermissions = [
+  'settings.member.manage.org',
+  'settings.role.manage.org',
+  'settings.policy.manage.org',
+  'settings.dictionary.view.org',
+  'settings.workflow.view.org',
+];
 
 export const router = createBrowserRouter([
   {
@@ -89,7 +97,11 @@ export const router = createBrowserRouter([
       },
       {
         path: 'settings',
-        element: <PlaceholderPage title="Settings" description="Members, roles, policies and workflows will be added in later iterations." />,
+        element: (
+          <PermissionGuard permissions={settingsPermissions}>
+            <SettingsPage />
+          </PermissionGuard>
+        ),
       },
     ],
   },

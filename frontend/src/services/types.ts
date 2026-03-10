@@ -285,6 +285,54 @@ export interface BatchSubmitBugsResult {
   skippedBugIds: number[];
 }
 
+export interface SettingsMember {
+  id: number;
+  name: string;
+  email: string;
+  department: string;
+  title: string;
+  status: 'Active' | 'Invited';
+  roles: string[];
+  permissionCount: number;
+  dingtalkBound: boolean;
+  lastLoginAt: string;
+}
+
+export interface SettingsRole {
+  id: number;
+  key: string;
+  name: string;
+  scope: 'org' | 'project' | 'self';
+  description: string;
+  userCount: number;
+  permissions: string[];
+}
+
+export interface SettingsPolicy {
+  id: number;
+  name: string;
+  scope: 'org' | 'project' | 'self';
+  description: string;
+  permissions: string[];
+}
+
+export interface SettingsDictionary {
+  id: number;
+  key: string;
+  name: string;
+  values: string[];
+  updatedAt: string;
+}
+
+export interface SettingsWorkflow {
+  id: number;
+  name: string;
+  scope: 'org' | 'project' | 'self';
+  stages: string[];
+  enabled: boolean;
+  updatedAt: string;
+}
+
 export interface DailyReportDraft {
   generatedAt: string;
   completed: string[];

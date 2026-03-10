@@ -18,12 +18,20 @@ import { useAuthStore } from '../store/authStore';
 import { useUiStore } from '../store/uiStore';
 
 const { Header, Sider, Content } = Layout;
+const settingsPermissions = [
+  'settings.member.manage.org',
+  'settings.role.manage.org',
+  'settings.policy.manage.org',
+  'settings.dictionary.view.org',
+  'settings.workflow.view.org',
+];
 
 type NavItem = {
   key: string;
   label: string;
   icon: JSX.Element;
   permission?: string;
+  permissions?: string[];
 };
 
 const navItems: NavItem[] = [
@@ -36,7 +44,7 @@ const navItems: NavItem[] = [
   { key: '/reports/daily', icon: <FileTextOutlined />, label: 'Daily Report', permission: 'report.daily.generate.self' },
   { key: '/reports/weekly', icon: <ReadOutlined />, label: 'Weekly Report', permission: 'report.weekly.generate.self' },
   { key: '/gantt', icon: <CalendarOutlined />, label: 'Gantt', permission: 'schedule.view.related' },
-  { key: '/settings', icon: <AppstoreOutlined />, label: 'Settings' },
+  { key: '/settings', icon: <AppstoreOutlined />, label: 'Settings', permissions: settingsPermissions },
 ];
 
 export function AppShell() {
@@ -48,7 +56,16 @@ export function AppShell() {
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
   const selectedKey = pathname === '/' ? '/workspace' : pathname;
-  const visibleItems = navItems.filter((item) => !item.permission || permissions.includes(item.permission));
+  const visibleItems = navItems.filter((item) => {
+    if (!item.permission && (!item.permissions || item.permissions.length === 0)) {
+      return true;
+    }
+
+    return Boolean(
+      (item.permission && permissions.includes(item.permission)) ||
+        item.permissions?.some((permission) => permissions.includes(permission)),
+    );
+  });
 
   const handleLogout = async () => {
     await logout();
@@ -75,7 +92,7 @@ export function AppShell() {
             <Button type="text" icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />} onClick={toggleCollapsed} />
             <div>
               <Typography.Text strong>R and D Management Mainline</Typography.Text>
-              <Typography.Paragraph>Current focus: auth, requirements, executions, bugs, worklogs, reports.</Typography.Paragraph>
+              <Typography.Paragraph>Current focus: auth, delivery, defects, reports, and settings.</Typography.Paragraph>
             </div>
           </Space>
           <Space size="middle" align="center">

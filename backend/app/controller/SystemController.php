@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Support\Auth;
 use App\Support\JsonStore;
 use App\Support\Request;
 use App\Support\Response;
@@ -20,11 +21,12 @@ final class SystemController
         $bugs = $store->all('bugs');
         $users = $store->all('users');
         $today = date('Y-m-d');
-        $currentUser = (string) (($users[0]['name'] ?? 'Wang Jun'));
+        $currentUser = Auth::currentUser($request);
+        $currentUserName = (string) (($currentUser['name'] ?? 'Wang Jun'));
 
         $myExecutions = array_values(array_filter(
             $executions,
-            static fn (array $item): bool => (string) ($item['owner_name'] ?? '') === $currentUser
+            static fn (array $item): bool => (string) ($item['owner_name'] ?? '') === $currentUserName
         ));
         $dueTodayCount = count(array_filter(
             $executions,
@@ -48,7 +50,7 @@ final class SystemController
 
         return Response::success([
             'auth_mode' => 'password_login',
-            'permission_mode' => 'rbac_abac',
+            'permission_mode' => 'rbac_route_guard',
             'my_executions' => count($myExecutions),
             'due_today' => $dueTodayCount,
             'blocked' => $blockedCount,
@@ -58,6 +60,7 @@ final class SystemController
                 'projects' => count($projects),
                 'executions' => count($executions),
                 'bugs' => $openBugs,
+                'members' => count($users),
             ],
         ], $request->requestId);
     }
