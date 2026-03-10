@@ -1,4 +1,4 @@
-import { Tag } from 'antd';
+ï»¿import { Tag } from 'antd';
 
 const colorMap: Record<string, string> = {
   Draft: 'default',
@@ -21,23 +21,23 @@ const colorMap: Record<string, string> = {
 };
 
 const labelMap: Record<string, string> = {
-  Draft: '²İ¸å',
-  Understanding: 'ĞèÇó³ÎÇå',
-  Confirmed: 'ÒÑÈ·ÈÏ',
-  ToReview: '´ıÆÀÉó',
-  Reviewed: 'ÒÑÆÀÉó',
-  Scheduled: 'ÒÑÅÅÆÚ',
-  InDevelopment: '¿ª·¢ÖĞ',
-  NotStarted: 'Î´¿ªÊ¼',
-  InProgress: '½øĞĞÖĞ',
-  Blocked: '×èÈû',
-  ToVerify: '´ıÑéÖ¤',
-  Done: 'Íê³É',
-  Closed: '¹Ø±Õ',
-  Active: '½øĞĞÖĞ',
-  Risk: '·çÏÕ',
-  Open: 'ÒÑ´ò¿ª',
-  Resolved: 'ÒÑ½â¾ö',
+  Draft: 'è‰ç¨¿',
+  Understanding: 'éœ€æ±‚æ¾„æ¸…',
+  Confirmed: 'å·²ç¡®è®¤',
+  ToReview: 'å¾…è¯„å®¡',
+  Reviewed: 'å·²è¯„å®¡',
+  Scheduled: 'å·²æ’æœŸ',
+  InDevelopment: 'å¼€å‘ä¸­',
+  NotStarted: 'æœªå¼€å§‹',
+  InProgress: 'è¿›è¡Œä¸­',
+  Blocked: 'é˜»å¡',
+  ToVerify: 'å¾…éªŒè¯',
+  Done: 'å®Œæˆ',
+  Closed: 'å…³é—­',
+  Active: 'è¿›è¡Œä¸­',
+  Risk: 'é£é™©',
+  Open: 'å·²æ‰“å¼€',
+  Resolved: 'å·²è§£å†³',
 };
 
 export function StatusTag({ value }: { value: string }) {

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+ï»¿import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Card, List, Space, Statistic, Tag, Typography, message } from 'antd';
 import { useNavigate } from 'react-router-dom';
@@ -18,7 +18,7 @@ export function ReportsWeeklyPage() {
     mutationFn: pmApi.generateWeeklyReport,
     onSuccess: (draft) => {
       queryClient.setQueryData(['weekly-report'], draft);
-      messageApi.success('ÖÜ±¨ÒÑÖØĞÂÉú³É¡£');
+      messageApi.success('å‘¨æŠ¥å·²é‡æ–°ç”Ÿæˆã€‚');
     },
     onError: (error) => {
       messageApi.error(formatApiError(error));
@@ -29,7 +29,7 @@ export function ReportsWeeklyPage() {
 
   const handleRegenerate = () => {
     if (!canGenerateWeeklyReport) {
-      messageApi.warning('µ±Ç°½ÇÉ«Ã»ÓĞÖØĞÂÉú³ÉÖÜ±¨µÄÈ¨ÏŞ¡£');
+      messageApi.warning('å½“å‰è§’è‰²æ²¡æœ‰é‡æ–°ç”Ÿæˆå‘¨æŠ¥çš„æƒé™ã€‚');
       return;
     }
 
@@ -40,14 +40,14 @@ export function ReportsWeeklyPage() {
     <Space direction="vertical" size={20} className="page-stack">
       {contextHolder}
       <PageHeader
-        title="ÖÜ±¨"
-        description="»ã×ÜÖ´ĞĞ½øÕ¹¡¢ÈÕ³£ÊÂÏîºÍ¹¤Ê±ÈÕÖ¾£¬ĞÎ³ÉÍ³Ò»µÄÖÜ¶È²ú³öËµÃ÷¡£"
+        title="å‘¨æŠ¥"
+        description="æ±‡æ€»æ‰§è¡Œè¿›å±•ã€æ—¥å¸¸äº‹é¡¹å’Œå·¥æ—¶æ—¥å¿—ï¼Œå½¢æˆä¸€å‘¨å·¥ä½œå›é¡¾ã€‚"
         extra={
           <Space>
-            {canViewExecutions ? <Button onClick={() => navigate('/executions')}>²é¿´Ö´ĞĞ</Button> : null}
+            {canViewExecutions ? <Button onClick={() => navigate('/executions')}>æŸ¥çœ‹æ‰§è¡Œ</Button> : null}
             {canGenerateWeeklyReport ? (
               <Button type="primary" onClick={handleRegenerate} loading={regenerateMutation.isPending}>
-                ÖØĞÂÉú³É
+                é‡æ–°ç”Ÿæˆ
               </Button>
             ) : null}
           </Space>
@@ -55,23 +55,23 @@ export function ReportsWeeklyPage() {
       />
       <Space wrap size={16}>
         <Card>
-          <Statistic title="×Ü¹¤Ê±" value={draft?.totalHours ?? 0} suffix="h" loading={reportQuery.isLoading} />
+          <Statistic title="æ€»å·¥æ—¶" value={draft?.totalHours ?? 0} suffix="h" loading={reportQuery.isLoading} />
         </Card>
         <Card>
-          <Statistic title="¹¤Ê±ÁÁµãÌõÊı" value={worklogCount} loading={reportQuery.isLoading} />
+          <Statistic title="å·¥æ—¶äº®ç‚¹æ¡æ•°" value={worklogCount} loading={reportQuery.isLoading} />
         </Card>
       </Space>
       <Card loading={reportQuery.isLoading}>
-        <Typography.Text type="secondary">Éú³ÉÊ±¼ä£º{draft?.generatedAt ?? '-'}</Typography.Text>
+        <Typography.Text type="secondary">ç”Ÿæˆæ—¶é—´ï¼š{draft?.generatedAt ?? '-'}</Typography.Text>
         <Typography.Paragraph style={{ marginTop: 12 }}>{draft?.summary ?? '-'}</Typography.Paragraph>
       </Card>
-      <Card title="ÒÑÍê³É" loading={reportQuery.isLoading}>
+      <Card title="å·²å®Œæˆ" loading={reportQuery.isLoading}>
         <List dataSource={draft?.completed ?? []} renderItem={(item) => <List.Item>{item}</List.Item>} />
       </Card>
-      <Card title="½øĞĞÖĞ" loading={reportQuery.isLoading}>
+      <Card title="è¿›è¡Œä¸­" loading={reportQuery.isLoading}>
         <List dataSource={draft?.inProgress ?? []} renderItem={(item) => <List.Item>{item}</List.Item>} />
       </Card>
-      <Card title="·çÏÕÏî" loading={reportQuery.isLoading}>
+      <Card title="é£é™©é¡¹" loading={reportQuery.isLoading}>
         <Space wrap>
           {(draft?.risks ?? []).map((risk) => (
             <Tag key={risk} color="error">
@@ -80,10 +80,10 @@ export function ReportsWeeklyPage() {
           ))}
         </Space>
       </Card>
-      <Card title="ÏÂÖÜ¼Æ»®" loading={reportQuery.isLoading}>
+      <Card title="ä¸‹å‘¨è®¡åˆ’" loading={reportQuery.isLoading}>
         <List dataSource={draft?.nextWeek ?? []} renderItem={(item) => <List.Item>{item}</List.Item>} />
       </Card>
-      <Card title="¹¤Ê±ÁÁµã" loading={reportQuery.isLoading}>
+      <Card title="å·¥æ—¶äº®ç‚¹" loading={reportQuery.isLoading}>
         <List dataSource={draft?.worklogHighlights ?? []} renderItem={(item) => <List.Item>{item}</List.Item>} />
       </Card>
     </Space>

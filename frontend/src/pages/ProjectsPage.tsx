@@ -1,4 +1,4 @@
-import { useState } from 'react';
+ï»¿import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Card, Form, Input, Modal, Select, Space, Table, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
@@ -10,12 +10,12 @@ import type { CreateProjectPayload, Project } from '../services/types';
 
 const columns: ColumnsType<Project> = [
   { title: 'ID', dataIndex: 'id', width: 90 },
-  { title: 'ÏîÄ¿Ãû³Æ', dataIndex: 'name' },
-  { title: 'ÏîÄ¿±àÂë', dataIndex: 'code', width: 120 },
-  { title: '¸ºÔğÈË', dataIndex: 'ownerName', width: 120 },
-  { title: '×´Ì¬', dataIndex: 'status', render: (value: string) => <StatusTag value={value} /> },
-  { title: 'Ö´ĞĞÊı', dataIndex: 'executionCount', width: 100 },
-  { title: '·çÏÕÊı', dataIndex: 'riskCount', width: 100 },
+  { title: 'é¡¹ç›®åç§°', dataIndex: 'name' },
+  { title: 'é¡¹ç›®ç¼–ç ', dataIndex: 'code', width: 120 },
+  { title: 'è´Ÿè´£äºº', dataIndex: 'ownerName', width: 120 },
+  { title: 'çŠ¶æ€', dataIndex: 'status', render: (value: string) => <StatusTag value={value} /> },
+  { title: 'æ‰§è¡Œæ•°', dataIndex: 'executionCount', width: 100 },
+  { title: 'é£é™©æ•°', dataIndex: 'riskCount', width: 100 },
 ];
 
 export function ProjectsPage() {
@@ -33,7 +33,7 @@ export function ProjectsPage() {
       await queryClient.invalidateQueries({ queryKey: ['projects'] });
       setCreateModalOpen(false);
       form.resetFields();
-      messageApi.success('ÏîÄ¿ÒÑ´´½¨¡£');
+      messageApi.success('é¡¹ç›®å·²åˆ›å»ºã€‚');
     },
     onError: (error) => {
       messageApi.error(formatApiError(error));
@@ -42,7 +42,7 @@ export function ProjectsPage() {
 
   const openCreateModal = () => {
     if (!canCreateProject) {
-      messageApi.warning('µ±Ç°½ÇÉ«Ã»ÓĞ´´½¨ÏîÄ¿µÄÈ¨ÏŞ¡£');
+      messageApi.warning('å½“å‰è§’è‰²æ²¡æœ‰åˆ›å»ºé¡¹ç›®çš„æƒé™ã€‚');
       return;
     }
 
@@ -52,7 +52,7 @@ export function ProjectsPage() {
 
   const handleCreateProject = async () => {
     if (!canCreateProject) {
-      messageApi.warning('µ±Ç°½ÇÉ«Ã»ÓĞ´´½¨ÏîÄ¿µÄÈ¨ÏŞ¡£');
+      messageApi.warning('å½“å‰è§’è‰²æ²¡æœ‰åˆ›å»ºé¡¹ç›®çš„æƒé™ã€‚');
       return;
     }
 
@@ -69,43 +69,43 @@ export function ProjectsPage() {
     <Space direction="vertical" size={20} className="page-stack">
       {contextHolder}
       <PageHeader
-        title="ÏîÄ¿"
-        description="ÓÃÓÚ²é¿´ÏîÄ¿½¡¿µ¶È¡¢¸ºÔğÈËºÍÕûÌåÖ´ĞĞ¹æÄ££¬±£³Ö¹ÜÀíÊÓ½ÇµÄÎÈ¶¨Êä³ö¡£"
+        title="é¡¹ç›®"
+        description="ç”¨äºæŸ¥çœ‹é¡¹ç›®å¥åº·åº¦å’ŒåŸºç¡€äº¤ä»˜ä¿¡æ¯ã€‚"
         extra={
           canCreateProject ? (
             <Button type="primary" onClick={openCreateModal}>
-              ĞÂ½¨ÏîÄ¿
+              æ–°å»ºé¡¹ç›®
             </Button>
           ) : null
         }
       />
-      <Card title="ÏîÄ¿ÁĞ±í">
+      <Card title="é¡¹ç›®åˆ—è¡¨">
         <Table rowKey="id" columns={columns} dataSource={query.data ?? []} loading={query.isLoading} pagination={false} />
       </Card>
       <Modal
-        title="ĞÂ½¨ÏîÄ¿"
+        title="æ–°å»ºé¡¹ç›®"
         open={createModalOpen}
         onCancel={() => setCreateModalOpen(false)}
         onOk={handleCreateProject}
-        okText="´´½¨"
+        okText="åˆ›å»º"
         confirmLoading={createMutation.isPending}
       >
         <Form form={form} layout="vertical">
-          <Form.Item label="ÏîÄ¿Ãû³Æ" name="name" rules={[{ required: true, message: 'ÇëÊäÈëÏîÄ¿Ãû³Æ' }]}>
-            <Input placeholder="ÀıÈç£ºÍÅ¶ÓÏîÄ¿¹ÜÀíÆ½Ì¨ V1" />
+          <Form.Item label="é¡¹ç›®åç§°" name="name" rules={[{ required: true, message: 'è¯·è¾“å…¥é¡¹ç›®åç§°' }]}>
+            <Input placeholder="ä¾‹å¦‚ï¼šå›¢é˜Ÿé¡¹ç›®ç®¡ç†å¹³å° V1" />
           </Form.Item>
-          <Form.Item label="ÏîÄ¿±àÂë" name="code" rules={[{ required: true, message: 'ÇëÊäÈëÏîÄ¿±àÂë' }]}>
-            <Input placeholder="ÀıÈç£ºPM-V1" />
+          <Form.Item label="é¡¹ç›®ç¼–ç " name="code" rules={[{ required: true, message: 'è¯·è¾“å…¥é¡¹ç›®ç¼–ç ' }]}>
+            <Input placeholder="ä¾‹å¦‚ï¼šPM-V1" />
           </Form.Item>
-          <Form.Item label="¸ºÔğÈË" name="ownerName" rules={[{ required: true, message: 'ÇëÊäÈë¸ºÔğÈË' }]}>
-            <Input placeholder="ÀıÈç£ºÍõ¾ü" />
+          <Form.Item label="è´Ÿè´£äºº" name="ownerName" rules={[{ required: true, message: 'è¯·è¾“å…¥è´Ÿè´£äºº' }]}>
+            <Input placeholder="ä¾‹å¦‚ï¼šç‹å†›" />
           </Form.Item>
-          <Form.Item label="×´Ì¬" name="status" rules={[{ required: true, message: 'ÇëÑ¡Ôñ×´Ì¬' }]}>
+          <Form.Item label="çŠ¶æ€" name="status" rules={[{ required: true, message: 'è¯·é€‰æ‹©çŠ¶æ€' }]}>
             <Select
               options={[
-                { label: '½øĞĞÖĞ', value: 'Active' },
-                { label: '·çÏÕ', value: 'Risk' },
-                { label: 'Íê³É', value: 'Done' },
+                { label: 'è¿›è¡Œä¸­', value: 'Active' },
+                { label: 'é£é™©', value: 'Risk' },
+                { label: 'å®Œæˆ', value: 'Done' },
               ]}
             />
           </Form.Item>

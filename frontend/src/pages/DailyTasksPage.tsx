@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+ï»¿import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import dayjs, { type Dayjs } from 'dayjs';
 import { Alert, Button, Card, DatePicker, Form, Input, Modal, Select, Space, Switch, Table, Tag, Typography, message } from 'antd';
@@ -24,34 +24,34 @@ const columns = (
   canUpdate: boolean,
 ): ColumnsType<DailyTask> => [
   { title: 'ID', dataIndex: 'id', width: 90 },
-  { title: 'ÊÂÏî', dataIndex: 'title' },
-  { title: '¸ºÔğÈË', dataIndex: 'ownerName', width: 140 },
-  { title: '×´Ì¬', dataIndex: 'status', width: 140, render: (value: string) => <StatusTag value={value} /> },
-  { title: '½ØÖ¹ÈÕÆÚ', dataIndex: 'dueAt', width: 140 },
+  { title: 'äº‹é¡¹', dataIndex: 'title' },
+  { title: 'è´Ÿè´£äºº', dataIndex: 'ownerName', width: 140 },
+  { title: 'çŠ¶æ€', dataIndex: 'status', width: 140, render: (value: string) => <StatusTag value={value} /> },
+  { title: 'æˆªæ­¢æ—¥æœŸ', dataIndex: 'dueAt', width: 140 },
   {
-    title: 'ÈÕ±¨ÄÉÈë',
+    title: 'æ—¥æŠ¥çº³å…¥',
     dataIndex: 'excludeFromReport',
     width: 140,
-    render: (value: boolean) => <Tag color={value ? 'default' : 'success'}>{value ? 'ÒÑÅÅ³ı' : 'ÒÑÄÉÈë'}</Tag>,
+    render: (value: boolean) => <Tag color={value ? 'default' : 'success'}>{value ? 'å·²æ’é™¤' : 'å·²çº³å…¥'}</Tag>,
   },
   {
-    title: '²Ù×÷',
+    title: 'æ“ä½œ',
     width: 260,
     render: (_, record) =>
       canUpdate ? (
         <Space>
           <Button size="small" onClick={() => onEdit(record)}>
-            ±à¼­
+            ç¼–è¾‘
           </Button>
           <Button size="small" onClick={() => onToggleReport(record)}>
-            {record.excludeFromReport ? 'ÄÉÈëÈÕ±¨' : 'ÅÅ³ıÈÕ±¨'}
+            {record.excludeFromReport ? 'çº³å…¥æ—¥æŠ¥' : 'æ’é™¤æ—¥æŠ¥'}
           </Button>
           <Button size="small" disabled={record.status === 'Done'} onClick={() => onMarkDone(record)}>
-            ±ê¼ÇÍê³É
+            æ ‡è®°å®Œæˆ
           </Button>
         </Space>
       ) : (
-        <Typography.Text type="secondary">½ö²é¿´</Typography.Text>
+        <Typography.Text type="secondary">ä»…æŸ¥çœ‹</Typography.Text>
       ),
   },
 ];
@@ -81,7 +81,7 @@ export function DailyTasksPage() {
       ]);
       setCreateModalOpen(false);
       createForm.resetFields();
-      messageApi.success('ÈÕ³£ÊÂÏîÒÑ´´½¨¡£');
+      messageApi.success('æ—¥å¸¸äº‹é¡¹å·²åˆ›å»ºã€‚');
     },
     onError: (error) => {
       messageApi.error(formatApiError(error));
@@ -99,7 +99,7 @@ export function DailyTasksPage() {
       setEditModalOpen(false);
       setEditingTask(null);
       editForm.resetFields();
-      messageApi.success('ÈÕ³£ÊÂÏîÒÑ¸üĞÂ¡£');
+      messageApi.success('æ—¥å¸¸äº‹é¡¹å·²æ›´æ–°ã€‚');
     },
     onError: (error) => {
       messageApi.error(formatApiError(error));
@@ -117,7 +117,7 @@ export function DailyTasksPage() {
 
   const openCreateModal = () => {
     if (!canCreateDailyTask) {
-      messageApi.warning('µ±Ç°½ÇÉ«Ã»ÓĞ´´½¨ÈÕ³£ÊÂÏîµÄÈ¨ÏŞ¡£');
+      messageApi.warning('å½“å‰è§’è‰²æ²¡æœ‰åˆ›å»ºæ—¥å¸¸äº‹é¡¹æƒé™ã€‚');
       return;
     }
 
@@ -132,7 +132,7 @@ export function DailyTasksPage() {
 
   const openEditModal = (item: DailyTask) => {
     if (!canUpdateDailyTask) {
-      messageApi.warning('µ±Ç°½ÇÉ«Ã»ÓĞ±à¼­ÈÕ³£ÊÂÏîµÄÈ¨ÏŞ¡£');
+      messageApi.warning('å½“å‰è§’è‰²æ²¡æœ‰ç¼–è¾‘æ—¥å¸¸äº‹é¡¹æƒé™ã€‚');
       return;
     }
 
@@ -149,7 +149,7 @@ export function DailyTasksPage() {
 
   const handleCreate = async () => {
     if (!canCreateDailyTask) {
-      messageApi.warning('µ±Ç°½ÇÉ«Ã»ÓĞ´´½¨ÈÕ³£ÊÂÏîµÄÈ¨ÏŞ¡£');
+      messageApi.warning('å½“å‰è§’è‰²æ²¡æœ‰åˆ›å»ºæ—¥å¸¸äº‹é¡¹æƒé™ã€‚');
       return;
     }
 
@@ -159,7 +159,7 @@ export function DailyTasksPage() {
 
   const handleUpdate = async () => {
     if (!canUpdateDailyTask) {
-      messageApi.warning('µ±Ç°½ÇÉ«Ã»ÓĞ±à¼­ÈÕ³£ÊÂÏîµÄÈ¨ÏŞ¡£');
+      messageApi.warning('å½“å‰è§’è‰²æ²¡æœ‰ç¼–è¾‘æ—¥å¸¸äº‹é¡¹æƒé™ã€‚');
       return;
     }
 
@@ -173,7 +173,7 @@ export function DailyTasksPage() {
 
   const handleToggleReport = (item: DailyTask) => {
     if (!canUpdateDailyTask) {
-      messageApi.warning('µ±Ç°½ÇÉ«Ã»ÓĞ¸üĞÂÈÕ³£ÊÂÏîµÄÈ¨ÏŞ¡£');
+      messageApi.warning('å½“å‰è§’è‰²æ²¡æœ‰æ›´æ–°æ—¥å¸¸äº‹é¡¹æƒé™ã€‚');
       return;
     }
 
@@ -191,7 +191,7 @@ export function DailyTasksPage() {
 
   const handleMarkDone = (item: DailyTask) => {
     if (!canUpdateDailyTask) {
-      messageApi.warning('µ±Ç°½ÇÉ«Ã»ÓĞ¸üĞÂÈÕ³£ÊÂÏîµÄÈ¨ÏŞ¡£');
+      messageApi.warning('å½“å‰è§’è‰²æ²¡æœ‰æ›´æ–°æ—¥å¸¸äº‹é¡¹æƒé™ã€‚');
       return;
     }
 
@@ -211,12 +211,12 @@ export function DailyTasksPage() {
     <Space direction="vertical" size={20} className="page-stack">
       {contextHolder}
       <PageHeader
-        title="ÈÕ³£ÊÂÏî"
-        description="¹ÜÀí»á½øÈëÈÕ±¨»ã×ÜµÄÈÕ³£¹¤×÷Ïî£¬²¢¿ìËÙ¾ö¶¨ÄÄĞ©ÊÂÏîÒªÄÉÈë»ã±¨¡£"
+        title="æ—¥å¸¸äº‹é¡¹"
+        description="ç®¡ç†éœ€è¦è¿›å…¥æ—¥æŠ¥å’Œå‘¨æŠ¥çš„æ—¥å¸¸äº‹é¡¹ï¼Œå¹¶å¿«é€Ÿå†³å®šå“ªäº›å†…å®¹è¦çº³å…¥æ±‡æŠ¥ã€‚"
         extra={
           canCreateDailyTask ? (
             <Button type="primary" onClick={openCreateModal}>
-              ĞÂ½¨ÈÕ³£ÊÂÏî
+              æ–°å»ºæ—¥å¸¸äº‹é¡¹
             </Button>
           ) : null
         }
@@ -224,10 +224,10 @@ export function DailyTasksPage() {
       <Alert
         type="info"
         showIcon
-        message={`ÒÑÄÉÈëÈÕ±¨£º${summary.included} | ÒÑÅÅ³ı£º${summary.excluded} | ÒÑÍê³É£º${summary.done}`}
-        description="ÕâÀïµÄ¸Ä¶¯»áÁ¢¼´Ó°ÏìÏÂÒ»´ÎÉú³ÉµÄÈÕ±¨²İ¸å¡£"
+        message={`å·²çº³å…¥æ—¥æŠ¥ï¼š${summary.included} | å·²æ’é™¤ï¼š${summary.excluded} | å·²å®Œæˆï¼š${summary.done}`}
+        description="è¿™é‡Œçš„æ”¹åŠ¨ä¼šç›´æ¥å½±å“ä¸‹ä¸€æ¬¡ç”Ÿæˆçš„æ—¥æŠ¥è‰ç¨¿ã€‚"
       />
-      <Card title="ÈÕ³£ÊÂÏîÁĞ±í">
+      <Card title="æ—¥å¸¸äº‹é¡¹åˆ—è¡¨">
         <Table
           rowKey="id"
           columns={columns(openEditModal, handleToggleReport, handleMarkDone, canUpdateDailyTask)}
@@ -239,22 +239,22 @@ export function DailyTasksPage() {
       </Card>
 
       <Modal
-        title="ĞÂ½¨ÈÕ³£ÊÂÏî"
+        title="æ–°å»ºæ—¥å¸¸äº‹é¡¹"
         open={createModalOpen}
         onCancel={() => setCreateModalOpen(false)}
         onOk={handleCreate}
-        okText="´´½¨"
+        okText="åˆ›å»º"
         confirmLoading={createMutation.isPending}
       >
         <DailyTaskForm form={createForm} />
       </Modal>
 
       <Modal
-        title="±à¼­ÈÕ³£ÊÂÏî"
+        title="ç¼–è¾‘æ—¥å¸¸äº‹é¡¹"
         open={editModalOpen}
         onCancel={() => setEditModalOpen(false)}
         onOk={handleUpdate}
-        okText="±£´æ"
+        okText="ä¿å­˜"
         confirmLoading={updateMutation.isPending}
       >
         <DailyTaskForm form={editForm} />
@@ -266,26 +266,26 @@ export function DailyTasksPage() {
 function DailyTaskForm({ form }: { form: ReturnType<typeof Form.useForm<DailyTaskFormValues>>[0] }) {
   return (
     <Form form={form} layout="vertical">
-      <Form.Item label="ÊÂÏîÃû³Æ" name="title" rules={[{ required: true, message: 'ÇëÊäÈëÊÂÏîÃû³Æ' }]}>
-        <Input placeholder="ÀıÈç£ºÕûÀíĞèÇóÆÀÉó¼ÍÒª" />
+      <Form.Item label="äº‹é¡¹åç§°" name="title" rules={[{ required: true, message: 'è¯·è¾“å…¥äº‹é¡¹åç§°' }]}>
+        <Input placeholder="ä¾‹å¦‚ï¼šæ•´ç†é¡¹ç›®å‘¨ä¼šçºªè¦" />
       </Form.Item>
-      <Form.Item label="¸ºÔğÈË" name="ownerName" rules={[{ required: true, message: 'ÇëÊäÈë¸ºÔğÈË' }]}>
-        <Input placeholder="ÀıÈç£ºÍõ¾ü" />
+      <Form.Item label="è´Ÿè´£äºº" name="ownerName" rules={[{ required: true, message: 'è¯·è¾“å…¥è´Ÿè´£äºº' }]}>
+        <Input placeholder="ä¾‹å¦‚ï¼šç‹å†›" />
       </Form.Item>
-      <Form.Item label="×´Ì¬" name="status" rules={[{ required: true, message: 'ÇëÑ¡Ôñ×´Ì¬' }]}>
+      <Form.Item label="çŠ¶æ€" name="status" rules={[{ required: true, message: 'è¯·é€‰æ‹©çŠ¶æ€' }]}>
         <Select
           options={[
-            { label: 'Î´¿ªÊ¼', value: 'NotStarted' },
-            { label: '½øĞĞÖĞ', value: 'InProgress' },
-            { label: '×èÈû', value: 'Blocked' },
-            { label: 'Íê³É', value: 'Done' },
+            { label: 'æœªå¼€å§‹', value: 'NotStarted' },
+            { label: 'è¿›è¡Œä¸­', value: 'InProgress' },
+            { label: 'é˜»å¡', value: 'Blocked' },
+            { label: 'å®Œæˆ', value: 'Done' },
           ]}
         />
       </Form.Item>
-      <Form.Item label="½ØÖ¹ÈÕÆÚ" name="dueAt" rules={[{ required: true, message: 'ÇëÑ¡Ôñ½ØÖ¹ÈÕÆÚ' }]}>
+      <Form.Item label="æˆªæ­¢æ—¥æœŸ" name="dueAt" rules={[{ required: true, message: 'è¯·é€‰æ‹©æˆªæ­¢æ—¥æœŸ' }]}>
         <DatePicker style={{ width: '100%' }} />
       </Form.Item>
-      <Form.Item label="ÅÅ³ı³öÈÕ±¨" name="excludeFromReport" valuePropName="checked">
+      <Form.Item label="æ’é™¤å‡ºæ—¥æŠ¥" name="excludeFromReport" valuePropName="checked">
         <Switch />
       </Form.Item>
     </Form>

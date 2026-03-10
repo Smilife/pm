@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+ï»¿import { useEffect } from 'react';
 import { Button, Result, Spin } from 'antd';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { AppShell } from '../layout/AppShell';
@@ -33,7 +33,7 @@ export function ProtectedAppShell() {
   const { bootstrapped, loading } = useBootstrapAuth();
 
   if (!bootstrapped || loading) {
-    return <FullScreenLoading message="ÕıÔÚ¼ÓÔØ¹¤×÷Ì¨..." />;
+    return <FullScreenLoading message="æ­£åœ¨åŠ è½½å·¥ä½œå°..." />;
   }
 
   if (!token) {
@@ -49,7 +49,7 @@ export function PublicLoginRoute() {
   const { bootstrapped, loading } = useBootstrapAuth();
 
   if (!bootstrapped || loading) {
-    return <FullScreenLoading message="ÕıÔÚ¼ì²éµÇÂ¼×´Ì¬..." />;
+    return <FullScreenLoading message="æ­£åœ¨æ£€æŸ¥ç™»å½•çŠ¶æ€..." />;
   }
 
   if (token) {
@@ -84,10 +84,10 @@ export function PermissionGuard({
     <Result
       status="403"
       title="403"
-      subTitle="µ±Ç°½ÇÉ«ÔİÊ±Ã»ÓĞ·ÃÎÊÕâ¸öÒ³ÃæµÄÈ¨ÏŞ¡£"
+      subTitle="å½“å‰è§’è‰²æš‚æ—¶æ²¡æœ‰è®¿é—®è¿™ä¸ªé¡µé¢çš„æƒé™ã€‚"
       extra={
         <Button type="primary" onClick={() => navigate('/workspace')}>
-          ·µ»Ø¹¤×÷Ì¨
+          è¿”å›å·¥ä½œå°
         </Button>
       }
     />

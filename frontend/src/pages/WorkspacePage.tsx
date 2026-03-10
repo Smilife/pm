@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+Ôªøimport { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Button, Card, Col, List, Row, Space, Statistic, Typography } from 'antd';
 import { useNavigate } from 'react-router-dom';
@@ -22,13 +22,13 @@ export function WorkspacePage() {
   return (
     <Space direction="vertical" size={20} className="page-stack">
       <PageHeader
-        title="π§◊˜Ã®"
-        description="æ€∫œΩÒÃÏ◊Ó÷ÿ“™µƒπ§◊˜œÓ£¨∞¸¿®Œ“∏∫‘µƒ÷¥––°¢ΩÒ»’µΩ∆⁄ ¬œÓ°¢◊Ë»˚œÓ∫Õ±®±Ì»Îø⁄°£"
+        title="Â∑•‰ΩúÂè∞"
+        description="ËÅöÂêà‰ªäÂ§©ÊúÄÈáçË¶ÅÁöÑÂ∑•‰ΩúÈ°πÔºåÂåÖÊã¨ÊàëË¥üË¥£ÁöÑÊâßË°å„ÄÅ‰ªäÊó•Âà∞Êúü‰∫ãÈ°π„ÄÅÈòªÂ°ûÈ°πÂíåÊä•Ë°®ÂÖ•Âè£„ÄÇ"
         extra={
           <Space>
-            {canViewBugs ? <Button onClick={() => navigate('/bugs')}>≤Èø¥»±œ›</Button> : null}
+            {canViewBugs ? <Button onClick={() => navigate('/bugs')}>Êü•ÁúãÁº∫Èô∑</Button> : null}
             <Button type="primary" onClick={() => navigate('/reports/daily')}>
-              ¥Úø™»’±®
+              ÊâìÂºÄÊó•Êä•
             </Button>
           </Space>
         }
@@ -36,28 +36,28 @@ export function WorkspacePage() {
       <Row gutter={[16, 16]}>
         <Col xs={24} md={12} xl={6}>
           <Card>
-            <Statistic title="Œ“∏∫‘µƒ÷¥––" value={summaryQuery.data?.myExecutions ?? 0} loading={summaryQuery.isLoading} />
+            <Statistic title="ÊàëË¥üË¥£ÁöÑÊâßË°å" value={summaryQuery.data?.myExecutions ?? 0} loading={summaryQuery.isLoading} />
           </Card>
         </Col>
         <Col xs={24} md={12} xl={6}>
           <Card>
-            <Statistic title="ΩÒ»’µΩ∆⁄" value={summaryQuery.data?.dueToday ?? 0} loading={summaryQuery.isLoading} />
+            <Statistic title="‰ªäÊó•Âà∞Êúü" value={summaryQuery.data?.dueToday ?? 0} loading={summaryQuery.isLoading} />
           </Card>
         </Col>
         <Col xs={24} md={12} xl={6}>
           <Card>
-            <Statistic title="◊Ë»˚œÓ" value={summaryQuery.data?.blocked ?? 0} loading={summaryQuery.isLoading} />
+            <Statistic title="ÈòªÂ°ûÈ°π" value={summaryQuery.data?.blocked ?? 0} loading={summaryQuery.isLoading} />
           </Card>
         </Col>
         <Col xs={24} md={12} xl={6}>
           <Card>
-            <Statistic title="¥˝…˙≥…±®±Ì" value={summaryQuery.data?.reportsReady ?? 0} loading={summaryQuery.isLoading} />
+            <Statistic title="ÂæÖÁîüÊàêÊä•Ë°®" value={summaryQuery.data?.reportsReady ?? 0} loading={summaryQuery.isLoading} />
           </Card>
         </Col>
       </Row>
       <Row gutter={[16, 16]}>
         <Col xs={24} xl={canViewBugs ? 14 : 24}>
-          <Card title="÷ÿµ„÷¥––œÓ">
+          <Card title="ÈáçÁÇπÊâßË°åÈ°π">
             <List
               loading={executionQuery.isLoading}
               dataSource={executionQuery.data ?? []}
@@ -74,11 +74,11 @@ export function WorkspacePage() {
         </Col>
         {canViewBugs ? (
           <Col xs={24} xl={10}>
-            <Card title="–Ë“™πÿ◊¢µƒ»±œ›" extra={<Typography.Text type="secondary">∏ﬂ¡¡ {openBugs.length} Ãı</Typography.Text>}>
+            <Card title="ÈúÄË¶ÅÂÖ≥Ê≥®ÁöÑÁº∫Èô∑" extra={<Typography.Text type="secondary">ÂÖ± {openBugs.length} Êù°</Typography.Text>}>
               <List
                 loading={bugsQuery.isLoading}
                 dataSource={openBugs}
-                locale={{ emptyText: 'µ±«∞√ª”––Ë“™÷ÿµ„πÿ◊¢µƒŒ¥πÿ±’»±œ›°£' }}
+                locale={{ emptyText: 'ÂΩìÂâçÊ≤°ÊúâÈúÄË¶ÅÈáçÁÇπÂÖ≥Ê≥®ÁöÑÊú™ÂÖ≥Èó≠Áº∫Èô∑„ÄÇ' }}
                 renderItem={(item) => (
                   <List.Item extra={<StatusTag value={item.status} />}>
                     <List.Item.Meta title={item.title} description={`${item.linkName} | ${item.ownerName} | ${item.priority}`} />

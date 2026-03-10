@@ -1,12 +1,12 @@
-import { useState } from 'react';
+ï»¿import { useState } from 'react';
 import { Alert, Button, Card, Form, Input, Space, Typography } from 'antd';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 
 const authErrorMap: Record<string, string> = {
-  invalid_credentials: 'ÕËºÅ»òÃÜÂë´íÎó',
-  missing_credentials: 'ÇëÊäÈëÕËºÅºÍÃÜÂë',
-  unauthorized: 'µÇÂ¼×´Ì¬ÒÑÊ§Ğ§',
+  invalid_credentials: 'è´¦å·æˆ–å¯†ç é”™è¯¯',
+  missing_credentials: 'è¯·è¾“å…¥è´¦å·å’Œå¯†ç ',
+  unauthorized: 'ç™»å½•çŠ¶æ€å·²å¤±æ•ˆ',
 };
 
 export function LoginPage() {
@@ -24,7 +24,7 @@ export function LoginPage() {
       navigate(target, { replace: true });
     } catch (error) {
       const rawMessage = error instanceof Error ? error.message : 'Login failed';
-      setErrorMessage(authErrorMap[rawMessage] ?? 'µÇÂ¼Ê§°Ü£¬ÇëÉÔºóÖØÊÔ');
+      setErrorMessage(authErrorMap[rawMessage] ?? 'ç™»å½•å¤±è´¥ï¼Œè¯·ç¨åé‡è¯•');
     }
   };
 
@@ -33,33 +33,33 @@ export function LoginPage() {
       <Card className="auth-card">
         <Space direction="vertical" size={20} style={{ width: '100%' }}>
           <div>
-            <Typography.Title level={2}>µÇÂ¼ÏµÍ³</Typography.Title>
+            <Typography.Title level={2}>ç™»å½•ç³»ç»Ÿ</Typography.Title>
             <Typography.Paragraph>
-              Ê¹ÓÃÑİÊ¾ÕËºÅ½øÈëÍÅ¶ÓÏîÄ¿¹ÜÀíÆ½Ì¨£¬²»Í¬ÕËºÅ»á¿´µ½²»Í¬µÄÈ¨ÏŞ·¶Î§¡£
+              ä½¿ç”¨æ¼”ç¤ºè´¦å·è¿›å…¥å›¢é˜Ÿé¡¹ç›®ç®¡ç†å¹³å°ï¼Œä¸åŒè´¦å·ä¼šçœ‹åˆ°ä¸åŒçš„æƒé™èŒƒå›´ã€‚
             </Typography.Paragraph>
           </div>
           <Alert
             type="info"
             showIcon
-            message="ÑİÊ¾ÕËºÅ"
+            message="æ¼”ç¤ºè´¦å·"
             description={
               <Space direction="vertical" size={4}>
-                <Typography.Text>¹ÜÀíÔ±£ºwangjun@example.com / demo123</Typography.Text>
-                <Typography.Text>Ö´ĞĞ³ÉÔ±£ºchenjing@example.com / demo123</Typography.Text>
-                <Typography.Text>Ö»¶Á³ÉÔ±£ºsunmei@example.com / demo123</Typography.Text>
+                <Typography.Text>ç®¡ç†å‘˜ï¼šwangjun@example.com / demo123</Typography.Text>
+                <Typography.Text>æ‰§è¡Œæˆå‘˜ï¼šchenjing@example.com / demo123</Typography.Text>
+                <Typography.Text>åªè¯»æˆå‘˜ï¼šsunmei@example.com / demo123</Typography.Text>
               </Space>
             }
           />
           {errorMessage ? <Alert type="error" showIcon message={errorMessage} /> : null}
           <Form layout="vertical" initialValues={{ account: 'wangjun@example.com', password: 'demo123' }} onFinish={handleFinish}>
-            <Form.Item label="ÕËºÅ" name="account" rules={[{ required: true, message: 'ÇëÊäÈëÕËºÅ' }]}>
-              <Input placeholder="ÓÊÏä»òÓÃ»§Ãû" autoComplete="username" />
+            <Form.Item label="è´¦å·" name="account" rules={[{ required: true, message: 'è¯·è¾“å…¥è´¦å·' }]}>
+              <Input placeholder="è¯·è¾“å…¥é‚®ç®±è´¦å·" autoComplete="username" />
             </Form.Item>
-            <Form.Item label="ÃÜÂë" name="password" rules={[{ required: true, message: 'ÇëÊäÈëÃÜÂë' }]}>
-              <Input.Password placeholder="ÇëÊäÈëÃÜÂë" autoComplete="current-password" />
+            <Form.Item label="å¯†ç " name="password" rules={[{ required: true, message: 'è¯·è¾“å…¥å¯†ç ' }]}>
+              <Input.Password placeholder="è¯·è¾“å…¥ç™»å½•å¯†ç " autoComplete="current-password" />
             </Form.Item>
             <Button type="primary" htmlType="submit" block loading={loading}>
-              µÇÂ¼
+              ç™»å½•
             </Button>
           </Form>
         </Space>

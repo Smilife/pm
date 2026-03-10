@@ -1,4 +1,4 @@
-import {
+ï»¿import {
   AppstoreOutlined,
   BugOutlined,
   CalendarOutlined,
@@ -35,16 +35,16 @@ type NavItem = {
 };
 
 const navItems: NavItem[] = [
-  { key: '/workspace', icon: <HomeOutlined />, label: '¹¤×÷Ì¨' },
-  { key: '/requirements', icon: <ContainerOutlined />, label: 'ĞèÇó³Ø', permission: 'requirement.view.related' },
-  { key: '/projects', icon: <ProjectOutlined />, label: 'ÏîÄ¿', permission: 'project.view.related' },
-  { key: '/executions', icon: <ProfileOutlined />, label: 'Ö´ĞĞ', permission: 'execution.view.related' },
-  { key: '/bugs', icon: <BugOutlined />, label: 'È±Ïİ', permission: 'bug.view.related' },
-  { key: '/daily-tasks', icon: <CheckSquareOutlined />, label: 'ÈÕ³£ÊÂÏî', permission: 'daily_task.view.self' },
-  { key: '/reports/daily', icon: <FileTextOutlined />, label: 'ÈÕ±¨', permission: 'report.daily.generate.self' },
-  { key: '/reports/weekly', icon: <ReadOutlined />, label: 'ÖÜ±¨', permission: 'report.weekly.generate.self' },
-  { key: '/gantt', icon: <CalendarOutlined />, label: '¸ÊÌØÍ¼', permission: 'schedule.view.related' },
-  { key: '/settings', icon: <AppstoreOutlined />, label: 'ÉèÖÃÖĞĞÄ', permissions: settingsPermissions },
+  { key: '/workspace', icon: <HomeOutlined />, label: 'å·¥ä½œå°' },
+  { key: '/requirements', icon: <ContainerOutlined />, label: 'éœ€æ±‚æ± ', permission: 'requirement.view.related' },
+  { key: '/projects', icon: <ProjectOutlined />, label: 'é¡¹ç›®', permission: 'project.view.related' },
+  { key: '/executions', icon: <ProfileOutlined />, label: 'æ‰§è¡Œ', permission: 'execution.view.related' },
+  { key: '/bugs', icon: <BugOutlined />, label: 'ç¼ºé™·', permission: 'bug.view.related' },
+  { key: '/daily-tasks', icon: <CheckSquareOutlined />, label: 'æ—¥å¸¸äº‹é¡¹', permission: 'daily_task.view.self' },
+  { key: '/reports/daily', icon: <FileTextOutlined />, label: 'æ—¥æŠ¥', permission: 'report.daily.generate.self' },
+  { key: '/reports/weekly', icon: <ReadOutlined />, label: 'å‘¨æŠ¥', permission: 'report.weekly.generate.self' },
+  { key: '/gantt', icon: <CalendarOutlined />, label: 'ç”˜ç‰¹å›¾', permission: 'schedule.view.related' },
+  { key: '/settings', icon: <AppstoreOutlined />, label: 'è®¾ç½®ä¸­å¿ƒ', permissions: settingsPermissions },
 ];
 
 export function AppShell() {
@@ -79,8 +79,8 @@ export function AppShell() {
           <span className="brand-badge">PM</span>
           {!collapsed ? (
             <div>
-              <Typography.Text strong>ÍÅ¶ÓÏîÄ¿¹ÜÀíÆ½Ì¨</Typography.Text>
-              <Typography.Paragraph>¸²¸Ç´ÓĞèÇóµ½»ã±¨µÄÒ»Ìå»¯¹¤×÷Ì¨¡£</Typography.Paragraph>
+              <Typography.Text strong>å›¢é˜Ÿé¡¹ç›®ç®¡ç†å¹³å°</Typography.Text>
+              <Typography.Paragraph>è¦†ç›–ä»éœ€æ±‚åˆ°æ±‡æŠ¥çš„ä¸€ä½“åŒ–å·¥ä½œå°ã€‚</Typography.Paragraph>
             </div>
           ) : null}
         </div>
@@ -91,16 +91,16 @@ export function AppShell() {
           <Space size="middle">
             <Button type="text" icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />} onClick={toggleCollapsed} />
             <div>
-              <Typography.Text strong>ÑĞ·¢ÏîÄ¿Ö÷ÏßĞ­Í¬</Typography.Text>
-              <Typography.Paragraph>µ±Ç°ÒÑ¸²¸ÇµÇÂ¼¡¢ĞèÇó¡¢Ö´ĞĞ¡¢È±Ïİ¡¢¹¤Ê±¡¢±¨±íÓëÉèÖÃÖĞĞÄ¡£</Typography.Paragraph>
+              <Typography.Text strong>ç ”å‘é¡¹ç›®ä¸»çº¿ååŒ</Typography.Text>
+              <Typography.Paragraph>å½“å‰å·²è¦†ç›–ç™»å½•ã€éœ€æ±‚ã€æ‰§è¡Œã€ç¼ºé™·ã€å·¥æ—¶ã€æŠ¥è¡¨ä¸è®¾ç½®ä¸­å¿ƒã€‚</Typography.Paragraph>
             </div>
           </Space>
           <Space size="middle" align="center">
             <div className="header-user">
-              <Typography.Text strong>{user?.name ?? 'Î´ÖªÓÃ»§'}</Typography.Text>
+              <Typography.Text strong>{user?.name ?? 'æœªçŸ¥ç”¨æˆ·'}</Typography.Text>
               <Typography.Paragraph>{user?.email ?? '-'}</Typography.Paragraph>
             </div>
-            <Button onClick={handleLogout}>ÍË³öµÇÂ¼</Button>
+            <Button onClick={handleLogout}>é€€å‡ºç™»å½•</Button>
           </Space>
         </Header>
         <Content className="app-content">

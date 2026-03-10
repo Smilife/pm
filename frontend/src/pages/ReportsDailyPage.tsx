@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+ï»¿import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Card, List, Space, Tag, Typography, message } from 'antd';
 import { useNavigate } from 'react-router-dom';
@@ -24,7 +24,7 @@ export function ReportsDailyPage() {
     mutationFn: pmApi.generateDailyReport,
     onSuccess: (draft) => {
       queryClient.setQueryData(['daily-report'], draft);
-      messageApi.success('ÈÕ±¨²İ¸åÒÑÖØĞÂÉú³É¡£');
+      messageApi.success('æ—¥æŠ¥è‰ç¨¿å·²é‡æ–°ç”Ÿæˆã€‚');
     },
     onError: (error) => {
       messageApi.error(formatApiError(error));
@@ -42,7 +42,7 @@ export function ReportsDailyPage() {
 
   const handleRegenerate = () => {
     if (!canGenerateDailyReport) {
-      messageApi.warning('µ±Ç°½ÇÉ«Ã»ÓĞÖØĞÂÉú³ÉÈÕ±¨µÄÈ¨ÏŞ¡£');
+      messageApi.warning('å½“å‰è§’è‰²æ²¡æœ‰é‡æ–°ç”Ÿæˆæ—¥æŠ¥çš„æƒé™ã€‚');
       return;
     }
 
@@ -53,29 +53,29 @@ export function ReportsDailyPage() {
     <Space direction="vertical" size={20} className="page-stack">
       {contextHolder}
       <PageHeader
-        title="ÈÕ±¨"
-        description="¸ù¾İÖ´ĞĞ½øÕ¹ºÍÈÕ³£ÊÂÏîÉú³ÉÈÕ±¨²İ¸å£¬Í¬Ê±±£ÁôÈË¹¤²¹³ä¿Õ¼ä¡£"
+        title="æ—¥æŠ¥"
+        description="æ ¹æ®æ‰§è¡Œè¿›å±•å’Œæ—¥å¸¸äº‹é¡¹ç”Ÿæˆæ—¥æŠ¥è‰ç¨¿ï¼Œæ–¹ä¾¿å¿«é€Ÿæ•´ç†å½“æ—¥æ±‡æŠ¥ã€‚"
         extra={
           <Space>
-            {canViewDailyTasks ? <Button onClick={() => navigate('/daily-tasks')}>¹ÜÀíÈÕ³£ÊÂÏî</Button> : null}
+            {canViewDailyTasks ? <Button onClick={() => navigate('/daily-tasks')}>ç®¡ç†æ—¥å¸¸äº‹é¡¹</Button> : null}
             {canGenerateDailyReport ? (
               <Button type="primary" onClick={handleRegenerate} loading={regenerateMutation.isPending}>
-                ÖØĞÂÉú³É
+                é‡æ–°ç”Ÿæˆ
               </Button>
             ) : null}
           </Space>
         }
       />
       <Card loading={reportQuery.isLoading}>
-        <Typography.Text type="secondary">Éú³ÉÊ±¼ä£º{draft?.generatedAt ?? '-'}</Typography.Text>
+        <Typography.Text type="secondary">ç”Ÿæˆæ—¶é—´ï¼š{draft?.generatedAt ?? '-'}</Typography.Text>
       </Card>
-      <Card title="ÒÑÍê³É" loading={reportQuery.isLoading}>
+      <Card title="å·²å®Œæˆ" loading={reportQuery.isLoading}>
         <List dataSource={draft?.completed ?? []} renderItem={(item) => <List.Item>{item}</List.Item>} />
       </Card>
-      <Card title="½øĞĞÖĞ" loading={reportQuery.isLoading}>
+      <Card title="è¿›è¡Œä¸­" loading={reportQuery.isLoading}>
         <List dataSource={draft?.inProgress ?? []} renderItem={(item) => <List.Item>{item}</List.Item>} />
       </Card>
-      <Card title="·çÏÕÏî" loading={reportQuery.isLoading}>
+      <Card title="é£é™©é¡¹" loading={reportQuery.isLoading}>
         <Space wrap>
           {(draft?.risks ?? []).map((risk) => (
             <Tag key={risk} color="error">
@@ -84,21 +84,21 @@ export function ReportsDailyPage() {
           ))}
         </Space>
       </Card>
-      <Card title="ÏÂÒ»²½¼Æ»®" loading={reportQuery.isLoading}>
+      <Card title="ä¸‹ä¸€æ­¥è®¡åˆ’" loading={reportQuery.isLoading}>
         <List dataSource={draft?.nextSteps ?? []} renderItem={(item) => <List.Item>{item}</List.Item>} />
       </Card>
       {canViewDailyTasks ? (
         <Card
-          title="ÄÉÈë±¾´ÎÈÕ±¨µÄÈÕ³£ÊÂÏî"
-          extra={<Typography.Text type="secondary">ÒÑÅÅ³ı£º{excludedCount}</Typography.Text>}
+          title="çº³å…¥æœ¬æ¬¡æ—¥æŠ¥çš„æ—¥å¸¸äº‹é¡¹"
+          extra={<Typography.Text type="secondary">æ’é™¤ {excludedCount} é¡¹</Typography.Text>}
           loading={dailyTasksQuery.isLoading}
         >
           <List
             dataSource={includedTasks}
-            locale={{ emptyText: 'µ±Ç°Ã»ÓĞÄÉÈëÈÕ±¨µÄÈÕ³£ÊÂÏî¡£' }}
+            locale={{ emptyText: 'å½“å‰æ²¡æœ‰çº³å…¥æ—¥æŠ¥çš„æ—¥å¸¸äº‹é¡¹ã€‚' }}
             renderItem={(item) => (
               <List.Item extra={<StatusTag value={item.status} />}>
-                <List.Item.Meta title={item.title} description={`${item.ownerName} | ½ØÖ¹ ${item.dueAt}`} />
+                <List.Item.Meta title={item.title} description={`${item.ownerName} | æˆªæ­¢ ${item.dueAt}`} />
               </List.Item>
             )}
           />
