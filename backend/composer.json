@@ -1,14 +1,16 @@
 {
-  "name": "pm-backend",
+  "name": "smilife/pm-backend",
   "type": "project",
-  "description": "Project management platform backend bootstrap aligned with ThinkPHP module boundaries.",
+  "description": "Project management platform backend migrated onto ThinkPHP.",
   "require": {
     "php": "^8.3",
-    "ext-json": "*"
+    "ext-json": "*",
+    "topthink/framework": "8.1"
   },
   "autoload": {
     "psr-4": {
-      "App\\": "app/"
+      "App\\": "app/",
+      "app\\": "app/"
     }
   }
 }

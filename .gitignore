@@ -7,6 +7,14 @@ frontend/vite.config.d.ts
 backend/vendor/
 backend/runtime/
 backend/storage/*.log
+backend/storage/framework/
+backend/public/uploads/
+backend-dev.log
+backend-dev-error.log
+frontend-dev.log
+frontend-dev-error.log
 tools/php-8.3.29/
+tools/composer.phar
+tools/composer-setup.php
 .DS_Store
 Thumbs.db

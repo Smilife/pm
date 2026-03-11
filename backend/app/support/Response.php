@@ -32,6 +32,16 @@ final class Response
         ]);
     }
 
+    public function statusCode(): int
+    {
+        return $this->statusCode;
+    }
+
+    public function payload(): array
+    {
+        return $this->payload;
+    }
+
     public function send(): void
     {
         http_response_code($this->statusCode);
