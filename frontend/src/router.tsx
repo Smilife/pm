@@ -9,6 +9,7 @@ import { DailyTasksPage } from './pages/DailyTasksPage';
 import { ReportsDailyPage } from './pages/ReportsDailyPage';
 import { ReportsWeeklyPage } from './pages/ReportsWeeklyPage';
 import { GanttPage } from './pages/GanttPage';
+import { PerformancePage } from './pages/PerformancePage';
 import { SettingsPage } from './pages/SettingsPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 
@@ -92,6 +93,14 @@ export const router = createBrowserRouter([
         element: (
           <PermissionGuard permission="schedule.view.related">
             <GanttPage />
+          </PermissionGuard>
+        ),
+      },
+      {
+        path: 'performance',
+        element: (
+          <PermissionGuard permission="execution.view.related">
+            <PerformancePage />
           </PermissionGuard>
         ),
       },

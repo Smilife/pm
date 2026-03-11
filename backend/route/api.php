@@ -6,6 +6,7 @@ use App\Controller\AuthController;
 use App\Controller\BugController;
 use App\Controller\DailyTaskController;
 use App\Controller\ExecutionController;
+use App\Controller\PerformanceController;
 use App\Controller\PermissionController;
 use App\Controller\ProjectController;
 use App\Controller\ReportController;
@@ -50,6 +51,7 @@ return [
     ['PATCH', '/tasks/{id}', [ExecutionController::class, 'taskUpdate']],
 
     ['GET', '/worklogs', [WorklogController::class, 'index']],
+    ['GET', '/performance/members', [PerformanceController::class, 'members']],
     ['POST', '/worklogs', [WorklogController::class, 'store']],
     ['GET', '/worklogs/{id}', [WorklogController::class, 'show']],
     ['PATCH', '/worklogs/{id}', [WorklogController::class, 'update']],

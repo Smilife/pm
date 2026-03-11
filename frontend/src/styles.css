@@ -217,3 +217,45 @@ body {
   margin-bottom: 0;
   color: rgba(22, 48, 44, 0.72);
 }
+.performance-summary-card {
+  height: 100%;
+  border-radius: 20px;
+}
+
+.performance-summary-card .ant-card-body {
+  min-height: 144px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.performance-summary-card__value.ant-typography {
+  margin: 0;
+}
+
+.performance-summary-card__hint.ant-typography {
+  margin-bottom: 0;
+  color: rgba(22, 48, 44, 0.72);
+}
+
+.performance-compare-card {
+  border: 1px solid rgba(22, 48, 44, 0.08);
+  border-radius: 18px;
+  padding: 16px;
+  background: linear-gradient(180deg, rgba(247, 251, 248, 0.9), rgba(255, 255, 255, 0.98));
+}
+
+.performance-compare-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.performance-compare-card__metric {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}

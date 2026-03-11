@@ -20,6 +20,10 @@ import type {
   ExecutionDetail,
   ExecutionScheduleItem,
   ExecutionTask,
+  PerformanceDashboard,
+  PerformanceMemberRecord,
+  PerformanceRange,
+  PerformanceSummary,
   Project,
   Requirement,
   RequirementDetail,
@@ -188,6 +192,62 @@ function mapWorkspaceSummary(item: any): WorkspaceSummary {
   };
 }
 
+
+function mapPerformanceRange(item: any): PerformanceRange {
+  return {
+    start: String(item?.start ?? ''),
+    end: String(item?.end ?? ''),
+    days: Number(item?.days ?? 0),
+  };
+}
+
+function mapPerformanceSummary(item: any): PerformanceSummary {
+  return {
+    memberCount: Number(item?.member_count ?? 0),
+    completedItemCount: Number(item?.completed_item_count ?? 0),
+    overdueItemCount: Number(item?.overdue_item_count ?? 0),
+    totalHours: Number(item?.total_hours ?? 0),
+    averageScore: Number(item?.average_score ?? 0),
+    averageOnTimeRate: Number(item?.average_on_time_rate ?? 0),
+    averageUpdateRate: Number(item?.average_update_rate ?? 0),
+  };
+}
+
+function mapPerformanceMemberRecord(item: any): PerformanceMemberRecord {
+  return {
+    id: Number(item?.id ?? 0),
+    rank: Number(item?.rank ?? 0),
+    name: String(item?.name ?? ''),
+    email: String(item?.email ?? ''),
+    department: String(item?.department ?? ''),
+    title: String(item?.title ?? ''),
+    status: item?.status ?? 'Active',
+    score: Number(item?.score ?? 0),
+    level: item?.level ?? 'risk',
+    activeProjectCount: Number(item?.active_project_count ?? 0),
+    activeExecutionCount: Number(item?.active_execution_count ?? 0),
+    dueItemCount: Number(item?.due_item_count ?? 0),
+    completedItemCount: Number(item?.completed_item_count ?? 0),
+    onTimeCompletedCount: Number(item?.on_time_completed_count ?? 0),
+    onTimeRate: Number(item?.on_time_rate ?? 0),
+    overdueItemCount: Number(item?.overdue_item_count ?? 0),
+    updateDays: Number(item?.update_days ?? 0),
+    updateRate: Number(item?.update_rate ?? 0),
+    totalHours: Number(item?.total_hours ?? 0),
+    averageDailyHours: Number(item?.average_daily_hours ?? 0),
+    projectNames: toStringArray(item?.project_names),
+  };
+}
+
+function mapPerformanceDashboard(item: any): PerformanceDashboard {
+  return {
+    dashboardMode: item?.dashboard_mode === 'personal' ? 'personal' : 'team',
+    range: mapPerformanceRange(item?.range),
+    summary: mapPerformanceSummary(item?.summary),
+    compareDefaultIds: toNumberArray(item?.compare_default_ids),
+    ranking: Array.isArray(item?.ranking) ? item.ranking.map(mapPerformanceMemberRecord) : [],
+  };
+}
 function mapRequirement(item: any): Requirement {
   return {
     id: Number(item?.id ?? 0),
@@ -508,6 +568,11 @@ export const pmApi = {
   async getWorkspaceSummary(): Promise<WorkspaceSummary> {
     const data = await request<any>('/system/summary');
     return mapWorkspaceSummary(data);
+  },
+  async getPerformanceDashboard(range: { start: string; end: string }): Promise<PerformanceDashboard> {
+    const search = new URLSearchParams({ start: range.start, end: range.end });
+    const data = await request<any>(`/performance/members?${search.toString()}`);
+    return mapPerformanceDashboard(data);
   },
   async getRequirements(): Promise<Requirement[]> {
     const data = await request<any>('/requirements');

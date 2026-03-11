@@ -79,6 +79,56 @@ export interface WorkspaceSummary {
   memberOverview: WorkspaceMemberOverview[];
 }
 
+
+export type PerformanceLevel = 'excellent' | 'steady' | 'watch' | 'risk';
+
+export interface PerformanceRange {
+  start: string;
+  end: string;
+  days: number;
+}
+
+export interface PerformanceSummary {
+  memberCount: number;
+  completedItemCount: number;
+  overdueItemCount: number;
+  totalHours: number;
+  averageScore: number;
+  averageOnTimeRate: number;
+  averageUpdateRate: number;
+}
+
+export interface PerformanceMemberRecord {
+  id: number;
+  rank: number;
+  name: string;
+  email: string;
+  department: string;
+  title: string;
+  status: SettingsMemberStatus;
+  score: number;
+  level: PerformanceLevel;
+  activeProjectCount: number;
+  activeExecutionCount: number;
+  dueItemCount: number;
+  completedItemCount: number;
+  onTimeCompletedCount: number;
+  onTimeRate: number;
+  overdueItemCount: number;
+  updateDays: number;
+  updateRate: number;
+  totalHours: number;
+  averageDailyHours: number;
+  projectNames: string[];
+}
+
+export interface PerformanceDashboard {
+  dashboardMode: 'team' | 'personal';
+  range: PerformanceRange;
+  summary: PerformanceSummary;
+  compareDefaultIds: number[];
+  ranking: PerformanceMemberRecord[];
+}
 export interface Requirement {
   id: number;
   title: string;

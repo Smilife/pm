@@ -34,6 +34,7 @@ final class Authorization
         ['PATCH', '/tasks/{id}', 'execution.task.update.related'],
 
         ['GET', '/worklogs', 'worklog.view.related'],
+        ['GET', '/performance/members', 'execution.view.related'],
         ['GET', '/worklogs/{id}', 'worklog.view.related'],
         ['GET', '/executions/{id}/worklogs', 'worklog.view.related'],
         ['POST', '/worklogs', 'worklog.create.self'],
