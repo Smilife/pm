@@ -1,4 +1,4 @@
-﻿import { useMemo, useState } from 'react';
+import { useDeferredValue, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import {
@@ -120,6 +120,8 @@ export function ExecutionsPage() {
   const canCreateWorklogs = permissions.includes('worklog.create.self');
   const canEditWorklogs = permissions.includes('worklog.update.self');
   const [selectedExecutionId, setSelectedExecutionId] = useState<number | null>(null);
+  const [searchKeyword, setSearchKeyword] = useState('');
+  const [statusFilter, setStatusFilter] = useState<Execution['status'] | 'all'>('all');
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [taskModalOpen, setTaskModalOpen] = useState(false);
@@ -136,6 +138,7 @@ export function ExecutionsPage() {
   const [worklogForm] = Form.useForm<WorklogFormValues>();
   const [editWorklogForm] = Form.useForm<WorklogFormValues>();
   const queryClient = useQueryClient();
+  const deferredSearchKeyword = useDeferredValue(searchKeyword);
 
   const executionsQuery = useQuery({ queryKey: ['executions'], queryFn: pmApi.getExecutions });
   const projectsQuery = useQuery({ queryKey: ['projects'], queryFn: pmApi.getProjects });
@@ -281,6 +284,23 @@ export function ExecutionsPage() {
     () => (worklogsQuery.data ?? []).reduce((sum, item) => sum + item.hours, 0),
     [worklogsQuery.data],
   );
+
+  const filteredExecutions = useMemo(() => {
+    const normalizedKeyword = deferredSearchKeyword.trim().toLowerCase();
+    return (executionsQuery.data ?? []).filter((item) => {
+      const matchesKeyword =
+        normalizedKeyword === '' ||
+        item.name.toLowerCase().includes(normalizedKeyword) ||
+        item.projectName.toLowerCase().includes(normalizedKeyword) ||
+        item.ownerName.toLowerCase().includes(normalizedKeyword) ||
+        String(item.id).includes(normalizedKeyword);
+      const matchesStatus = statusFilter === 'all' || item.status === statusFilter;
+
+      return matchesKeyword && matchesStatus;
+    });
+  }, [deferredSearchKeyword, executionsQuery.data, statusFilter]);
+
+  const hasExecutionFilters = deferredSearchKeyword.trim() !== '' || statusFilter !== 'all';
 
   const openCreateModal = () => {
     if (!canManageExecutions) {
@@ -531,19 +551,41 @@ export function ExecutionsPage() {
         }
       />
       <Card title="执行列表">
-        <Table
-          rowKey="id"
-          columns={columns}
-          dataSource={executionsQuery.data ?? []}
-          loading={executionsQuery.isLoading}
-          pagination={false}
-          scroll={{ x: 1080 }}
-          onRow={(record) => ({
-            onClick: () => setSelectedExecutionId(record.id),
-          })}
-        />
+        <Space direction="vertical" size={16} style={{ width: '100%' }}>
+          <div className="page-toolbar">
+            <Space wrap>
+              <Input.Search
+                allowClear
+                value={searchKeyword}
+                onChange={(event) => setSearchKeyword(event.target.value)}
+                placeholder="按执行名称、项目、负责人或 ID 搜索"
+                style={{ width: 320 }}
+              />
+              <Select
+                value={statusFilter}
+                onChange={(value) => setStatusFilter(value)}
+                style={{ width: 180 }}
+                options={[{ label: '全部状态', value: 'all' }, ...executionStatusOptions]}
+              />
+              {hasExecutionFilters ? <Button onClick={() => { setSearchKeyword(''); setStatusFilter('all'); }}>清空筛选</Button> : null}
+            </Space>
+            <Typography.Text type="secondary">显示 {filteredExecutions.length} / {executionsQuery.data?.length ?? 0} 条</Typography.Text>
+          </div>
+          <Table
+            rowKey="id"
+            columns={columns}
+            dataSource={filteredExecutions}
+            loading={executionsQuery.isLoading}
+            pagination={false}
+            locale={{ emptyText: hasExecutionFilters ? '没有匹配的执行' : '暂无执行' }}
+            scroll={{ x: 1080 }}
+            rowClassName={(record) => record.id === selectedExecutionId ? 'pm-row pm-row--active' : 'pm-row'}
+            onRow={(record) => ({
+              onClick: () => setSelectedExecutionId(record.id),
+            })}
+          />
+        </Space>
       </Card>
-
       <Drawer
         title={detailQuery.data?.name ?? '执行详情'}
         width={760}

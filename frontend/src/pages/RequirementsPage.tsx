@@ -1,4 +1,4 @@
-﻿import { useMemo, useState } from 'react';
+import { useDeferredValue, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import dayjs, { type Dayjs } from 'dayjs';
 import {
@@ -135,6 +135,8 @@ export function RequirementsPage() {
   const canGenerateExecutions = permissions.includes('requirement.execution.generate.project');
   const [selectedRequirementId, setSelectedRequirementId] = useState<number | null>(null);
   const [selectedRowKeys, setSelectedRowKeys] = useState<number[]>([]);
+  const [searchKeyword, setSearchKeyword] = useState('');
+  const [statusFilter, setStatusFilter] = useState<Requirement['status'] | 'all'>('all');
   const [generateModalOpen, setGenerateModalOpen] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -144,6 +146,7 @@ export function RequirementsPage() {
   const [createForm] = Form.useForm<RequirementCreateFormValues>();
   const [editForm] = Form.useForm<RequirementEditFormValues>();
   const queryClient = useQueryClient();
+  const deferredSearchKeyword = useDeferredValue(searchKeyword);
 
   const requirementsQuery = useQuery({ queryKey: ['requirements'], queryFn: pmApi.getRequirements });
   const projectsQuery = useQuery({ queryKey: ['projects'], queryFn: pmApi.getProjects });
@@ -162,6 +165,22 @@ export function RequirementsPage() {
     const items = requirementsQuery.data ?? [];
     return items.filter((item) => selectedRowKeys.includes(item.id));
   }, [requirementsQuery.data, selectedRowKeys]);
+
+  const filteredRequirements = useMemo(() => {
+    const normalizedKeyword = deferredSearchKeyword.trim().toLowerCase();
+    return (requirementsQuery.data ?? []).filter((item) => {
+      const matchesKeyword =
+        normalizedKeyword === '' ||
+        item.title.toLowerCase().includes(normalizedKeyword) ||
+        item.ownerName.toLowerCase().includes(normalizedKeyword) ||
+        String(item.id).includes(normalizedKeyword);
+      const matchesStatus = statusFilter === 'all' || item.status === statusFilter;
+
+      return matchesKeyword && matchesStatus;
+    });
+  }, [deferredSearchKeyword, requirementsQuery.data, statusFilter]);
+
+  const hasRequirementFilters = deferredSearchKeyword.trim() !== '' || statusFilter !== 'all';
 
   const createMutation = useMutation({
     mutationFn: (payload: CreateRequirementPayload) => pmApi.createRequirement(payload),
@@ -427,25 +446,47 @@ export function RequirementsPage() {
         }
       />
       <Card title="需求列表" extra={<Typography.Text type="secondary">已选 {selectedRowKeys.length} 条</Typography.Text>}>
-        <Table
-          rowKey="id"
-          columns={columns}
-          dataSource={requirementsQuery.data ?? []}
-          loading={requirementsQuery.isLoading}
-          pagination={false}
-          rowSelection={{
-            selectedRowKeys,
-            onChange: (keys) => setSelectedRowKeys(keys.map((key) => Number(key))),
-          }}
-          onRow={(record) => ({
-            onClick: () => {
-              setSelectedRequirementId(record.id);
-              reviewForm.setFieldsValue({ reviewerName: currentUserName, result: 'approved', comment: '' });
-            },
-          })}
-        />
+        <Space direction="vertical" size={16} style={{ width: '100%' }}>
+          <div className="page-toolbar">
+            <Space wrap>
+              <Input.Search
+                allowClear
+                value={searchKeyword}
+                onChange={(event) => setSearchKeyword(event.target.value)}
+                placeholder="按需求标题、负责人或 ID 搜索"
+                style={{ width: 280 }}
+              />
+              <Select
+                value={statusFilter}
+                onChange={(value) => setStatusFilter(value)}
+                style={{ width: 180 }}
+                options={[{ label: '全部状态', value: 'all' }, ...requirementStatusOptions]}
+              />
+              {hasRequirementFilters ? <Button onClick={() => { setSearchKeyword(''); setStatusFilter('all'); }}>清空筛选</Button> : null}
+            </Space>
+            <Typography.Text type="secondary">显示 {filteredRequirements.length} / {requirementsQuery.data?.length ?? 0} 条</Typography.Text>
+          </div>
+          <Table
+            rowKey="id"
+            columns={columns}
+            dataSource={filteredRequirements}
+            loading={requirementsQuery.isLoading}
+            pagination={false}
+            locale={{ emptyText: hasRequirementFilters ? '没有匹配的需求' : '暂无需求' }}
+            rowClassName={(record) => record.id === selectedRequirementId ? 'pm-row pm-row--active' : 'pm-row'}
+            rowSelection={{
+              selectedRowKeys,
+              onChange: (keys) => setSelectedRowKeys(keys.map((key) => Number(key))),
+            }}
+            onRow={(record) => ({
+              onClick: () => {
+                setSelectedRequirementId(record.id);
+                reviewForm.setFieldsValue({ reviewerName: currentUserName, result: 'approved', comment: '' });
+              },
+            })}
+          />
+        </Space>
       </Card>
-
       <Drawer
         title={detailQuery.data?.title ?? '需求详情'}
         width={720}
