@@ -69,6 +69,7 @@ export interface WorkspaceMemberOverview {
 }
 
 export interface WorkspaceSummary {
+  dashboardMode: 'team' | 'personal';
   myExecutions: number;
   dueToday: number;
   blocked: number;

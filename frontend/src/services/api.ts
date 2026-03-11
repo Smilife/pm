@@ -177,6 +177,7 @@ function mapWorkspaceMemberOverview(item: any): WorkspaceMemberOverview {
 
 function mapWorkspaceSummary(item: any): WorkspaceSummary {
   return {
+    dashboardMode: item?.dashboard_mode === 'personal' ? 'personal' : 'team',
     myExecutions: Number(item?.my_executions ?? 0),
     dueToday: Number(item?.due_today ?? 0),
     blocked: Number(item?.blocked ?? 0),

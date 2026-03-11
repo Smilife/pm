@@ -13,6 +13,7 @@ import type {
 } from './types';
 
 const workspaceSummary: WorkspaceSummary = {
+  dashboardMode: 'team',
   myExecutions: 12,
   dueToday: 4,
   blocked: 2,

@@ -28,6 +28,7 @@ final class SystemController
         $currentUser = Auth::currentUser($request);
         $currentUserName = (string) (($currentUser['name'] ?? 'Wang Jun'));
         $permissions = is_array($currentUser['permissions'] ?? null) ? $currentUser['permissions'] : [];
+        $dashboardMode = $this->isTeamDashboard($scope, $permissions) ? 'team' : 'personal';
 
         $myExecutions = array_values(array_filter(
             $executions,
@@ -54,19 +55,21 @@ final class SystemController
         ));
 
         $projectOverview = $this->buildProjectOverview($projects, $executions, $bugs, $worklogs, $today, $dueSoonBoundary);
-        $memberOverview = $this->buildMemberOverview(
-            $scope,
-            $permissions,
-            $users,
-            $projects,
-            $requirements,
-            $executions,
-            $dailyTasks,
-            $bugs,
-            $worklogs,
-            $currentUserName,
-            $today
-        );
+        $memberOverview = $dashboardMode === 'team'
+            ? $this->buildMemberOverview(
+                $scope,
+                $permissions,
+                $users,
+                $projects,
+                $requirements,
+                $executions,
+                $dailyTasks,
+                $bugs,
+                $worklogs,
+                $currentUserName,
+                $today
+            )
+            : [];
 
         $overview = [
             'project_count' => count($projectOverview),
@@ -89,6 +92,7 @@ final class SystemController
         return Response::success([
             'auth_mode' => 'password_login',
             'permission_mode' => 'rbac_route_guard_with_record_scope',
+            'dashboard_mode' => $dashboardMode,
             'my_executions' => count($myExecutions),
             'due_today' => $dueTodayCount,
             'blocked' => $blockedCount,
@@ -295,7 +299,7 @@ final class SystemController
             $focusLabel = '暂无在途事项';
             if ($blockedExecutionCount > 0) {
                 $focusStatus = 'risk';
-                $focusLabel = '存在阻塞，需协调';
+                $focusLabel = '存在阻塞事项，需要协调';
             } elseif ($openBugCount > 0 || $pendingDailyTaskCount >= 2) {
                 $focusStatus = 'watch';
                 $focusLabel = '待跟进事项较多';
@@ -404,6 +408,11 @@ final class SystemController
         }
 
         return $visibleUsers;
+    }
+
+    private function isTeamDashboard(RecordScope $scope, array $permissions): bool
+    {
+        return $scope->isOrgScope() || in_array('settings.member.manage.org', $permissions, true);
     }
 
     private function collectName(array &$names, string $value): void

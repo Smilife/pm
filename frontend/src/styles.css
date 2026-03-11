@@ -177,3 +177,43 @@ body {
 .pm-row--active > td {
   background: rgba(31, 122, 109, 0.1) !important;
 }
+.workspace-mode-card {
+  background: linear-gradient(135deg, rgba(31, 122, 109, 0.1), rgba(255, 255, 255, 0.92));
+}
+
+.workspace-metric-card {
+  height: 100%;
+  border-radius: 20px;
+}
+
+.workspace-metric-card .ant-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 148px;
+}
+
+.workspace-metric-card--brand {
+  background: linear-gradient(180deg, rgba(31, 122, 109, 0.14), rgba(255, 255, 255, 0.96));
+}
+
+.workspace-metric-card--warning {
+  background: linear-gradient(180deg, rgba(250, 173, 20, 0.12), rgba(255, 255, 255, 0.96));
+}
+
+.workspace-metric-card--danger {
+  background: linear-gradient(180deg, rgba(255, 77, 79, 0.1), rgba(255, 255, 255, 0.96));
+}
+
+.workspace-metric-card--neutral {
+  background: linear-gradient(180deg, rgba(22, 119, 255, 0.08), rgba(255, 255, 255, 0.96));
+}
+
+.workspace-metric-card__value.ant-typography {
+  margin: 0;
+}
+
+.workspace-metric-card__hint.ant-typography {
+  margin-bottom: 0;
+  color: rgba(22, 48, 44, 0.72);
+}
