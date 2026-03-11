@@ -162,6 +162,7 @@ let requirementRecords: RequirementRecord[] = [
       { key: 'owner', label: 'Owner assigned', passed: true },
     ],
     linkedExecutionIds: [],
+    attachments: [],
   },
   {
     id: 1002,
@@ -188,6 +189,7 @@ let requirementRecords: RequirementRecord[] = [
       { key: 'owner', label: 'Owner assigned', passed: true },
     ],
     linkedExecutionIds: [3002],
+    attachments: [],
   },
   {
     id: 1003,
@@ -214,6 +216,7 @@ let requirementRecords: RequirementRecord[] = [
       { key: 'owner', label: 'Owner assigned', passed: true },
     ],
     linkedExecutionIds: [3003],
+    attachments: [],
   },
 ];
 
@@ -337,6 +340,7 @@ function mapRequirementDetail(item: RequirementRecord): RequirementDetail {
     maturityChecks: item.maturityChecks,
     linkedExecutionIds: item.linkedExecutionIds,
     linkedExecutionNames: getExecutionNames(item.linkedExecutionIds),
+    attachments: item.attachments,
     reviews: reviews
       .filter((review) => review.requirementId === item.id)
       .sort((left, right) => right.reviewedAt.localeCompare(left.reviewedAt)),

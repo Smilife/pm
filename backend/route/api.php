@@ -27,6 +27,7 @@ return [
     ['POST', '/requirements', [RequirementController::class, 'store']],
     ['GET', '/requirements/{id}', [RequirementController::class, 'show']],
     ['PATCH', '/requirements/{id}', [RequirementController::class, 'update']],
+    ['POST', '/requirements/{id}/attachments', [RequirementController::class, 'storeAttachment']],
     ['POST', '/requirements/{id}/actions/submit-review', [RequirementController::class, 'submitForReview']],
     ['POST', '/requirements/{id}/reviews', [RequirementController::class, 'storeReview']],
     ['GET', '/requirements/{id}/reviews', [RequirementController::class, 'listReviews']],

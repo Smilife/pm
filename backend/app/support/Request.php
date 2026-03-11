@@ -11,6 +11,7 @@ final class Request
         public readonly string $path,
         public readonly array $query,
         public readonly array $body,
+        public readonly array $files,
         public readonly array $headers,
         public readonly string $requestId,
     ) {
@@ -24,9 +25,10 @@ final class Request
         $rawBody = file_get_contents('php://input') ?: '';
         $decodedBody = json_decode($rawBody, true);
         $body = is_array($decodedBody) ? $decodedBody : $_POST;
+        $files = $_FILES;
         $headers = function_exists('getallheaders') ? getallheaders() : [];
         $requestId = $headers['X-Request-Id'] ?? uniqid('req_', true);
 
-        return new self($method, $path, $_GET, $body, $headers, $requestId);
+        return new self($method, $path, $_GET, $body, $files, $headers, $requestId);
     }
 }

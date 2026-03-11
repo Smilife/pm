@@ -26,6 +26,7 @@ import type {
   PerformanceSummary,
   Project,
   Requirement,
+  RequirementAttachment,
   RequirementDetail,
   RequirementGenerateExecutionPayload,
   RequirementGenerateExecutionResult,
@@ -106,12 +107,13 @@ function toStringArray(value: unknown): string[] {
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const headers = new Headers(options.headers ?? {});
   const token = getAuthToken();
+  const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
 
   if (token && !headers.has('Authorization')) {
     headers.set('Authorization', 'Bearer ' + token);
   }
 
-  if (options.body !== undefined && !headers.has('Content-Type')) {
+  if (options.body !== undefined && !isFormData && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
   }
 
@@ -271,6 +273,19 @@ function mapReview(item: any): RequirementReview {
   };
 }
 
+function mapRequirementAttachment(item: any): RequirementAttachment {
+  return {
+    id: Number(item?.id ?? 0),
+    requirementId: Number(item?.requirement_id ?? 0),
+    fileName: String(item?.file_name ?? ''),
+    fileType: item?.file_type ?? 'other',
+    mimeType: String(item?.mime_type ?? ''),
+    size: Number(item?.size ?? 0),
+    url: String(item?.url ?? ''),
+    uploadedAt: formatDateTime(item?.uploaded_at),
+  };
+}
+
 function mapRequirementDetail(item: any): RequirementDetail {
   const linkedExecutionNames = Array.isArray(item?.linked_execution_names)
     ? item.linked_execution_names.map((entry: unknown) => String(entry))
@@ -295,6 +310,7 @@ function mapRequirementDetail(item: any): RequirementDetail {
       : [],
     linkedExecutionIds: toNumberArray(item?.linked_execution_ids),
     linkedExecutionNames,
+    attachments: Array.isArray(item?.attachments) ? item.attachments.map(mapRequirementAttachment) : [],
     reviews: Array.isArray(item?.reviews) ? item.reviews.map(mapReview) : [],
   };
 }
@@ -497,6 +513,22 @@ function buildMaturityChecks(payload: CreateRequirementPayload | UpdateRequireme
   ];
 }
 
+function formatRequirementCheckLabel(check: any): string {
+  const key = String(check?.key ?? '');
+  const label = String(check?.label ?? '');
+  const labelMap: Record<string, string> = {
+    title: '\u9700\u6c42\u6807\u9898',
+    description: '\u9700\u6c42\u80cc\u666f',
+    owner: '\u8d1f\u8d23\u4eba',
+    release: '\u76ee\u6807\u65e5\u671f',
+    solution: '\u65b9\u6848\u6458\u8981',
+    acceptance: '\u9a8c\u6536\u6807\u51c6',
+    impact: '\u5f71\u54cd\u8303\u56f4',
+    risk: '\u98ce\u9669\u4e0e\u4f9d\u8d56',
+  };
+
+  return labelMap[key] ?? label;
+}
 function mapRequirementStage(status: UpdateRequirementPayload['status']): string {
   switch (status) {
     case 'Draft':
@@ -522,7 +554,7 @@ export function formatApiError(error: unknown): string {
   if (error instanceof ApiError) {
     if (error.message === 'maturity_check_failed') {
       const failedChecks = Array.isArray((error.data as any)?.failed_checks)
-        ? (error.data as any).failed_checks.map((item: any) => String(item?.label ?? '')).filter(Boolean)
+        ? (error.data as any).failed_checks.map((item: any) => formatRequirementCheckLabel(item)).filter(Boolean)
         : [];
 
       if (failedChecks.length > 0) {
@@ -548,6 +580,12 @@ export function formatApiError(error: unknown): string {
       dictionary_not_found: '\u5171\u4eab\u5b57\u5178\u4e0d\u5b58\u5728\u3002',
       dictionary_locked: '\u7cfb\u7edf\u5185\u7f6e\u5b57\u5178\u4e0d\u652f\u6301\u5220\u9664\u3002',
       workflow_not_found: '\u6d41\u7a0b\u6a21\u677f\u4e0d\u5b58\u5728\u3002',
+      attachment_missing: '\u8bf7\u5148\u9009\u62e9\u8981\u4e0a\u4f20\u7684\u6587\u4ef6\u3002',
+      attachment_upload_failed: '\u6587\u4ef6\u4e0a\u4f20\u5931\u8d25\uff0c\u8bf7\u91cd\u8bd5\u3002',
+      attachment_empty: '\u4e0a\u4f20\u7684\u6587\u4ef6\u5185\u5bb9\u4e3a\u7a7a\u3002',
+      attachment_too_large: '\u9644\u4ef6\u4e0d\u80fd\u8d85\u8fc7 20MB\u3002',
+      attachment_type_not_supported: '\u53ea\u652f\u6301\u4e0a\u4f20\u56fe\u7247\u6216\u97f3\u9891\u6587\u4ef6\u3002',
+      attachment_storage_failed: '\u9644\u4ef6\u4fdd\u5b58\u5931\u8d25\uff0c\u8bf7\u7a0d\u540e\u518d\u8bd5\u3002',
     };
     const friendlyMessage = friendlyMessages[error.message];
     if (friendlyMessage) {
@@ -642,6 +680,17 @@ export const pmApi = {
     });
 
     return mapReview(data);
+  },
+  async uploadRequirementAttachment(id: number, file: File): Promise<RequirementAttachment> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const data = await request<any>(`/requirements/${id}/attachments`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    return mapRequirementAttachment(data);
   },
   async batchGenerateExecutions(
     payload: RequirementGenerateExecutionPayload,

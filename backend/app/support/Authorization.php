@@ -12,6 +12,7 @@ final class Authorization
         ['GET', '/requirements/{id}/reviews', 'requirement.view.related'],
         ['POST', '/requirements', 'requirement.create.project'],
         ['PATCH', '/requirements/{id}', 'requirement.create.project'],
+        ['POST', '/requirements/{id}/attachments', 'requirement.create.project'],
         ['POST', '/requirements/{id}/actions/submit-review', 'requirement.review.create.project'],
         ['POST', '/requirements/{id}/reviews', 'requirement.review.create.project'],
         ['POST', '/requirements/batch-generate-executions', 'requirement.execution.generate.project'],

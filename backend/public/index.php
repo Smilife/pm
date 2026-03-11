@@ -2,6 +2,13 @@
 
 declare(strict_types=1);
 
+if (PHP_SAPI === 'cli-server') {
+    $staticPath = __DIR__ . (parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/');
+    if (is_file($staticPath)) {
+        return false;
+    }
+}
+
 spl_autoload_register(static function (string $class): void {
     $prefix = 'App\\';
     $baseDir = __DIR__ . '/../app/';

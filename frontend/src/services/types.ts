@@ -154,6 +154,17 @@ export interface MaturityCheck {
   passed: boolean;
 }
 
+export interface RequirementAttachment {
+  id: number;
+  requirementId: number;
+  fileName: string;
+  fileType: 'image' | 'audio' | 'other';
+  mimeType: string;
+  size: number;
+  url: string;
+  uploadedAt: string;
+}
+
 export interface RequirementDetail extends Requirement {
   description: string;
   currentStage: string;
@@ -164,6 +175,7 @@ export interface RequirementDetail extends Requirement {
   maturityChecks: MaturityCheck[];
   linkedExecutionIds: number[];
   linkedExecutionNames: string[];
+  attachments: RequirementAttachment[];
   reviews: RequirementReview[];
 }
 

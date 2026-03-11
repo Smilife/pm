@@ -7,167 +7,108 @@ import {
   Card,
   DatePicker,
   Descriptions,
-  Divider,
   Drawer,
   Empty,
   Form,
   Input,
   List,
   Modal,
-  Radio,
   Select,
   Space,
   Table,
   Tag,
-  Timeline,
   Typography,
+  Upload,
   message,
 } from 'antd';
+import type { FormInstance, UploadProps } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import type { FormInstance } from 'antd';
 import { PageHeader } from '../components/PageHeader';
 import { StatusTag } from '../components/StatusTag';
-import { useAuthStore } from '../store/authStore';
 import { formatApiError, pmApi } from '../services/api';
 import type {
   CreateRequirementPayload,
   Project,
   Requirement,
+  RequirementAttachment,
   RequirementDetail,
   RequirementGenerateExecutionPayload,
   RequirementReviewPayload,
-  ReviewResult,
+  RequirementStatus,
   UpdateRequirementPayload,
 } from '../services/types';
+import { useAuthStore } from '../store/authStore';
 
 const { RangePicker } = DatePicker;
 
-const reviewResultLabelMap: Record<ReviewResult, string> = {
-  approved: '已通过',
-  rejected: '已驳回',
-  delayed: '延后处理',
-  supplement_required: '需要补充信息',
-};
-
-const reviewResultColorMap: Record<ReviewResult, string> = {
-  approved: 'success',
-  rejected: 'error',
-  delayed: 'warning',
-  supplement_required: 'processing',
-};
-
-const requirementStatusOptions = [
-  { label: '草稿', value: 'Draft' },
-  { label: '需求澄清', value: 'Understanding' },
-  { label: '已确认', value: 'Confirmed' },
-  { label: '待评审', value: 'ToReview' },
-  { label: '已评审', value: 'Reviewed' },
-  { label: '已排期', value: 'Scheduled' },
-  { label: '开发中', value: 'InDevelopment' },
+const STATUS_OPTIONS: Array<{ label: string; value: RequirementStatus }> = [
+  { label: '\u8349\u7a3f', value: 'Draft' },
+  { label: '\u9700\u6c42\u6f84\u6e05', value: 'Understanding' },
+  { label: '\u5df2\u786e\u8ba4', value: 'Confirmed' },
+  { label: '\u5f85\u8bc4\u5ba1', value: 'ToReview' },
+  { label: '\u5df2\u8bc4\u5ba1', value: 'Reviewed' },
+  { label: '\u5df2\u6392\u671f', value: 'Scheduled' },
+  { label: '\u5f00\u53d1\u4e2d', value: 'InDevelopment' },
 ];
-
-const priorityOptions = [
-  { label: 'P0', value: 'P0' },
-  { label: 'P1', value: 'P1' },
-  { label: 'P2', value: 'P2' },
-];
-
-const maturityCheckLabelMap: Record<string, string> = {
-  acceptance: '已补充验收标准',
-  solution: '已补充方案摘要',
-  impact: '已明确影响范围',
-  risk: '已记录风险与依赖',
-  owner: '已指派负责人',
+const PRIORITY_OPTIONS = ['P0', 'P1', 'P2'].map((value) => ({ label: value, value })) as Array<{
+  label: 'P0' | 'P1' | 'P2';
+  value: 'P0' | 'P1' | 'P2';
+}>;
+const CHECK_LABELS: Record<string, string> = {
+  title: '\u9700\u6c42\u6807\u9898',
+  description: '\u9700\u6c42\u80cc\u666f',
+  owner: '\u8d1f\u8d23\u4eba',
+  release: '\u76ee\u6807\u65e5\u671f',
+  solution: '\u65b9\u6848\u6458\u8981',
+  acceptance: '\u9a8c\u6536\u6807\u51c6',
+  impact: '\u5f71\u54cd\u8303\u56f4',
+  risk: '\u98ce\u9669\u4e0e\u4f9d\u8d56',
 };
 
-const stageLabelMap: Record<string, string> = {
-  Drafting: '草稿整理',
-  Understanding: '需求澄清',
-  Confirmed: '已确认',
-  'Pending review': '待评审',
-  Reviewed: '已评审',
-  Scheduled: '已排期',
-  'In development': '开发中',
-  草稿整理: '草稿整理',
-  需求澄清: '需求澄清',
-  已确认: '已确认',
-  待评审: '待评审',
-  已评审: '已评审',
-  已排期: '已排期',
-  开发中: '开发中',
-};
-
-const columns: ColumnsType<Requirement> = [
-  { title: 'ID', dataIndex: 'id', width: 90 },
-  {
-    title: '需求名称',
-    dataIndex: 'title',
-    render: (value: string) => <Typography.Text strong>{value}</Typography.Text>,
-  },
-  { title: '状态', dataIndex: 'status', render: (value: string) => <StatusTag value={value} /> },
-  { title: '优先级', dataIndex: 'priority', width: 90 },
-  { title: '负责人', dataIndex: 'ownerName', width: 140 },
-  { title: '目标版本', dataIndex: 'expectedReleaseAt', width: 140 },
-  { title: '关联执行数', dataIndex: 'linkedExecutionCount', width: 140 },
-];
-
-type RequirementCreateFormValues = {
+type RequirementFormValues = {
   title: string;
+  status: RequirementStatus;
   priority: 'P0' | 'P1' | 'P2';
   ownerName: string;
-  expectedReleaseAt: Dayjs;
+  expectedReleaseAt: Dayjs | null;
   description: string;
   solutionSummary: string;
-  acceptanceCriteriaText: string;
-  impactScopeText: string;
-  risksText: string;
-};
-
-type RequirementEditFormValues = RequirementCreateFormValues & {
-  status: RequirementDetail['status'];
+  acceptanceText: string;
+  impactText: string;
+  riskText: string;
 };
 
 export function RequirementsPage() {
   const permissions = useAuthStore((state) => state.permissions);
-  const currentUserName = useAuthStore((state) => state.user?.name ?? 'Wang Jun');
-  const canManageRequirements = permissions.includes('requirement.create.project');
-  const canReviewRequirements = permissions.includes('requirement.review.create.project');
-  const canGenerateExecutions = permissions.includes('requirement.execution.generate.project');
+  const currentUserName = useAuthStore((state) => state.user?.name ?? '');
+  const canManage = permissions.includes('requirement.create.project');
+  const canReview = permissions.includes('requirement.review.create.project');
+  const canGenerate = permissions.includes('requirement.execution.generate.project');
   const [selectedRequirementId, setSelectedRequirementId] = useState<number | null>(null);
   const [selectedRowKeys, setSelectedRowKeys] = useState<number[]>([]);
-  const [searchKeyword, setSearchKeyword] = useState('');
-  const [statusFilter, setStatusFilter] = useState<Requirement['status'] | 'all'>('all');
-  const [generateModalOpen, setGenerateModalOpen] = useState(false);
-  const [createModalOpen, setCreateModalOpen] = useState(false);
-  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [keyword, setKeyword] = useState('');
+  const [statusFilter, setStatusFilter] = useState<RequirementStatus | 'all'>('all');
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [generateOpen, setGenerateOpen] = useState(false);
   const [messageApi, contextHolder] = message.useMessage();
+  const [createForm] = Form.useForm<RequirementFormValues>();
+  const [editForm] = Form.useForm<RequirementFormValues>();
   const [reviewForm] = Form.useForm<RequirementReviewPayload>();
-  const [generateForm] = Form.useForm();
-  const [createForm] = Form.useForm<RequirementCreateFormValues>();
-  const [editForm] = Form.useForm<RequirementEditFormValues>();
+  const [generateForm] = Form.useForm<{ projectId: number; planRange: [Dayjs, Dayjs] }>();
   const queryClient = useQueryClient();
-  const deferredSearchKeyword = useDeferredValue(searchKeyword);
+  const deferredKeyword = useDeferredValue(keyword);
 
   const requirementsQuery = useQuery({ queryKey: ['requirements'], queryFn: pmApi.getRequirements });
   const projectsQuery = useQuery({ queryKey: ['projects'], queryFn: pmApi.getProjects });
   const detailQuery = useQuery({
     queryKey: ['requirement-detail', selectedRequirementId],
-    queryFn: async () => {
-      if (selectedRequirementId === null) {
-        return null;
-      }
-      return pmApi.getRequirementDetail(selectedRequirementId);
-    },
+    queryFn: () => (selectedRequirementId ? pmApi.getRequirementDetail(selectedRequirementId) : Promise.resolve(null)),
     enabled: selectedRequirementId !== null,
   });
 
-  const selectedRows = useMemo(() => {
-    const items = requirementsQuery.data ?? [];
-    return items.filter((item) => selectedRowKeys.includes(item.id));
-  }, [requirementsQuery.data, selectedRowKeys]);
-
   const filteredRequirements = useMemo(() => {
-    const normalizedKeyword = deferredSearchKeyword.trim().toLowerCase();
+    const normalizedKeyword = deferredKeyword.trim().toLowerCase();
     return (requirementsQuery.data ?? []).filter((item) => {
       const matchesKeyword =
         normalizedKeyword === '' ||
@@ -175,75 +116,69 @@ export function RequirementsPage() {
         item.ownerName.toLowerCase().includes(normalizedKeyword) ||
         String(item.id).includes(normalizedKeyword);
       const matchesStatus = statusFilter === 'all' || item.status === statusFilter;
-
       return matchesKeyword && matchesStatus;
     });
-  }, [deferredSearchKeyword, requirementsQuery.data, statusFilter]);
+  }, [deferredKeyword, requirementsQuery.data, statusFilter]);
 
-  const hasRequirementFilters = deferredSearchKeyword.trim() !== '' || statusFilter !== 'all';
+  const selectedRows = useMemo(() => {
+    const items = requirementsQuery.data ?? [];
+    return items.filter((item) => selectedRowKeys.includes(item.id));
+  }, [requirementsQuery.data, selectedRowKeys]);
+
+  const refreshRequirement = async (id: number) => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['requirements'] }),
+      queryClient.invalidateQueries({ queryKey: ['requirement-detail', id] }),
+    ]);
+  };
 
   const createMutation = useMutation({
     mutationFn: (payload: CreateRequirementPayload) => pmApi.createRequirement(payload),
     onSuccess: async (created) => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['requirements'] }),
-        queryClient.invalidateQueries({ queryKey: ['requirement-detail', created.id] }),
-      ]);
-      setCreateModalOpen(false);
-      createForm.resetFields();
+      await refreshRequirement(created.id);
+      setCreateOpen(false);
       setSelectedRequirementId(created.id);
-      reviewForm.setFieldsValue({ reviewerName: currentUserName, result: 'approved', comment: '' });
-      messageApi.success('需求已创建。');
+      messageApi.success('\u8349\u7a3f\u5df2\u4fdd\u5b58\uff0c\u53ef\u4ee5\u7ee7\u7eed\u8865\u5145\u56fe\u7247\u6216\u8bed\u97f3\u3002');
     },
-    onError: (error) => {
-      messageApi.error(formatApiError(error));
-    },
+    onError: (error) => messageApi.error(formatApiError(error)),
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, payload }: { id: number; payload: UpdateRequirementPayload }) => pmApi.updateRequirement(id, payload),
     onSuccess: async (updated) => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['requirements'] }),
-        queryClient.invalidateQueries({ queryKey: ['requirement-detail', updated.id] }),
-      ]);
-      setEditModalOpen(false);
-      messageApi.success('需求已更新。');
+      await refreshRequirement(updated.id);
+      setEditOpen(false);
+      messageApi.success('\u9700\u6c42\u5df2\u66f4\u65b0\u3002');
     },
-    onError: (error) => {
-      messageApi.error(formatApiError(error));
-    },
+    onError: (error) => messageApi.error(formatApiError(error)),
   });
 
-  const submitForReviewMutation = useMutation({
+  const uploadMutation = useMutation({
+    mutationFn: ({ id, file }: { id: number; file: File }) => pmApi.uploadRequirementAttachment(id, file),
+    onSuccess: async (_, variables) => {
+      await queryClient.invalidateQueries({ queryKey: ['requirement-detail', variables.id] });
+      messageApi.success('\u9644\u4ef6\u4e0a\u4f20\u6210\u529f\u3002');
+    },
+    onError: (error) => messageApi.error(formatApiError(error)),
+  });
+
+  const submitReviewMutation = useMutation({
     mutationFn: (id: number) => pmApi.submitRequirementForReview(id),
-    onSuccess: async (result) => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['requirements'] }),
-        queryClient.invalidateQueries({ queryKey: ['requirement-detail', result.id] }),
-      ]);
-      messageApi.success('需求已提交评审。');
+    onSuccess: async (updated) => {
+      await refreshRequirement(updated.id);
+      messageApi.success('\u9700\u6c42\u5df2\u63d0\u4ea4\u8bc4\u5ba1\u3002');
     },
-    onError: (error) => {
-      messageApi.error(formatApiError(error));
-    },
+    onError: (error) => messageApi.error(formatApiError(error)),
   });
 
   const reviewMutation = useMutation({
-    mutationFn: ({ id, payload }: { id: number; payload: RequirementReviewPayload }) =>
-      pmApi.createRequirementReview(id, payload),
+    mutationFn: ({ id, payload }: { id: number; payload: RequirementReviewPayload }) => pmApi.createRequirementReview(id, payload),
     onSuccess: async (_, variables) => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['requirements'] }),
-        queryClient.invalidateQueries({ queryKey: ['requirement-detail', variables.id] }),
-      ]);
-      reviewForm.resetFields();
+      await refreshRequirement(variables.id);
       reviewForm.setFieldsValue({ reviewerName: currentUserName, result: 'approved', comment: '' });
-      messageApi.success('评审记录已保存，需求状态已同步更新。');
+      messageApi.success('\u8bc4\u5ba1\u8bb0\u5f55\u5df2\u4fdd\u5b58\u3002');
     },
-    onError: (error) => {
-      messageApi.error(formatApiError(error));
-    },
+    onError: (error) => messageApi.error(formatApiError(error)),
   });
 
   const generateMutation = useMutation({
@@ -253,585 +188,143 @@ export function RequirementsPage() {
         queryClient.invalidateQueries({ queryKey: ['requirements'] }),
         queryClient.invalidateQueries({ queryKey: ['executions'] }),
         queryClient.invalidateQueries({ queryKey: ['projects'] }),
-        ...(selectedRequirementId !== null
-          ? [queryClient.invalidateQueries({ queryKey: ['requirement-detail', selectedRequirementId] })]
-          : []),
       ]);
-      setGenerateModalOpen(false);
+      setGenerateOpen(false);
       setSelectedRowKeys([]);
-      generateForm.resetFields();
-      const createdCount = result.items.length;
-      const skippedCount = result.skippedRequirementIds.length;
-      if (skippedCount > 0) {
-        messageApi.warning(`已生成 ${createdCount} 条执行，另有 ${skippedCount} 条因状态不符合规则被跳过。`);
-        return;
-      }
-      messageApi.success(`已生成 ${createdCount} 条执行。`);
+      messageApi.success(`\u5df2\u751f\u6210 ${result.items.length} \u6761\u6267\u884c\uff0c\u8df3\u8fc7 ${result.skippedRequirementIds.length} \u6761\u3002`);
     },
-    onError: (error) => {
-      messageApi.error(formatApiError(error));
-    },
+    onError: (error) => messageApi.error(formatApiError(error)),
   });
 
-  const openGenerateModal = (ids?: number[]) => {
-    if (!canGenerateExecutions) {
-      messageApi.warning('当前角色没有生成执行的权限。');
-      return;
-    }
-
-    const requirementIds = ids && ids.length > 0 ? ids : selectedRowKeys;
-    if (requirementIds.length === 0) {
-      messageApi.info('请先选择至少一条需求。');
-      return;
-    }
-
-    if (ids && ids.length > 0) {
-      setSelectedRowKeys(ids);
-    }
-
-    const defaultProject = projectsQuery.data?.[0];
-    generateForm.setFieldsValue({
-      projectId: defaultProject?.id,
-      planRange: [dayjs().add(1, 'day'), dayjs().add(7, 'day')],
-    });
-    setGenerateModalOpen(true);
+  const uploadProps: UploadProps = {
+    accept: 'image/*,audio/*',
+    showUploadList: false,
+    customRequest: async ({ file, onError, onSuccess }) => {
+      if (!(file instanceof File) || !detailQuery.data) {
+        onError?.(new Error('\u65e0\u6cd5\u8bc6\u522b\u4e0a\u4f20\u6587\u4ef6\u3002'));
+        return;
+      }
+      try {
+        await uploadMutation.mutateAsync({ id: detailQuery.data.id, file });
+        onSuccess?.({});
+      } catch (error) {
+        onError?.(error instanceof Error ? error : new Error('upload_failed'));
+      }
+    },
   };
 
-  const openCreateModal = () => {
-    if (!canManageRequirements) {
-      messageApi.warning('当前角色没有创建需求的权限。');
-      return;
-    }
-
-    createForm.setFieldsValue({
-      priority: 'P1',
-      ownerName: currentUserName,
-      expectedReleaseAt: dayjs().add(7, 'day'),
-      acceptanceCriteriaText: '',
-      impactScopeText: '',
-      risksText: '',
-    });
-    setCreateModalOpen(true);
-  };
-
-  const openEditModal = () => {
-    if (!canManageRequirements) {
-      messageApi.warning('当前角色没有编辑需求的权限。');
-      return;
-    }
-
-    const detail = detailQuery.data;
-    if (!detail) {
-      return;
-    }
-
-    editForm.setFieldsValue({
-      title: detail.title,
-      status: detail.status,
-      priority: detail.priority,
-      ownerName: detail.ownerName,
-      expectedReleaseAt: dayjs(detail.expectedReleaseAt),
-      description: detail.description,
-      solutionSummary: detail.solutionSummary,
-      acceptanceCriteriaText: detail.acceptanceCriteria.join('\n'),
-      impactScopeText: detail.impactScope.join('\n'),
-      risksText: detail.risks.join('\n'),
-    });
-    setEditModalOpen(true);
-  };
-
-  const handleCreateRequirement = async () => {
-    if (!canManageRequirements) {
-      messageApi.warning('当前角色没有创建需求的权限。');
-      return;
-    }
-
-    const values = await createForm.validateFields();
-    createMutation.mutate(toRequirementDraftPayload(values));
-  };
-
-  const handleUpdateRequirement = async () => {
-    if (!canManageRequirements) {
-      messageApi.warning('当前角色没有编辑需求的权限。');
-      return;
-    }
-
-    if (selectedRequirementId === null) {
-      return;
-    }
-
-    const values = await editForm.validateFields();
-    updateMutation.mutate({
-      id: selectedRequirementId,
-      payload: {
-        ...toRequirementDraftPayload(values),
-        status: values.status,
-      },
-    });
-  };
-
-  const handleSubmitReview = async () => {
-    if (!canReviewRequirements) {
-      messageApi.warning('当前角色没有新增评审记录的权限。');
-      return;
-    }
-
-    if (selectedRequirementId === null) {
-      return;
-    }
-
-    const values = await reviewForm.validateFields();
-    reviewMutation.mutate({ id: selectedRequirementId, payload: values });
-  };
-
-  const handleSubmitForReview = () => {
-    if (!canReviewRequirements) {
-      messageApi.warning('当前角色没有提交评审的权限。');
-      return;
-    }
-
-    if (selectedRequirementId === null) {
-      return;
-    }
-
-    submitForReviewMutation.mutate(selectedRequirementId);
-  };
-
-  const handleGenerateExecutions = async () => {
-    if (!canGenerateExecutions) {
-      messageApi.warning('当前角色没有生成执行的权限。');
-      return;
-    }
-
-    const values = await generateForm.validateFields();
-    const project = projectsQuery.data?.find((item) => item.id === values.projectId);
-
-    if (!project) {
-      messageApi.error('未找到目标项目。');
-      return;
-    }
-
-    generateMutation.mutate({
-      requirementIds: selectedRowKeys,
-      projectId: project.id,
-      projectName: project.name,
-      planStart: values.planRange[0].format('YYYY-MM-DD'),
-      planEnd: values.planRange[1].format('YYYY-MM-DD'),
-    });
-  };
-
-  const canSubmitReview = detailQuery.data ? canSubmitForReview(detailQuery.data) && canReviewRequirements : false;
+  const columns: ColumnsType<Requirement> = [
+    { title: 'ID', dataIndex: 'id', width: 90 },
+    { title: '\u9700\u6c42\u6807\u9898', dataIndex: 'title', render: (value: string) => <Typography.Text strong>{formatTitle(value)}</Typography.Text> },
+    { title: '\u72b6\u6001', dataIndex: 'status', width: 110, render: (value: string) => <StatusTag value={value} /> },
+    { title: '\u4f18\u5148\u7ea7', dataIndex: 'priority', width: 90 },
+    { title: '\u8d1f\u8d23\u4eba', dataIndex: 'ownerName', width: 140, render: (value: string) => value || '\u5f85\u6307\u6d3e' },
+    { title: '\u76ee\u6807\u65e5\u671f', dataIndex: 'expectedReleaseAt', width: 140, render: (value: string) => value || '\u5f85\u8865\u5145' },
+  ];
 
   return (
-    <Space direction="vertical" size={20} className="page-stack">
+    <Space direction="vertical" size={24} className="page-stack">
       {contextHolder}
       <PageHeader
-        title="需求池"
-        description="支持需求创建、编辑、送审、评审记录和批量生成执行。"
-        extra={
-          canGenerateExecutions || canManageRequirements ? (
-            <Space>
-              {canGenerateExecutions ? (
-                <Button onClick={() => openGenerateModal()} disabled={selectedRowKeys.length === 0}>
-                  批量生成执行
-                </Button>
-              ) : null}
-              {canManageRequirements ? (
-                <Button type="primary" onClick={openCreateModal}>
-                  新建需求
-                </Button>
-              ) : null}
-            </Space>
-          ) : null
-        }
+        title={'\u9700\u6c42\u6c60'}
+        description={'\u8349\u7a3f\u9636\u6bb5\u53ef\u4ee5\u5148\u5feb\u901f\u8bb0\u5f55\u60f3\u6cd5\uff0c\u4fdd\u5b58\u540e\u518d\u9010\u6b65\u8865\u9f50\u4fe1\u606f\u5e76\u4e0a\u4f20\u56fe\u7247\u6216\u8bed\u97f3\u3002'}
+        extra={<Space>{canGenerate ? <Button disabled={selectedRows.length === 0} onClick={() => setGenerateOpen(true)}>{'\u6279\u91cf\u751f\u6210\u6267\u884c'}</Button> : null}{canManage ? <Button type="primary" onClick={() => { createForm.setFieldsValue(defaultValues(currentUserName)); setCreateOpen(true); }}>{'\u8bb0\u5f55\u60f3\u6cd5'}</Button> : null}</Space>}
       />
-      <Card title="需求列表" extra={<Typography.Text type="secondary">已选 {selectedRowKeys.length} 条</Typography.Text>}>
+      <Card>
         <Space direction="vertical" size={16} style={{ width: '100%' }}>
+          <Alert type="info" showIcon message={'\u8349\u7a3f\u53ef\u4ee5\u5148\u7a7a\u7740'} description={'\u6807\u9898\u3001\u80cc\u666f\u3001\u9a8c\u6536\u6807\u51c6\u3001\u98ce\u9669\u7b49\u4fe1\u606f\u4e0d\u5fc5\u4e00\u4e0a\u6765\u5168\u90e8\u586b\u5b8c\uff1b\u63d0\u4ea4\u8bc4\u5ba1\u524d\u7cfb\u7edf\u4f1a\u5f3a\u6821\u9a8c\u5b8c\u6574\u6027\u3002'} />
           <div className="page-toolbar">
             <Space wrap>
-              <Input.Search
-                allowClear
-                value={searchKeyword}
-                onChange={(event) => setSearchKeyword(event.target.value)}
-                placeholder="按需求标题、负责人或 ID 搜索"
-                style={{ width: 280 }}
-              />
-              <Select
-                value={statusFilter}
-                onChange={(value) => setStatusFilter(value)}
-                style={{ width: 180 }}
-                options={[{ label: '全部状态', value: 'all' }, ...requirementStatusOptions]}
-              />
-              {hasRequirementFilters ? <Button onClick={() => { setSearchKeyword(''); setStatusFilter('all'); }}>清空筛选</Button> : null}
+              <Input.Search allowClear value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder={'\u641c\u7d22\u6807\u9898 / \u8d1f\u8d23\u4eba / ID'} style={{ width: 280 }} />
+              <Select value={statusFilter} onChange={(value) => setStatusFilter(value)} options={[{ label: '\u5168\u90e8\u72b6\u6001', value: 'all' }, ...STATUS_OPTIONS]} style={{ width: 180 }} />
+              <Button onClick={() => { setKeyword(''); setStatusFilter('all'); }}>{'\u6e05\u7a7a\u7b5b\u9009'}</Button>
             </Space>
-            <Typography.Text type="secondary">显示 {filteredRequirements.length} / {requirementsQuery.data?.length ?? 0} 条</Typography.Text>
+            <Typography.Text type="secondary">{`\u5f53\u524d ${filteredRequirements.length} \u6761`}</Typography.Text>
           </div>
-          <Table
-            rowKey="id"
-            columns={columns}
-            dataSource={filteredRequirements}
-            loading={requirementsQuery.isLoading}
-            pagination={false}
-            locale={{ emptyText: hasRequirementFilters ? '没有匹配的需求' : '暂无需求' }}
-            rowClassName={(record) => record.id === selectedRequirementId ? 'pm-row pm-row--active' : 'pm-row'}
-            rowSelection={{
-              selectedRowKeys,
-              onChange: (keys) => setSelectedRowKeys(keys.map((key) => Number(key))),
-            }}
-            onRow={(record) => ({
-              onClick: () => {
-                setSelectedRequirementId(record.id);
-                reviewForm.setFieldsValue({ reviewerName: currentUserName, result: 'approved', comment: '' });
-              },
-            })}
-          />
+          <Table rowKey="id" columns={columns} dataSource={filteredRequirements} loading={requirementsQuery.isLoading} pagination={false} locale={{ emptyText: <Empty description={'\u6682\u65e0\u9700\u6c42'} /> }} rowSelection={canGenerate ? { selectedRowKeys, onChange: (keys) => setSelectedRowKeys(keys.map((item) => Number(item))) } : undefined} onRow={(record) => ({ className: selectedRequirementId === record.id ? 'pm-row pm-row--active' : 'pm-row', onClick: () => { setSelectedRequirementId(record.id); reviewForm.setFieldsValue({ reviewerName: currentUserName, result: 'approved', comment: '' }); } })} />
         </Space>
       </Card>
-      <Drawer
-        title={detailQuery.data?.title ?? '需求详情'}
-        width={720}
-        open={selectedRequirementId !== null}
-        onClose={() => setSelectedRequirementId(null)}
-        extra={
-          detailQuery.data ? (
-            <Space>
-              {canManageRequirements ? <Button onClick={openEditModal}>编辑</Button> : null}
-              {canReviewRequirements ? (
-                <Button
-                  type="primary"
-                  onClick={handleSubmitForReview}
-                  disabled={!canSubmitReview}
-                  loading={submitForReviewMutation.isPending}
-                >
-                  提交评审
-                </Button>
-              ) : null}
-              {canGenerateExecutions ? (
-                <Button onClick={() => openGenerateModal(selectedRequirementId !== null ? [selectedRequirementId] : [])}>
-                  生成执行
-                </Button>
-              ) : null}
-              <StatusTag value={detailQuery.data.status} />
-            </Space>
-          ) : null
-        }
-      >
-        {detailQuery.isLoading ? (
-          <Card loading />
-        ) : detailQuery.isError ? (
-          <Alert type="error" showIcon message="获取需求详情失败" description={formatApiError(detailQuery.error)} />
-        ) : detailQuery.data ? (
-          <RequirementDetailContent
-            detail={detailQuery.data}
-            onSubmitReview={handleSubmitReview}
-            reviewForm={reviewForm}
-            reviewSubmitting={reviewMutation.isPending}
-            canReviewRequirements={canReviewRequirements}
-          />
-        ) : (
-          <Empty description="未找到需求详情" />
-        )}
+      <Drawer width={720} open={selectedRequirementId !== null} onClose={() => setSelectedRequirementId(null)} title={detailQuery.data ? formatTitle(detailQuery.data.title) : '\u9700\u6c42\u8be6\u60c5'} extra={detailQuery.data ? <Space>{canManage ? <Button onClick={() => { editForm.setFieldsValue(toFormValues(detailQuery.data!)); setEditOpen(true); }}>{'\u7f16\u8f91\u8349\u7a3f'}</Button> : null}{canReview && ['Draft', 'Understanding', 'Confirmed'].includes(detailQuery.data.status) ? <Button type="primary" loading={submitReviewMutation.isPending} onClick={() => submitReviewMutation.mutate(detailQuery.data!.id)}>{'\u63d0\u4ea4\u8bc4\u5ba1'}</Button> : null}</Space> : null}>
+        {detailQuery.isLoading ? <Card loading /> : detailQuery.data ? <RequirementDetailView detail={detailQuery.data} canManage={canManage} canReview={canReview} reviewForm={reviewForm} reviewSubmitting={reviewMutation.isPending} uploadProps={uploadProps} onSubmitReview={() => reviewForm.validateFields().then((payload) => reviewMutation.mutate({ id: detailQuery.data!.id, payload }))} /> : <Empty description={'\u8bf7\u9009\u62e9\u4e00\u6761\u9700\u6c42'} />}
       </Drawer>
-
-      <Modal
-        title="新建需求"
-        open={createModalOpen}
-        onCancel={() => setCreateModalOpen(false)}
-        onOk={handleCreateRequirement}
-        okText="创建"
-        confirmLoading={createMutation.isPending}
-        width={760}
-      >
-        <RequirementEditorForm form={createForm} mode="create" />
+      <Modal title={'\u8bb0\u5f55\u65b0\u60f3\u6cd5'} open={createOpen} onCancel={() => setCreateOpen(false)} onOk={() => createForm.validateFields().then((values) => createMutation.mutate(toCreatePayload(values)))} okText={'\u4fdd\u5b58\u8349\u7a3f'} confirmLoading={createMutation.isPending} destroyOnClose>
+        <RequirementEditor form={createForm} mode="create" />
       </Modal>
-
-      <Modal
-        title="编辑需求"
-        open={editModalOpen}
-        onCancel={() => setEditModalOpen(false)}
-        onOk={handleUpdateRequirement}
-        okText="保存"
-        confirmLoading={updateMutation.isPending}
-        width={760}
-      >
-        <RequirementEditorForm form={editForm} mode="edit" />
+      <Modal title={'\u7f16\u8f91\u9700\u6c42'} open={editOpen} onCancel={() => setEditOpen(false)} onOk={() => detailQuery.data && editForm.validateFields().then((values) => updateMutation.mutate({ id: detailQuery.data!.id, payload: toUpdatePayload(values) }))} okText={'\u4fdd\u5b58\u66f4\u65b0'} confirmLoading={updateMutation.isPending} destroyOnClose>
+        <RequirementEditor form={editForm} mode="edit" />
       </Modal>
-
-      <Modal
-        title="批量生成执行"
-        open={generateModalOpen}
-        onCancel={() => setGenerateModalOpen(false)}
-        onOk={handleGenerateExecutions}
-        okText="生成"
-        confirmLoading={generateMutation.isPending}
-      >
-        <Space direction="vertical" size={16} style={{ width: '100%' }}>
-          <Alert
-            type="info"
-            showIcon
-            message={`本次将处理 ${selectedRows.length} 条需求`}
-            description={selectedRows.map((item) => item.title).join('，') || '当前未选择需求'}
-          />
-          <Form form={generateForm} layout="vertical">
-            <Form.Item label="目标项目" name="projectId" rules={[{ required: true, message: '请选择目标项目' }]}>
-              <Select
-                placeholder="请选择项目"
-                options={(projectsQuery.data ?? []).map((item: Project) => ({
-                  label: `${item.name} (${item.code})`,
-                  value: item.id,
-                }))}
-              />
-            </Form.Item>
-            <Form.Item
-              label="计划时间"
-              name="planRange"
-              rules={[{ required: true, message: '请选择计划开始和结束日期' }]}
-            >
-              <RangePicker style={{ width: '100%' }} />
-            </Form.Item>
-          </Form>
-        </Space>
+      <Modal title={'\u6279\u91cf\u751f\u6210\u6267\u884c'} open={generateOpen} onCancel={() => setGenerateOpen(false)} onOk={() => generateForm.validateFields().then((values) => { const project = (projectsQuery.data ?? []).find((item) => item.id === values.projectId); generateMutation.mutate({ requirementIds: selectedRows.map((item) => item.id), projectId: values.projectId, projectName: project?.name ?? 'Unassigned project', planStart: values.planRange[0].format('YYYY-MM-DD'), planEnd: values.planRange[1].format('YYYY-MM-DD') }); })} okText={'\u751f\u6210\u6267\u884c'} confirmLoading={generateMutation.isPending} destroyOnClose>
+        <Form form={generateForm} layout="vertical">
+          <Form.Item label={'\u9879\u76ee'} name="projectId" rules={[{ required: true, message: '\u8bf7\u9009\u62e9\u9879\u76ee' }]}><Select options={(projectsQuery.data ?? []).map((item: Project) => ({ label: `${item.name} (${item.code})`, value: item.id }))} /></Form.Item>
+          <Form.Item label={'\u8ba1\u5212\u65f6\u95f4'} name="planRange" rules={[{ required: true, message: '\u8bf7\u9009\u62e9\u8ba1\u5212\u65f6\u95f4' }]}><RangePicker style={{ width: '100%' }} /></Form.Item>
+        </Form>
       </Modal>
     </Space>
   );
 }
 
-function RequirementEditorForm({
-  form,
-  mode,
-}: {
-  form: FormInstance<any>;
-  mode: 'create' | 'edit';
-}) {
+function RequirementEditor({ form, mode }: { form: FormInstance<RequirementFormValues>; mode: 'create' | 'edit' }) {
   return (
     <Form form={form} layout="vertical">
-      <Form.Item label="需求标题" name="title" rules={[{ required: true, message: '请输入需求标题' }]}>
-        <Input placeholder="例如：需求评审与批量生成执行" />
-      </Form.Item>
-      {mode === 'edit' ? (
-        <Form.Item label="状态" name="status" rules={[{ required: true, message: '请选择状态' }]}>
-          <Select options={requirementStatusOptions} />
-        </Form.Item>
-      ) : null}
-      <Space size={16} style={{ width: '100%' }}>
-        <Form.Item label="优先级" name="priority" rules={[{ required: true, message: '请选择优先级' }]} style={{ flex: 1 }}>
-          <Select options={priorityOptions} />
-        </Form.Item>
-        <Form.Item label="负责人" name="ownerName" rules={[{ required: true, message: '请输入负责人' }]} style={{ flex: 1 }}>
-          <Input placeholder="例如：王军" />
-        </Form.Item>
-        <Form.Item
-          label="目标版本"
-          name="expectedReleaseAt"
-          rules={[{ required: true, message: '请选择目标版本日期' }]}
-          style={{ flex: 1 }}
-        >
-          <DatePicker style={{ width: '100%' }} />
-        </Form.Item>
+      <Alert type="info" showIcon style={{ marginBottom: 16 }} message={mode === 'create' ? '\u5148\u8bb0\u4e0b\u60f3\u6cd5' : '\u7ee7\u7eed\u5b8c\u5584\u8fd9\u6761\u9700\u6c42'} description={'\u8349\u7a3f\u9636\u6bb5\u652f\u6301\u5206\u6b65\u586b\u5199\uff0c\u4fdd\u5b58\u540e\u53ef\u5728\u8be6\u60c5\u9875\u4e0a\u4f20\u56fe\u7247\u548c\u8bed\u97f3\u3002'} />
+      <Form.Item label={'\u9700\u6c42\u6807\u9898'} name="title"><Input placeholder={'\u4f8b\u5982\uff1a\u652f\u6301\u9700\u6c42\u8349\u7a3f\u4e0a\u4f20\u8bed\u97f3\u9644\u4ef6'} /></Form.Item>
+      {mode === 'edit' ? <Form.Item label={'\u72b6\u6001'} name="status"><Select options={STATUS_OPTIONS} /></Form.Item> : null}
+      <Space size={16} style={{ width: '100%' }} wrap>
+        <Form.Item label={'\u4f18\u5148\u7ea7'} name="priority" style={{ flex: 1, minWidth: 160 }}><Select options={PRIORITY_OPTIONS} /></Form.Item>
+        <Form.Item label={'\u8d1f\u8d23\u4eba'} name="ownerName" style={{ flex: 1, minWidth: 160 }}><Input /></Form.Item>
+        <Form.Item label={'\u76ee\u6807\u65e5\u671f'} name="expectedReleaseAt" style={{ flex: 1, minWidth: 160 }}><DatePicker style={{ width: '100%' }} /></Form.Item>
       </Space>
-      <Form.Item label="需求描述" name="description" rules={[{ required: true, message: '请填写需求描述' }]}>
-        <Input.TextArea rows={3} placeholder="描述业务问题和期望结果。" />
-      </Form.Item>
-      <Form.Item label="方案摘要" name="solutionSummary" rules={[{ required: true, message: '请填写方案摘要' }]}>
-        <Input.TextArea rows={3} placeholder="描述计划采用的解决方案。" />
-      </Form.Item>
-      <Form.Item
-        label="验收标准"
-        name="acceptanceCriteriaText"
-        rules={[{ required: true, message: '请至少填写一条验收标准' }]}
-        extra="每行填写一项。"
-      >
-        <Input.TextArea rows={4} placeholder={'验收点 1\n验收点 2'} />
-      </Form.Item>
-      <Form.Item
-        label="影响范围"
-        name="impactScopeText"
-        rules={[{ required: true, message: '请至少填写一条影响范围' }]}
-        extra="每行填写一项。"
-      >
-        <Input.TextArea rows={3} placeholder={'需求池\n执行管理'} />
-      </Form.Item>
-      <Form.Item
-        label="风险与依赖"
-        name="risksText"
-        rules={[{ required: true, message: '请至少填写一条风险或依赖' }]}
-        extra="每行填写一项。"
-      >
-        <Input.TextArea rows={3} placeholder="例如：依赖评审质量与排期确认" />
-      </Form.Item>
+      <Form.Item label={'\u9700\u6c42\u80cc\u666f'} name="description"><Input.TextArea rows={3} /></Form.Item>
+      <Form.Item label={'\u65b9\u6848\u6458\u8981'} name="solutionSummary"><Input.TextArea rows={3} /></Form.Item>
+      <Form.Item label={'\u9a8c\u6536\u6807\u51c6'} name="acceptanceText" extra={'\u6bcf\u884c\u4e00\u6761'}><Input.TextArea rows={3} /></Form.Item>
+      <Form.Item label={'\u5f71\u54cd\u8303\u56f4'} name="impactText" extra={'\u6bcf\u884c\u4e00\u6761'}><Input.TextArea rows={3} /></Form.Item>
+      <Form.Item label={'\u98ce\u9669\u4e0e\u4f9d\u8d56'} name="riskText" extra={'\u6bcf\u884c\u4e00\u6761'}><Input.TextArea rows={3} /></Form.Item>
     </Form>
   );
 }
 
-function RequirementDetailContent({
-  detail,
-  onSubmitReview,
-  reviewForm,
-  reviewSubmitting,
-  canReviewRequirements,
-}: {
-  detail: RequirementDetail;
-  onSubmitReview: () => void;
-  reviewForm: FormInstance<RequirementReviewPayload>;
-  reviewSubmitting: boolean;
-  canReviewRequirements: boolean;
-}) {
+function RequirementDetailView({ detail, canManage, canReview, reviewForm, reviewSubmitting, uploadProps, onSubmitReview }: { detail: RequirementDetail; canManage: boolean; canReview: boolean; reviewForm: FormInstance<RequirementReviewPayload>; reviewSubmitting: boolean; uploadProps: UploadProps; onSubmitReview: () => void; }) {
   const failedChecks = detail.maturityChecks.filter((item) => !item.passed);
+  return <Space direction="vertical" size={16} style={{ width: '100%' }}>
+    <Descriptions size="small" column={2} items={[{ key: 'status', label: '\u72b6\u6001', children: <StatusTag value={detail.status} /> }, { key: 'owner', label: '\u8d1f\u8d23\u4eba', children: detail.ownerName || '\u5f85\u6307\u6d3e' }, { key: 'date', label: '\u76ee\u6807\u65e5\u671f', children: detail.expectedReleaseAt || '\u5f85\u8865\u5145' }, { key: 'count', label: '\u5173\u8054\u6267\u884c', children: detail.linkedExecutionCount }]} />
+    <Card title={'\u9700\u6c42\u8bf4\u660e'}><Typography.Paragraph>{detail.description || '\u6682\u65e0\u9700\u6c42\u80cc\u666f\u3002'}</Typography.Paragraph><Typography.Text strong>{'\u65b9\u6848\u6458\u8981'}</Typography.Text><Typography.Paragraph style={{ marginBottom: 0 }}>{detail.solutionSummary || '\u6682\u65e0\u65b9\u6848\u6458\u8981\u3002'}</Typography.Paragraph></Card>
+    <Card title={'\u8bc4\u5ba1\u524d\u68c0\u67e5'}>{failedChecks.length > 0 ? <Alert type="warning" showIcon message={'\u8fd8\u6709\u4fe1\u606f\u672a\u8865\u9f50'} description={failedChecks.map((item) => CHECK_LABELS[item.key] ?? item.label).join('\u3001')} style={{ marginBottom: 16 }} /> : <Alert type="success" showIcon message={'\u5df2\u6ee1\u8db3\u63d0\u4ea4\u8bc4\u5ba1\u6761\u4ef6'} style={{ marginBottom: 16 }} />}<Space wrap>{detail.maturityChecks.map((item) => <Tag key={item.key} color={item.passed ? 'success' : 'warning'}>{CHECK_LABELS[item.key] ?? item.label}</Tag>)}</Space></Card>
+    <Card title={'\u9644\u4ef6'} extra={canManage ? <Upload {...uploadProps}><Button>{'\u4e0a\u4f20\u56fe\u7247\u6216\u8bed\u97f3'}</Button></Upload> : null}>{detail.attachments.length > 0 ? <List dataSource={detail.attachments} renderItem={(item) => <List.Item><AttachmentItem item={item} /></List.Item>} /> : <Empty description={'\u8fd8\u6ca1\u6709\u9644\u4ef6'} />}</Card>
+    <Card title={'\u9a8c\u6536\u6807\u51c6'}>{detail.acceptanceCriteria.length > 0 ? <List dataSource={detail.acceptanceCriteria} renderItem={(item) => <List.Item>{item}</List.Item>} /> : <Empty description={'\u6682\u65e0\u9a8c\u6536\u6807\u51c6'} />}</Card>
+    <Card title={'\u5f71\u54cd\u8303\u56f4\u4e0e\u98ce\u9669'}><Typography.Text strong>{'\u5f71\u54cd\u8303\u56f4'}</Typography.Text>{detail.impactScope.length > 0 ? <List dataSource={detail.impactScope} renderItem={(item) => <List.Item>{item}</List.Item>} /> : <Empty description={'\u6682\u65e0\u5f71\u54cd\u8303\u56f4'} />}<Typography.Text strong>{'\u98ce\u9669\u4e0e\u4f9d\u8d56'}</Typography.Text>{detail.risks.length > 0 ? <List dataSource={detail.risks} renderItem={(item) => <List.Item>{item}</List.Item>} /> : <Empty description={'\u6682\u65e0\u98ce\u9669\u8bb0\u5f55'} />}</Card>
+    <Card title={'\u8bc4\u5ba1\u8bb0\u5f55'}>{detail.reviews.length > 0 ? <List dataSource={detail.reviews} renderItem={(item) => <List.Item><Space direction="vertical" size={2}><Typography.Text strong>{item.reviewerName}</Typography.Text><Typography.Text type="secondary">{item.reviewedAt}</Typography.Text><Typography.Paragraph style={{ marginBottom: 0 }}>{item.comment}</Typography.Paragraph></Space></List.Item>} /> : <Empty description={'\u6682\u65e0\u8bc4\u5ba1\u8bb0\u5f55'} />}</Card>
+    {canReview ? <Card title={'\u65b0\u589e\u8bc4\u5ba1\u8bb0\u5f55'}><Form form={reviewForm} layout="vertical"><Form.Item label={'\u8bc4\u5ba1\u4eba'} name="reviewerName" rules={[{ required: true, message: '\u8bf7\u8f93\u5165\u8bc4\u5ba1\u4eba' }]}><Input /></Form.Item><Form.Item label={'\u8bc4\u5ba1\u7ed3\u8bba'} name="result" rules={[{ required: true, message: '\u8bf7\u9009\u62e9\u7ed3\u8bba' }]}><Select options={[{ label: '\u901a\u8fc7', value: 'approved' }, { label: '\u9a73\u56de', value: 'rejected' }, { label: '\u5ef6\u540e', value: 'delayed' }, { label: '\u8865\u5145\u4fe1\u606f', value: 'supplement_required' }]} /></Form.Item><Form.Item label={'\u8bc4\u5ba1\u610f\u89c1'} name="comment" rules={[{ required: true, message: '\u8bf7\u586b\u5199\u8bc4\u5ba1\u610f\u89c1' }]}><Input.TextArea rows={3} /></Form.Item><Button type="primary" loading={reviewSubmitting} onClick={onSubmitReview}>{'\u4fdd\u5b58\u8bc4\u5ba1\u8bb0\u5f55'}</Button></Form></Card> : null}
+  </Space>;
+}
 
-  return (
-    <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Descriptions
-        size="small"
-        column={2}
-        items={[
-          { key: 'status', label: '状态', children: <StatusTag value={detail.status} /> },
-          { key: 'stage', label: '当前阶段', children: formatRequirementStage(detail.currentStage) },
-          { key: 'priority', label: '优先级', children: detail.priority },
-          { key: 'owner', label: '负责人', children: detail.ownerName },
-          { key: 'release', label: '目标版本', children: detail.expectedReleaseAt },
-          { key: 'executionCount', label: '关联执行数', children: detail.linkedExecutionCount },
-        ]}
-      />
+function AttachmentItem({ item }: { item: RequirementAttachment }) {
+  return <Space direction="vertical" size={8} style={{ width: '100%' }}><Space><Tag color={item.fileType === 'image' ? 'blue' : item.fileType === 'audio' ? 'purple' : 'default'}>{item.fileType === 'image' ? '\u56fe\u7247' : item.fileType === 'audio' ? '\u8bed\u97f3' : '\u9644\u4ef6'}</Tag><Typography.Text strong>{item.fileName}</Typography.Text></Space>{item.fileType === 'image' ? <img alt={item.fileName} src={item.url} className="requirement-attachment-card__image" /> : null}{item.fileType === 'audio' ? <audio controls src={item.url} style={{ width: '100%' }} /> : null}<Typography.Link href={item.url} target="_blank" rel="noreferrer">{'\u67e5\u770b\u539f\u6587\u4ef6'}</Typography.Link></Space>;
+}
 
-      <Card title="需求描述">
-        <Typography.Paragraph>{detail.description}</Typography.Paragraph>
-        <Typography.Text strong>方案摘要</Typography.Text>
-        <Typography.Paragraph style={{ marginBottom: 0 }}>{detail.solutionSummary}</Typography.Paragraph>
-      </Card>
-
-      <Card title="成熟度检查">
-        {failedChecks.length > 0 ? (
-          <Alert
-            type="warning"
-            showIcon
-            message="仍有评审前置项未补齐"
-            description={failedChecks.map((item) => formatMaturityCheckLabel(item.key, item.label)).join('、')}
-            style={{ marginBottom: 16 }}
-          />
-        ) : (
-          <Alert
-            type="success"
-            showIcon
-            message="成熟度检查已通过，可以继续评审或生成执行。"
-            style={{ marginBottom: 16 }}
-          />
-        )}
-        <Space wrap>
-          {detail.maturityChecks.map((item) => (
-            <Tag key={item.key} color={item.passed ? 'success' : 'warning'}>
-              {formatMaturityCheckLabel(item.key, item.label)}
-            </Tag>
-          ))}
-        </Space>
-      </Card>
-
-      <Card title="验收标准">
-        <List dataSource={detail.acceptanceCriteria} renderItem={(item) => <List.Item>{item}</List.Item>} />
-      </Card>
-
-      <Card title="影响范围与风险">
-        <Typography.Text strong>影响范围</Typography.Text>
-        <List dataSource={detail.impactScope} renderItem={(item) => <List.Item>{item}</List.Item>} />
-        <Divider />
-        <Typography.Text strong>风险与依赖</Typography.Text>
-        <List dataSource={detail.risks} renderItem={(item) => <List.Item>{item}</List.Item>} />
-      </Card>
-
-      <Card title="评审记录">
-        {detail.reviews.length > 0 ? (
-          <Timeline
-            items={detail.reviews.map((item) => ({
-              color:
-                item.result === 'approved'
-                  ? 'green'
-                  : item.result === 'rejected'
-                    ? 'red'
-                    : item.result === 'delayed'
-                      ? 'orange'
-                      : 'blue',
-              children: (
-                <Space direction="vertical" size={4}>
-                  <Space>
-                    <Typography.Text strong>{item.reviewerName}</Typography.Text>
-                    <Tag color={reviewResultColorMap[item.result]}>{reviewResultLabelMap[item.result]}</Tag>
-                    <Typography.Text type="secondary">{item.reviewedAt}</Typography.Text>
-                  </Space>
-                  <Typography.Paragraph style={{ marginBottom: 0 }}>{item.comment}</Typography.Paragraph>
-                </Space>
-              ),
-            }))}
-          />
-        ) : (
-          <Empty description="暂无评审记录" />
-        )}
-      </Card>
-
-      {canReviewRequirements ? (
-        <Card title="新增评审记录">
-          <Form form={reviewForm} layout="vertical">
-            <Form.Item label="评审人" name="reviewerName" rules={[{ required: true, message: '请输入评审人姓名' }]}>
-              <Input placeholder="例如：王军" />
-            </Form.Item>
-            <Form.Item label="评审结论" name="result" rules={[{ required: true, message: '请选择评审结论' }]}>
-              <Radio.Group optionType="button" buttonStyle="solid">
-                <Radio.Button value="approved">通过</Radio.Button>
-                <Radio.Button value="rejected">驳回</Radio.Button>
-                <Radio.Button value="delayed">延后</Radio.Button>
-                <Radio.Button value="supplement_required">补充信息</Radio.Button>
-              </Radio.Group>
-            </Form.Item>
-            <Form.Item label="评审意见" name="comment" rules={[{ required: true, message: '请填写评审意见' }]}>
-              <Input.TextArea rows={4} placeholder="记录决策、待补充问题和下一步动作。" />
-            </Form.Item>
-            <Button type="primary" loading={reviewSubmitting} onClick={onSubmitReview}>
-              保存评审记录
-            </Button>
-          </Form>
-        </Card>
-      ) : null}
-
-      <Card title="关联执行">
-        {detail.linkedExecutionNames.length > 0 ? (
-          <List dataSource={detail.linkedExecutionNames} renderItem={(item) => <List.Item>{item}</List.Item>} />
-        ) : (
-          <Empty description="暂无关联执行" />
-        )}
-      </Card>
-    </Space>
-  );
+function defaultValues(currentUserName: string): RequirementFormValues {
+  return { title: '', status: 'Draft', priority: 'P1', ownerName: currentUserName, expectedReleaseAt: null, description: '', solutionSummary: '', acceptanceText: '', impactText: '', riskText: '' };
 }
 
 function splitLines(value: string): string[] {
-  return value
-    .split(/\r?\n/)
-    .map((item) => item.trim())
-    .filter(Boolean);
+  return value.split(/\r?\n/).map((item) => item.trim()).filter(Boolean);
 }
 
-function toRequirementDraftPayload(
-  values: RequirementCreateFormValues | RequirementEditFormValues,
-): CreateRequirementPayload {
-  return {
-    title: values.title.trim(),
-    priority: values.priority,
-    ownerName: values.ownerName.trim(),
-    expectedReleaseAt: values.expectedReleaseAt.format('YYYY-MM-DD'),
-    description: values.description.trim(),
-    solutionSummary: values.solutionSummary.trim(),
-    acceptanceCriteria: splitLines(values.acceptanceCriteriaText),
-    impactScope: splitLines(values.impactScopeText),
-    risks: splitLines(values.risksText),
-  };
+function toFormValues(detail: RequirementDetail): RequirementFormValues {
+  return { title: isUntitled(detail.title) ? '' : detail.title, status: detail.status, priority: detail.priority, ownerName: detail.ownerName, expectedReleaseAt: detail.expectedReleaseAt ? dayjs(detail.expectedReleaseAt) : null, description: detail.description, solutionSummary: detail.solutionSummary, acceptanceText: detail.acceptanceCriteria.join('\n'), impactText: detail.impactScope.join('\n'), riskText: detail.risks.join('\n') };
 }
 
-function canSubmitForReview(detail: RequirementDetail): boolean {
-  return ['Draft', 'Understanding', 'Confirmed'].includes(detail.status);
+function toCreatePayload(values: RequirementFormValues): CreateRequirementPayload {
+  return { title: values.title.trim(), priority: values.priority, ownerName: values.ownerName.trim(), expectedReleaseAt: values.expectedReleaseAt ? values.expectedReleaseAt.format('YYYY-MM-DD') : '', description: values.description.trim(), solutionSummary: values.solutionSummary.trim(), acceptanceCriteria: splitLines(values.acceptanceText), impactScope: splitLines(values.impactText), risks: splitLines(values.riskText) };
 }
 
-function formatRequirementStage(value: string): string {
-  return stageLabelMap[value] ?? value;
+function toUpdatePayload(values: RequirementFormValues): UpdateRequirementPayload {
+  return { ...toCreatePayload(values), status: values.status };
 }
 
-function formatMaturityCheckLabel(key: string, label: string): string {
-  return maturityCheckLabelMap[key] ?? label;
+function isUntitled(value: string): boolean {
+  return value.trim() === '' || value.trim().toLowerCase() === 'untitled draft';
+}
+
+function formatTitle(value: string): string {
+  return isUntitled(value) ? '\u672a\u547d\u540d\u8349\u7a3f' : value;
 }
