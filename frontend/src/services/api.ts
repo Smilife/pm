@@ -46,6 +46,9 @@ import type {
   UpdateWorklogPayload,
   WeeklyReportDraft,
   Worklog,
+  WorkspaceMemberOverview,
+  WorkspaceOverviewMetrics,
+  WorkspaceProjectOverview,
   WorkspaceSummary,
 } from './types';
 import { getAuthToken } from './authToken';
@@ -121,12 +124,66 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return payload.data;
 }
 
+function mapWorkspaceOverviewMetrics(item: any): WorkspaceOverviewMetrics {
+  return {
+    projectCount: Number(item?.project_count ?? 0),
+    atRiskProjectCount: Number(item?.at_risk_project_count ?? 0),
+    memberCount: Number(item?.member_count ?? 0),
+    activeMemberCount: Number(item?.active_member_count ?? 0),
+    attentionMemberCount: Number(item?.attention_member_count ?? 0),
+    openBugCount: Number(item?.open_bug_count ?? 0),
+  };
+}
+
+function mapWorkspaceProjectOverview(item: any): WorkspaceProjectOverview {
+  return {
+    id: Number(item?.id ?? 0),
+    name: String(item?.name ?? ''),
+    code: String(item?.code ?? ''),
+    ownerName: String(item?.owner_name ?? ''),
+    status: item?.status ?? 'Active',
+    health: item?.health ?? 'healthy',
+    executionCount: Number(item?.execution_count ?? 0),
+    activeExecutionCount: Number(item?.active_execution_count ?? 0),
+    blockedExecutionCount: Number(item?.blocked_execution_count ?? 0),
+    openBugCount: Number(item?.open_bug_count ?? 0),
+    riskCount: Number(item?.risk_count ?? 0),
+    averageProgress: Number(item?.average_progress ?? 0),
+    dueSoonCount: Number(item?.due_soon_count ?? 0),
+    overdueCount: Number(item?.overdue_count ?? 0),
+    lastActivityAt: formatDateTime(item?.last_activity_at),
+  };
+}
+
+function mapWorkspaceMemberOverview(item: any): WorkspaceMemberOverview {
+  return {
+    id: Number(item?.id ?? 0),
+    name: String(item?.name ?? ''),
+    email: String(item?.email ?? ''),
+    department: String(item?.department ?? ''),
+    title: String(item?.title ?? ''),
+    status: item?.status ?? 'Active',
+    dingtalkBound: Boolean(item?.dingtalk_bound),
+    activeExecutionCount: Number(item?.active_execution_count ?? 0),
+    blockedExecutionCount: Number(item?.blocked_execution_count ?? 0),
+    pendingDailyTaskCount: Number(item?.pending_daily_task_count ?? 0),
+    openBugCount: Number(item?.open_bug_count ?? 0),
+    hoursThisWeek: Number(item?.hours_this_week ?? 0),
+    lastActivityAt: formatDateTime(item?.last_activity_at),
+    focusStatus: item?.focus_status ?? 'idle',
+    focusLabel: String(item?.focus_label ?? ''),
+  };
+}
+
 function mapWorkspaceSummary(item: any): WorkspaceSummary {
   return {
     myExecutions: Number(item?.my_executions ?? 0),
     dueToday: Number(item?.due_today ?? 0),
     blocked: Number(item?.blocked ?? 0),
     reportsReady: Number(item?.reports_ready ?? 0),
+    overview: mapWorkspaceOverviewMetrics(item?.overview),
+    projectOverview: Array.isArray(item?.project_overview) ? item.project_overview.map(mapWorkspaceProjectOverview) : [],
+    memberOverview: Array.isArray(item?.member_overview) ? item.member_overview.map(mapWorkspaceMemberOverview) : [],
   };
 }
 

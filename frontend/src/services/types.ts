@@ -23,11 +23,59 @@ export type BugLinkType = 'project' | 'execution';
 
 export type ReviewResult = 'approved' | 'rejected' | 'delayed' | 'supplement_required';
 
+export interface WorkspaceOverviewMetrics {
+  projectCount: number;
+  atRiskProjectCount: number;
+  memberCount: number;
+  activeMemberCount: number;
+  attentionMemberCount: number;
+  openBugCount: number;
+}
+
+export interface WorkspaceProjectOverview {
+  id: number;
+  name: string;
+  code: string;
+  ownerName: string;
+  status: 'Active' | 'Risk' | 'Done';
+  health: 'healthy' | 'watch' | 'risk';
+  executionCount: number;
+  activeExecutionCount: number;
+  blockedExecutionCount: number;
+  openBugCount: number;
+  riskCount: number;
+  averageProgress: number;
+  dueSoonCount: number;
+  overdueCount: number;
+  lastActivityAt: string;
+}
+
+export interface WorkspaceMemberOverview {
+  id: number;
+  name: string;
+  email: string;
+  department: string;
+  title: string;
+  status: SettingsMemberStatus;
+  dingtalkBound: boolean;
+  activeExecutionCount: number;
+  blockedExecutionCount: number;
+  pendingDailyTaskCount: number;
+  openBugCount: number;
+  hoursThisWeek: number;
+  lastActivityAt: string;
+  focusStatus: 'active' | 'watch' | 'risk' | 'idle';
+  focusLabel: string;
+}
+
 export interface WorkspaceSummary {
   myExecutions: number;
   dueToday: number;
   blocked: number;
   reportsReady: number;
+  overview: WorkspaceOverviewMetrics;
+  projectOverview: WorkspaceProjectOverview[];
+  memberOverview: WorkspaceMemberOverview[];
 }
 
 export interface Requirement {
