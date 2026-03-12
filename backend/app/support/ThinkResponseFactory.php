@@ -8,7 +8,7 @@ use think\Response as ThinkResponse;
 
 final class ThinkResponseFactory
 {
-    public static function fromLegacy(Response $response): ThinkResponse
+    public static function fromResponse(Response $response): ThinkResponse
     {
         return ThinkResponse::create($response->payload(), 'json', $response->statusCode())
             ->header([

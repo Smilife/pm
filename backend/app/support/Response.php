@@ -41,11 +41,4 @@ final class Response
     {
         return $this->payload;
     }
-
-    public function send(): void
-    {
-        http_response_code($this->statusCode);
-        header('Content-Type: application/json; charset=utf-8');
-        echo json_encode($this->payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
-    }
 }

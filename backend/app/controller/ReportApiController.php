@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace app\controller;
 
 use App\Service\ReportService;
-use App\Support\Request as LegacyRequest;
+use App\Support\Request as ApiRequest;
 use think\Request as ThinkRequest;
 use think\Response as ThinkResponse;
 
@@ -20,11 +20,11 @@ final class ReportApiController extends BaseApiController
 
     public function generateDaily(ThinkRequest $request): ThinkResponse
     {
-        return $this->run($request, fn (LegacyRequest $legacyRequest) => $this->service->generateDaily($legacyRequest, []));
+        return $this->run($request, fn (ApiRequest $apiRequest) => $this->service->generateDaily($apiRequest, []));
     }
 
     public function generateWeekly(ThinkRequest $request): ThinkResponse
     {
-        return $this->run($request, fn (LegacyRequest $legacyRequest) => $this->service->generateWeekly($legacyRequest, []));
+        return $this->run($request, fn (ApiRequest $apiRequest) => $this->service->generateWeekly($apiRequest, []));
     }
 }

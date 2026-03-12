@@ -20,21 +20,6 @@ final class Request
     ) {
     }
 
-    public static function fromGlobals(): self
-    {
-        $method = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
-        $uriPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
-        $path = preg_replace('#^/api/v1#', '', $uriPath) ?: '/';
-        $rawBody = file_get_contents('php://input') ?: '';
-        $decodedBody = json_decode($rawBody, true);
-        $body = is_array($decodedBody) ? $decodedBody : $_POST;
-        $files = $_FILES;
-        $headers = self::normalizeHeaders(function_exists('getallheaders') ? getallheaders() : []);
-        $requestId = $headers['X-Request-Id'] ?? $headers['x-request-id'] ?? uniqid('req_', true);
-
-        return new self($method, $path, $_GET, $body, $files, $headers, $requestId);
-    }
-
     public static function fromThinkRequest(ThinkRequest $request): self
     {
         $method = strtoupper($request->method());

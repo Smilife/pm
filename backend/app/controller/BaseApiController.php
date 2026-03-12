@@ -6,8 +6,8 @@ namespace app\controller;
 
 use App\Support\Auth;
 use App\Support\Authorization;
-use App\Support\Request as LegacyRequest;
-use App\Support\Response as LegacyResponse;
+use App\Support\Request as ApiRequest;
+use App\Support\Response as ApiResponse;
 use App\Support\ThinkResponseFactory;
 use Throwable;
 use think\Request as ThinkRequest;
@@ -17,32 +17,32 @@ abstract class BaseApiController
 {
     protected function run(ThinkRequest $request, callable $callback, bool $allowGuest = false): ThinkResponse
     {
-        $legacyRequest = LegacyRequest::fromThinkRequest($request);
+        $apiRequest = ApiRequest::fromThinkRequest($request);
 
-        if (!$allowGuest && $legacyRequest->method !== 'OPTIONS' && !Auth::isAuthorized($legacyRequest)) {
-            return ThinkResponseFactory::fromLegacy(LegacyResponse::error(401, 'unauthorized', [], $legacyRequest->requestId));
+        if (!$allowGuest && $apiRequest->method !== 'OPTIONS' && !Auth::isAuthorized($apiRequest)) {
+            return ThinkResponseFactory::fromResponse(ApiResponse::error(401, 'unauthorized', [], $apiRequest->requestId));
         }
 
         if (!$allowGuest) {
-            $authorizationError = Authorization::authorizeRequest($legacyRequest);
+            $authorizationError = Authorization::authorizeRequest($apiRequest);
             if ($authorizationError !== null) {
-                return ThinkResponseFactory::fromLegacy($authorizationError);
+                return ThinkResponseFactory::fromResponse($authorizationError);
             }
         }
 
         try {
-            $response = $callback($legacyRequest);
+            $response = $callback($apiRequest);
         } catch (Throwable $exception) {
-            $response = LegacyResponse::error(
+            $response = ApiResponse::error(
                 500,
                 'internal_error',
                 [
                     'error' => $exception->getMessage(),
                 ],
-                $legacyRequest->requestId
+                $apiRequest->requestId
             );
         }
 
-        return ThinkResponseFactory::fromLegacy($response);
+        return ThinkResponseFactory::fromResponse($response);
     }
 }

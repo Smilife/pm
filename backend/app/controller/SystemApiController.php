@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace app\controller;
 
 use App\Service\SystemService;
-use App\Support\Request as LegacyRequest;
+use App\Support\Request as ApiRequest;
 use think\Request as ThinkRequest;
 use think\Response as ThinkResponse;
 
@@ -20,6 +20,6 @@ final class SystemApiController extends BaseApiController
 
     public function summary(ThinkRequest $request): ThinkResponse
     {
-        return $this->run($request, fn (LegacyRequest $legacyRequest) => $this->service->summary($legacyRequest, []));
+        return $this->run($request, fn (ApiRequest $apiRequest) => $this->service->summary($apiRequest, []));
     }
 }
