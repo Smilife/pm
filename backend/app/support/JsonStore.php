@@ -9,6 +9,8 @@ use Throwable;
 
 final class JsonStore
 {
+    private const DEDICATED_COLLECTIONS = ['users', 'roles'];
+
     private static ?bool $databaseAvailable = null;
 
     private static ?PDO $pdo = null;
@@ -16,6 +18,8 @@ final class JsonStore
     private static ?string $databaseError = null;
 
     private string $storagePath;
+
+    private ?IdentityStore $identityStore = null;
 
     public function __construct(?string $storagePath = null)
     {
@@ -25,6 +29,10 @@ final class JsonStore
     public function all(string $name): array
     {
         if ($this->usesDatabase()) {
+            if ($this->usesDedicatedCollection($name)) {
+                return $this->allFromDedicatedCollection($name);
+            }
+
             return $this->readFromDatabase($name);
         }
 
@@ -34,6 +42,10 @@ final class JsonStore
     public function find(string $name, int $id): ?array
     {
         if ($this->usesDatabase()) {
+            if ($this->usesDedicatedCollection($name)) {
+                return $this->findFromDedicatedCollection($name, $id);
+            }
+
             return $this->findFromDatabase($name, $id);
         }
 
@@ -54,6 +66,10 @@ final class JsonStore
     public function create(string $name, array $payload): array
     {
         if ($this->usesDatabase()) {
+            if ($this->usesDedicatedCollection($name)) {
+                return $this->createInDedicatedCollection($name, $payload);
+            }
+
             return $this->createInDatabase($name, $payload);
         }
 
@@ -68,6 +84,10 @@ final class JsonStore
     public function update(string $name, int $id, array $payload): ?array
     {
         if ($this->usesDatabase()) {
+            if ($this->usesDedicatedCollection($name)) {
+                return $this->updateInDedicatedCollection($name, $id, $payload);
+            }
+
             return $this->updateInDatabase($name, $id, $payload);
         }
 
@@ -90,6 +110,11 @@ final class JsonStore
     public function replaceAll(string $name, array $items): void
     {
         if ($this->usesDatabase()) {
+            if ($this->usesDedicatedCollection($name)) {
+                $this->replaceAllInDedicatedCollection($name, $items);
+                return;
+            }
+
             $this->replaceAllInDatabase($name, $items);
             return;
         }
@@ -100,6 +125,10 @@ final class JsonStore
     public function delete(string $name, int $id): ?array
     {
         if ($this->usesDatabase()) {
+            if ($this->usesDedicatedCollection($name)) {
+                return $this->deleteFromDedicatedCollection($name, $id);
+            }
+
             return $this->deleteFromDatabase($name, $id);
         }
 
@@ -162,6 +191,7 @@ final class JsonStore
 
         if ($usesDatabase) {
             $diagnostics['database_record_count'] = $this->databaseRecordCount();
+            $diagnostics['identity_tables'] = $this->identityStore()->diagnostics();
         }
 
         return $diagnostics;
@@ -198,10 +228,13 @@ final class JsonStore
             self::$pdo = $this->createPdo($connection);
             $this->ensureSchema(self::$pdo, $driver);
             $this->importJsonFilesIfNeeded(self::$pdo);
+            $this->identityStore($driver)->ensureSchema();
+            $this->identityStore($driver)->importIfNeeded();
 
             return true;
         } catch (Throwable $exception) {
             self::$pdo = null;
+            $this->identityStore = null;
             self::$databaseError = $exception->getMessage();
             return false;
         }
@@ -467,6 +500,77 @@ final class JsonStore
         ]);
 
         return $current;
+    }
+
+    private function allFromDedicatedCollection(string $name): array
+    {
+        return match ($name) {
+            'users' => $this->identityStore()->allUsers(),
+            'roles' => $this->identityStore()->allRoles(),
+            default => [],
+        };
+    }
+
+    private function findFromDedicatedCollection(string $name, int $id): ?array
+    {
+        return match ($name) {
+            'users' => $this->identityStore()->findUser($id),
+            'roles' => $this->identityStore()->findRole($id),
+            default => null,
+        };
+    }
+
+    private function createInDedicatedCollection(string $name, array $payload): array
+    {
+        return match ($name) {
+            'users' => $this->identityStore()->createUser($payload),
+            'roles' => $this->identityStore()->createRole($payload),
+            default => $payload,
+        };
+    }
+
+    private function updateInDedicatedCollection(string $name, int $id, array $payload): ?array
+    {
+        return match ($name) {
+            'users' => $this->identityStore()->updateUser($id, $payload),
+            'roles' => $this->identityStore()->updateRole($id, $payload),
+            default => null,
+        };
+    }
+
+    private function replaceAllInDedicatedCollection(string $name, array $items): void
+    {
+        if ($name === 'users') {
+            $this->identityStore()->replaceAllUsers($items);
+        }
+    }
+
+    private function deleteFromDedicatedCollection(string $name, int $id): ?array
+    {
+        return match ($name) {
+            'roles' => $this->identityStore()->deleteRole($id),
+            default => null,
+        };
+    }
+
+    private function usesDedicatedCollection(string $name): bool
+    {
+        return in_array($name, self::DEDICATED_COLLECTIONS, true);
+    }
+
+    private function identityStore(?string $driver = null): IdentityStore
+    {
+        if ($this->identityStore instanceof IdentityStore) {
+            return $this->identityStore;
+        }
+
+        $this->identityStore = new IdentityStore(
+            $this->pdo(),
+            $driver ?? (string) ($this->currentConnection()['type'] ?? 'sqlite'),
+            $this->storagePath,
+        );
+
+        return $this->identityStore;
     }
 
     private function nextIdFromDatabase(string $name, PDO $pdo): int
