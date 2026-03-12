@@ -473,7 +473,6 @@ final class JsonStore
         }
 
         $this->identityStore = new IdentityStore(
-            $this->pdo(),
             $driver ?? (string) ($this->currentConnection()['type'] ?? 'sqlite'),
             $this->storagePath,
         );

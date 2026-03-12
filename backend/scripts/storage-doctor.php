@@ -6,6 +6,10 @@ require __DIR__ . '/../vendor/autoload.php';
 
 App\Support\EnvLoader::load(dirname(__DIR__));
 
+$app = new think\App(dirname(__DIR__) . DIRECTORY_SEPARATOR);
+$app->initialize();
+$app->boot();
+
 $collections = [
     'users',
     'roles',
