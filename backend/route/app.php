@@ -2,8 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Support\ThinkBridge;
-use think\Request;
 use think\facade\Route;
 
 Route::post('api/v1/auth/login', 'AuthApiController/login')->completeMatch(true);
@@ -85,12 +83,3 @@ Route::post('api/v1/reports/weekly/generate', 'ReportApiController/generateWeekl
 
 Route::post('api/v1/permissions/check', 'PermissionApiController/check')->completeMatch(true);
 
-Route::rule('api/v1', static function (Request $request) {
-    return ThinkBridge::dispatch($request);
-}, '*')->completeMatch(true);
-
-Route::rule('api/v1/<path>', static function (Request $request, string $path) {
-    return ThinkBridge::dispatch($request);
-}, '*')->pattern([
-    'path' => '.+',
-])->completeMatch(true);
