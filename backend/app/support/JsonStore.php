@@ -40,12 +40,8 @@ final class JsonStore
 
     public function all(string $name): array
     {
-        if ($this->usesDatabase()) {
-            if ($this->usesDedicatedCollection($name)) {
-                return $this->allFromDedicatedCollection($name);
-            }
-
-            return $this->readFromDatabase($name);
+        if ($this->usesDatabase() && $this->usesDedicatedCollection($name)) {
+            return $this->allFromDedicatedCollection($name);
         }
 
         return $this->readFromFile($name);
@@ -53,12 +49,8 @@ final class JsonStore
 
     public function find(string $name, int $id): ?array
     {
-        if ($this->usesDatabase()) {
-            if ($this->usesDedicatedCollection($name)) {
-                return $this->findFromDedicatedCollection($name, $id);
-            }
-
-            return $this->findFromDatabase($name, $id);
+        if ($this->usesDatabase() && $this->usesDedicatedCollection($name)) {
+            return $this->findFromDedicatedCollection($name, $id);
         }
 
         foreach ($this->readFromFile($name) as $item) {
@@ -77,12 +69,8 @@ final class JsonStore
 
     public function create(string $name, array $payload): array
     {
-        if ($this->usesDatabase()) {
-            if ($this->usesDedicatedCollection($name)) {
-                return $this->createInDedicatedCollection($name, $payload);
-            }
-
-            return $this->createInDatabase($name, $payload);
+        if ($this->usesDatabase() && $this->usesDedicatedCollection($name)) {
+            return $this->createInDedicatedCollection($name, $payload);
         }
 
         $items = $this->readFromFile($name);
@@ -95,12 +83,8 @@ final class JsonStore
 
     public function update(string $name, int $id, array $payload): ?array
     {
-        if ($this->usesDatabase()) {
-            if ($this->usesDedicatedCollection($name)) {
-                return $this->updateInDedicatedCollection($name, $id, $payload);
-            }
-
-            return $this->updateInDatabase($name, $id, $payload);
+        if ($this->usesDatabase() && $this->usesDedicatedCollection($name)) {
+            return $this->updateInDedicatedCollection($name, $id, $payload);
         }
 
         $items = $this->readFromFile($name);
@@ -121,13 +105,8 @@ final class JsonStore
 
     public function replaceAll(string $name, array $items): void
     {
-        if ($this->usesDatabase()) {
-            if ($this->usesDedicatedCollection($name)) {
-                $this->replaceAllInDedicatedCollection($name, $items);
-                return;
-            }
-
-            $this->replaceAllInDatabase($name, $items);
+        if ($this->usesDatabase() && $this->usesDedicatedCollection($name)) {
+            $this->replaceAllInDedicatedCollection($name, $items);
             return;
         }
 
@@ -136,12 +115,8 @@ final class JsonStore
 
     public function delete(string $name, int $id): ?array
     {
-        if ($this->usesDatabase()) {
-            if ($this->usesDedicatedCollection($name)) {
-                return $this->deleteFromDedicatedCollection($name, $id);
-            }
-
-            return $this->deleteFromDatabase($name, $id);
+        if ($this->usesDatabase() && $this->usesDedicatedCollection($name)) {
+            return $this->deleteFromDedicatedCollection($name, $id);
         }
 
         $items = $this->readFromFile($name);
@@ -202,7 +177,6 @@ final class JsonStore
         }
 
         if ($usesDatabase) {
-            $diagnostics['database_record_count'] = $this->databaseRecordCount();
             $diagnostics['identity_tables'] = $this->identityStore()->diagnostics();
             $diagnostics['delivery_tables'] = $this->deliveryStore()->diagnostics();
             $diagnostics['collaboration_tables'] = $this->collaborationStore()->diagnostics();
@@ -241,8 +215,6 @@ final class JsonStore
 
         try {
             self::$pdo = $this->createPdo($connection);
-            $this->ensureSchema(self::$pdo, $driver);
-            $this->importJsonFilesIfNeeded(self::$pdo);
             $this->identityStore($driver)->ensureSchema();
             $this->identityStore($driver)->importIfNeeded();
             $this->deliveryStore($driver)->ensureSchema();
@@ -315,215 +287,6 @@ final class JsonStore
                 PDO::ATTR_EMULATE_PREPARES => false,
             ]
         );
-    }
-
-    private function ensureSchema(PDO $pdo, string $driver): void
-    {
-        if ($driver === 'mysql') {
-            $pdo->exec(
-                'CREATE TABLE IF NOT EXISTS `data_records` (' .
-                '`id` INT UNSIGNED NOT NULL AUTO_INCREMENT,' .
-                '`collection` VARCHAR(64) NOT NULL,' .
-                '`record_id` INT UNSIGNED NOT NULL,' .
-                '`payload` LONGTEXT NOT NULL,' .
-                '`created_at` VARCHAR(32) NOT NULL DEFAULT \'\',' .
-                '`updated_at` VARCHAR(32) NOT NULL DEFAULT \'\',' .
-                'PRIMARY KEY (`id`),' .
-                'UNIQUE KEY `uniq_collection_record` (`collection`, `record_id`),' .
-                'KEY `idx_collection` (`collection`)' .
-                ') ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
-            );
-
-            return;
-        }
-
-        $pdo->exec(
-            'CREATE TABLE IF NOT EXISTS data_records (' .
-            'id INTEGER PRIMARY KEY AUTOINCREMENT,' .
-            'collection VARCHAR(64) NOT NULL,' .
-            'record_id INTEGER NOT NULL,' .
-            'payload TEXT NOT NULL,' .
-            'created_at VARCHAR(32) NOT NULL DEFAULT \'\',' .
-            'updated_at VARCHAR(32) NOT NULL DEFAULT \'\',' .
-            'UNIQUE(collection, record_id)' .
-            ')'
-        );
-        $pdo->exec('CREATE INDEX IF NOT EXISTS idx_data_records_collection ON data_records(collection)');
-    }
-
-    private function importJsonFilesIfNeeded(PDO $pdo): void
-    {
-        $count = (int) $pdo->query('SELECT COUNT(*) FROM data_records')->fetchColumn();
-        if ($count > 0) {
-            return;
-        }
-
-        $files = glob($this->storagePath . '/*.json') ?: [];
-        if ($files === []) {
-            return;
-        }
-
-        $insert = $pdo->prepare(
-            'INSERT INTO data_records (collection, record_id, payload, created_at, updated_at) VALUES (:collection, :record_id, :payload, :created_at, :updated_at)'
-        );
-
-        $pdo->beginTransaction();
-        try {
-            foreach ($files as $file) {
-                $collection = pathinfo($file, PATHINFO_FILENAME);
-                foreach ($this->readFromFile($collection) as $item) {
-                    $recordId = (int) ($item['id'] ?? 0);
-                    if ($recordId <= 0) {
-                        continue;
-                    }
-
-                    $timestamp = date('c');
-                    $insert->execute([
-                        ':collection' => $collection,
-                        ':record_id' => $recordId,
-                        ':payload' => $this->encodePayload($item),
-                        ':created_at' => $timestamp,
-                        ':updated_at' => $timestamp,
-                    ]);
-                }
-            }
-            $pdo->commit();
-        } catch (Throwable $exception) {
-            $pdo->rollBack();
-            throw $exception;
-        }
-    }
-
-    private function readFromDatabase(string $name): array
-    {
-        $statement = $this->pdo()->prepare('SELECT record_id, payload FROM data_records WHERE collection = :collection ORDER BY record_id ASC');
-        $statement->execute([':collection' => $name]);
-
-        $items = [];
-        foreach ($statement->fetchAll() as $row) {
-            $items[] = $this->decodePayload((string) ($row['payload'] ?? '{}'), (int) ($row['record_id'] ?? 0));
-        }
-
-        return $items;
-    }
-
-    private function findFromDatabase(string $name, int $id): ?array
-    {
-        $statement = $this->pdo()->prepare('SELECT record_id, payload FROM data_records WHERE collection = :collection AND record_id = :record_id LIMIT 1');
-        $statement->execute([
-            ':collection' => $name,
-            ':record_id' => $id,
-        ]);
-
-        $row = $statement->fetch();
-        if ($row === false) {
-            return null;
-        }
-
-        return $this->decodePayload((string) ($row['payload'] ?? '{}'), (int) ($row['record_id'] ?? 0));
-    }
-
-    private function createInDatabase(string $name, array $payload): array
-    {
-        $pdo = $this->pdo();
-        $pdo->beginTransaction();
-
-        try {
-            $payload['id'] = $this->nextIdFromDatabase($name, $pdo);
-            $timestamp = date('c');
-            $statement = $pdo->prepare(
-                'INSERT INTO data_records (collection, record_id, payload, created_at, updated_at) VALUES (:collection, :record_id, :payload, :created_at, :updated_at)'
-            );
-            $statement->execute([
-                ':collection' => $name,
-                ':record_id' => (int) $payload['id'],
-                ':payload' => $this->encodePayload($payload),
-                ':created_at' => $timestamp,
-                ':updated_at' => $timestamp,
-            ]);
-            $pdo->commit();
-
-            return $payload;
-        } catch (Throwable $exception) {
-            $pdo->rollBack();
-            throw $exception;
-        }
-    }
-
-    private function updateInDatabase(string $name, int $id, array $payload): ?array
-    {
-        $current = $this->findFromDatabase($name, $id);
-        if ($current === null) {
-            return null;
-        }
-
-        $updated = array_merge($current, $payload, ['id' => $id]);
-        $statement = $this->pdo()->prepare(
-            'UPDATE data_records SET payload = :payload, updated_at = :updated_at WHERE collection = :collection AND record_id = :record_id'
-        );
-        $statement->execute([
-            ':payload' => $this->encodePayload($updated),
-            ':updated_at' => date('c'),
-            ':collection' => $name,
-            ':record_id' => $id,
-        ]);
-
-        return $updated;
-    }
-
-    private function replaceAllInDatabase(string $name, array $items): void
-    {
-        $pdo = $this->pdo();
-        $pdo->beginTransaction();
-
-        try {
-            $delete = $pdo->prepare('DELETE FROM data_records WHERE collection = :collection');
-            $delete->execute([':collection' => $name]);
-
-            $insert = $pdo->prepare(
-                'INSERT INTO data_records (collection, record_id, payload, created_at, updated_at) VALUES (:collection, :record_id, :payload, :created_at, :updated_at)'
-            );
-
-            $nextId = 1;
-            foreach ($items as $item) {
-                $recordId = (int) ($item['id'] ?? 0);
-                if ($recordId <= 0) {
-                    $recordId = $nextId;
-                    $item['id'] = $recordId;
-                }
-                $nextId = max($nextId, $recordId + 1);
-
-                $timestamp = date('c');
-                $insert->execute([
-                    ':collection' => $name,
-                    ':record_id' => $recordId,
-                    ':payload' => $this->encodePayload($item),
-                    ':created_at' => $timestamp,
-                    ':updated_at' => $timestamp,
-                ]);
-            }
-
-            $pdo->commit();
-        } catch (Throwable $exception) {
-            $pdo->rollBack();
-            throw $exception;
-        }
-    }
-
-    private function deleteFromDatabase(string $name, int $id): ?array
-    {
-        $current = $this->findFromDatabase($name, $id);
-        if ($current === null) {
-            return null;
-        }
-
-        $statement = $this->pdo()->prepare('DELETE FROM data_records WHERE collection = :collection AND record_id = :record_id');
-        $statement->execute([
-            ':collection' => $name,
-            ':record_id' => $id,
-        ]);
-
-        return $current;
     }
 
     private function allFromDedicatedCollection(string $name): array
@@ -652,7 +415,10 @@ final class JsonStore
 
     private function usesDedicatedCollection(string $name): bool
     {
-        return in_array($name, self::IDENTITY_COLLECTIONS, true) || in_array($name, self::DELIVERY_COLLECTIONS, true) || in_array($name, self::COLLABORATION_COLLECTIONS, true) || in_array($name, self::SETTINGS_COLLECTIONS, true);
+        return in_array($name, self::IDENTITY_COLLECTIONS, true)
+            || in_array($name, self::DELIVERY_COLLECTIONS, true)
+            || in_array($name, self::COLLABORATION_COLLECTIONS, true)
+            || in_array($name, self::SETTINGS_COLLECTIONS, true);
     }
 
     private function deliveryStore(?string $driver = null): DeliveryStore
@@ -715,32 +481,6 @@ final class JsonStore
         return $this->identityStore;
     }
 
-    private function nextIdFromDatabase(string $name, PDO $pdo): int
-    {
-        $statement = $pdo->prepare('SELECT MAX(record_id) FROM data_records WHERE collection = :collection');
-        $statement->execute([':collection' => $name]);
-        $currentMax = (int) $statement->fetchColumn();
-
-        return $currentMax > 0 ? $currentMax + 1 : 1;
-    }
-
-    private function decodePayload(string $payload, int $fallbackId): array
-    {
-        $decoded = json_decode($payload, true);
-        if (!is_array($decoded)) {
-            $decoded = [];
-        }
-
-        $decoded['id'] = (int) ($decoded['id'] ?? $fallbackId);
-
-        return $decoded;
-    }
-
-    private function encodePayload(array $payload): string
-    {
-        return json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '{}';
-    }
-
     private function readFromFile(string $name): array
     {
         $file = $this->filePath($name);
@@ -772,17 +512,18 @@ final class JsonStore
         return $ids ? max($ids) + 1 : 1;
     }
 
-    private function databaseRecordCount(): int
-    {
-        return (int) $this->pdo()->query('SELECT COUNT(*) FROM data_records')->fetchColumn();
-    }
-
     private function defaultCollections(): array
     {
         $files = glob($this->storagePath . '/*.json') ?: [];
-        $collections = array_map(
-            static fn (string $file): string => pathinfo($file, PATHINFO_FILENAME),
-            $files
+        $collections = array_merge(
+            self::IDENTITY_COLLECTIONS,
+            self::DELIVERY_COLLECTIONS,
+            self::COLLABORATION_COLLECTIONS,
+            self::SETTINGS_COLLECTIONS,
+            array_map(
+                static fn (string $file): string => pathinfo($file, PATHINFO_FILENAME),
+                $files
+            )
         );
 
         sort($collections);
