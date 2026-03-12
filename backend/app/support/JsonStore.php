@@ -15,6 +15,8 @@ final class JsonStore
 
     private const COLLABORATION_COLLECTIONS = ['worklogs', 'daily_tasks', 'bugs', 'requirement_reviews', 'requirement_attachments'];
 
+    private const SETTINGS_COLLECTIONS = ['policies', 'dictionaries', 'workflows'];
+
     private static ?bool $databaseAvailable = null;
 
     private static ?PDO $pdo = null;
@@ -28,6 +30,8 @@ final class JsonStore
     private ?DeliveryStore $deliveryStore = null;
 
     private ?CollaborationStore $collaborationStore = null;
+
+    private ?SettingsStore $settingsStore = null;
 
     public function __construct(?string $storagePath = null)
     {
@@ -202,6 +206,7 @@ final class JsonStore
             $diagnostics['identity_tables'] = $this->identityStore()->diagnostics();
             $diagnostics['delivery_tables'] = $this->deliveryStore()->diagnostics();
             $diagnostics['collaboration_tables'] = $this->collaborationStore()->diagnostics();
+            $diagnostics['settings_tables'] = $this->settingsStore()->diagnostics();
         }
 
         return $diagnostics;
@@ -244,6 +249,8 @@ final class JsonStore
             $this->deliveryStore($driver)->importIfNeeded();
             $this->collaborationStore($driver)->ensureSchema();
             $this->collaborationStore($driver)->importIfNeeded();
+            $this->settingsStore($driver)->ensureSchema();
+            $this->settingsStore($driver)->importIfNeeded();
 
             return true;
         } catch (Throwable $exception) {
@@ -251,6 +258,7 @@ final class JsonStore
             $this->identityStore = null;
             $this->deliveryStore = null;
             $this->collaborationStore = null;
+            $this->settingsStore = null;
             self::$databaseError = $exception->getMessage();
             return false;
         }
@@ -532,6 +540,9 @@ final class JsonStore
             'bugs' => $this->collaborationStore()->allBugs(),
             'requirement_reviews' => $this->collaborationStore()->allRequirementReviews(),
             'requirement_attachments' => $this->collaborationStore()->allRequirementAttachments(),
+            'policies' => $this->settingsStore()->allPolicies(),
+            'dictionaries' => $this->settingsStore()->allDictionaries(),
+            'workflows' => $this->settingsStore()->allWorkflows(),
             default => [],
         };
     }
@@ -550,6 +561,9 @@ final class JsonStore
             'bugs' => $this->collaborationStore()->findBug($id),
             'requirement_reviews' => $this->collaborationStore()->findRequirementReview($id),
             'requirement_attachments' => $this->collaborationStore()->findRequirementAttachment($id),
+            'policies' => $this->settingsStore()->findPolicy($id),
+            'dictionaries' => $this->settingsStore()->findDictionary($id),
+            'workflows' => $this->settingsStore()->findWorkflow($id),
             default => null,
         };
     }
@@ -568,6 +582,9 @@ final class JsonStore
             'bugs' => $this->collaborationStore()->createBug($payload),
             'requirement_reviews' => $this->collaborationStore()->createRequirementReview($payload),
             'requirement_attachments' => $this->collaborationStore()->createRequirementAttachment($payload),
+            'policies' => $this->settingsStore()->createPolicy($payload),
+            'dictionaries' => $this->settingsStore()->createDictionary($payload),
+            'workflows' => $this->settingsStore()->createWorkflow($payload),
             default => $payload,
         };
     }
@@ -586,6 +603,9 @@ final class JsonStore
             'bugs' => $this->collaborationStore()->updateBug($id, $payload),
             'requirement_reviews' => $this->collaborationStore()->updateRequirementReview($id, $payload),
             'requirement_attachments' => $this->collaborationStore()->updateRequirementAttachment($id, $payload),
+            'policies' => $this->settingsStore()->updatePolicy($id, $payload),
+            'dictionaries' => $this->settingsStore()->updateDictionary($id, $payload),
+            'workflows' => $this->settingsStore()->updateWorkflow($id, $payload),
             default => null,
         };
     }
@@ -603,6 +623,9 @@ final class JsonStore
             'bugs' => $this->collaborationStore()->replaceAllBugs($items),
             'requirement_reviews' => $this->collaborationStore()->replaceAllRequirementReviews($items),
             'requirement_attachments' => $this->collaborationStore()->replaceAllRequirementAttachments($items),
+            'policies' => $this->settingsStore()->replaceAllPolicies($items),
+            'dictionaries' => $this->settingsStore()->replaceAllDictionaries($items),
+            'workflows' => $this->settingsStore()->replaceAllWorkflows($items),
             default => null,
         };
     }
@@ -620,13 +643,16 @@ final class JsonStore
             'bugs' => $this->collaborationStore()->deleteBug($id),
             'requirement_reviews' => $this->collaborationStore()->deleteRequirementReview($id),
             'requirement_attachments' => $this->collaborationStore()->deleteRequirementAttachment($id),
+            'policies' => $this->settingsStore()->deletePolicy($id),
+            'dictionaries' => $this->settingsStore()->deleteDictionary($id),
+            'workflows' => $this->settingsStore()->deleteWorkflow($id),
             default => null,
         };
     }
 
     private function usesDedicatedCollection(string $name): bool
     {
-        return in_array($name, self::IDENTITY_COLLECTIONS, true) || in_array($name, self::DELIVERY_COLLECTIONS, true) || in_array($name, self::COLLABORATION_COLLECTIONS, true);
+        return in_array($name, self::IDENTITY_COLLECTIONS, true) || in_array($name, self::DELIVERY_COLLECTIONS, true) || in_array($name, self::COLLABORATION_COLLECTIONS, true) || in_array($name, self::SETTINGS_COLLECTIONS, true);
     }
 
     private function deliveryStore(?string $driver = null): DeliveryStore
@@ -657,6 +683,21 @@ final class JsonStore
         );
 
         return $this->collaborationStore;
+    }
+
+    private function settingsStore(?string $driver = null): SettingsStore
+    {
+        if ($this->settingsStore instanceof SettingsStore) {
+            return $this->settingsStore;
+        }
+
+        $this->settingsStore = new SettingsStore(
+            $this->pdo(),
+            $driver ?? (string) ($this->currentConnection()['type'] ?? 'sqlite'),
+            $this->storagePath,
+        );
+
+        return $this->settingsStore;
     }
 
     private function identityStore(?string $driver = null): IdentityStore
