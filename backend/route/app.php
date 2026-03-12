@@ -10,6 +10,8 @@ Route::post('api/v1/auth/login', 'AuthApiController/login')->completeMatch(true)
 Route::post('api/v1/auth/logout', 'AuthApiController/logout')->completeMatch(true);
 Route::get('api/v1/auth/me', 'AuthApiController/me')->completeMatch(true);
 Route::get('api/v1/auth/permissions', 'AuthApiController/permissions')->completeMatch(true);
+Route::get('api/v1/system/summary', 'SystemApiController/summary')->completeMatch(true);
+Route::get('api/v1/performance/members', 'PerformanceApiController/members')->completeMatch(true);
 
 Route::post('api/v1/requirements/batch-generate-executions', 'RequirementApiController/batchGenerateExecutions')->completeMatch(true);
 Route::post('api/v1/requirements/batch-generate-tasks', 'RequirementApiController/batchGenerateTasks')->completeMatch(true);
@@ -43,6 +45,9 @@ Route::get('api/v1/worklogs', 'WorklogApiController/index')->completeMatch(true)
 Route::post('api/v1/worklogs', 'WorklogApiController/store')->completeMatch(true);
 Route::get('api/v1/worklogs/<id>', 'WorklogApiController/show')->pattern(['id' => '\d+'])->completeMatch(true);
 Route::patch('api/v1/worklogs/<id>', 'WorklogApiController/update')->pattern(['id' => '\d+'])->completeMatch(true);
+
+Route::get('api/v1/schedules/team-gantt', 'ScheduleApiController/teamGantt')->completeMatch(true);
+Route::get('api/v1/schedules/execution-gantt', 'ScheduleApiController/executionGantt')->completeMatch(true);
 
 Route::post('api/v1/reports/daily/generate', 'ReportApiController/generateDaily')->completeMatch(true);
 Route::post('api/v1/reports/weekly/generate', 'ReportApiController/generateWeekly')->completeMatch(true);
