@@ -458,7 +458,6 @@ final class JsonStore
         }
 
         $this->settingsStore = new SettingsStore(
-            $this->pdo(),
             $driver ?? (string) ($this->currentConnection()['type'] ?? 'sqlite'),
             $this->storagePath,
         );

@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Support;
 
-use PDO;
-use Throwable;
+use app\model\SettingsDictionary;
+use app\model\SettingsPolicy;
+use app\model\SettingsWorkflow;
+use think\Model;
+use think\facade\Db;
 
 final class SettingsStore
 {
@@ -14,7 +17,6 @@ final class SettingsStore
     private const WORKFLOW_COLLECTION = 'workflows';
 
     public function __construct(
-        private readonly PDO $pdo,
         private readonly string $driver,
         private readonly string $storagePath,
     ) {
@@ -42,27 +44,12 @@ final class SettingsStore
                 continue;
             }
 
-            $startedTransaction = !$this->pdo->inTransaction();
-            if ($startedTransaction) {
-                $this->pdo->beginTransaction();
-            }
-
-            try {
+            Db::transaction(function () use ($collection, $items): void {
                 foreach ($items as $item) {
                     $row = $this->toStorageRow($collection, $this->normalizeRecord($collection, $item));
                     $this->insertRow($collection, $row);
                 }
-
-                if ($startedTransaction) {
-                    $this->pdo->commit();
-                }
-            } catch (Throwable $exception) {
-                if ($startedTransaction && $this->pdo->inTransaction()) {
-                    $this->pdo->rollBack();
-                }
-
-                throw $exception;
-            }
+            });
         }
     }
 
@@ -113,45 +100,30 @@ final class SettingsStore
 
     private function all(string $collection): array
     {
-        $statement = $this->pdo->query('SELECT * FROM ' . $this->tableName($collection) . ' ORDER BY id ASC');
-        $rows = $statement->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        $items = [];
+        foreach ($this->modelClass($collection)::order('id', 'asc')->select() as $model) {
+            $items[] = $this->mapRow($collection, $model->toArray());
+        }
 
-        return array_map(fn (array $row): array => $this->mapRow($collection, $row), $rows);
+        return $items;
     }
 
     private function find(string $collection, int $id): ?array
     {
-        $statement = $this->pdo->prepare('SELECT * FROM ' . $this->tableName($collection) . ' WHERE id = :id LIMIT 1');
-        $statement->execute([':id' => $id]);
-        $row = $statement->fetch(PDO::FETCH_ASSOC);
+        $model = $this->modelClass($collection)::find($id);
 
-        return $row === false ? null : $this->mapRow($collection, $row);
+        return $model === null ? null : $this->mapRow($collection, $model->toArray());
     }
 
     private function create(string $collection, array $payload): array
     {
-        $startedTransaction = !$this->pdo->inTransaction();
-        if ($startedTransaction) {
-            $this->pdo->beginTransaction();
-        }
-
-        try {
+        return Db::transaction(function () use ($collection, $payload): array {
             $normalized = $this->normalizeRecord($collection, $payload);
             $row = $this->toStorageRow($collection, $normalized);
             $id = $this->insertRow($collection, $row);
 
-            if ($startedTransaction) {
-                $this->pdo->commit();
-            }
-
             return $this->find($collection, $id) ?? array_merge($normalized, ['id' => $id]);
-        } catch (Throwable $exception) {
-            if ($startedTransaction && $this->pdo->inTransaction()) {
-                $this->pdo->rollBack();
-            }
-
-            throw $exception;
-        }
+        });
     }
 
     private function update(string $collection, int $id, array $payload): ?array
@@ -170,50 +142,21 @@ final class SettingsStore
             date('c'),
         );
 
-        $assignments = [];
-        $params = [':id' => $id];
-        foreach ($row as $column => $value) {
-            if ($column === 'id' || $column === 'created_at') {
-                continue;
-            }
-
-            $assignments[] = $column . ' = :' . $column;
-            $params[':' . $column] = $value;
-        }
-
-        $statement = $this->pdo->prepare(
-            'UPDATE ' . $this->tableName($collection) . ' SET ' . implode(', ', $assignments) . ' WHERE id = :id'
-        );
-        $statement->execute($params);
+        $this->updateRow($collection, $id, $row);
 
         return $this->find($collection, $id);
     }
 
     private function replaceAll(string $collection, array $items): void
     {
-        $startedTransaction = !$this->pdo->inTransaction();
-        if ($startedTransaction) {
-            $this->pdo->beginTransaction();
-        }
-
-        try {
-            $this->pdo->exec('DELETE FROM ' . $this->tableName($collection));
+        Db::transaction(function () use ($collection, $items): void {
+            Db::execute('DELETE FROM ' . $this->tableName($collection));
 
             foreach ($items as $item) {
                 $row = $this->toStorageRow($collection, $this->normalizeRecord($collection, $item));
                 $this->insertRow($collection, $row);
             }
-
-            if ($startedTransaction) {
-                $this->pdo->commit();
-            }
-        } catch (Throwable $exception) {
-            if ($startedTransaction && $this->pdo->inTransaction()) {
-                $this->pdo->rollBack();
-            }
-
-            throw $exception;
-        }
+        });
     }
 
     private function delete(string $collection, int $id): ?array
@@ -223,43 +166,46 @@ final class SettingsStore
             return null;
         }
 
-        $statement = $this->pdo->prepare('DELETE FROM ' . $this->tableName($collection) . ' WHERE id = :id');
-        $statement->execute([':id' => $id]);
+        $model = $this->modelClass($collection)::find($id);
+        if ($model !== null) {
+            $model->delete();
+        }
 
         return $current;
     }
 
     private function rawRow(string $collection, int $id): ?array
     {
-        $statement = $this->pdo->prepare('SELECT * FROM ' . $this->tableName($collection) . ' WHERE id = :id LIMIT 1');
-        $statement->execute([':id' => $id]);
-        $row = $statement->fetch(PDO::FETCH_ASSOC);
+        $model = $this->modelClass($collection)::find($id);
 
-        return $row === false ? null : $row;
+        return $model === null ? null : $model->toArray();
     }
 
     private function insertRow(string $collection, array $row): int
     {
-        $columns = [];
-        $placeholders = [];
-        $params = [];
-
-        foreach ($row as $column => $value) {
-            if ($column === 'id' && ($value === null || (int) $value <= 0)) {
-                continue;
-            }
-
-            $columns[] = $column;
-            $placeholders[] = ':' . $column;
-            $params[':' . $column] = $value;
+        $modelClass = $this->modelClass($collection);
+        $model = new $modelClass();
+        $data = $row;
+        if (!isset($data['id']) || $data['id'] === null || (int) $data['id'] <= 0) {
+            unset($data['id']);
         }
 
-        $statement = $this->pdo->prepare(
-            'INSERT INTO ' . $this->tableName($collection) . ' (' . implode(', ', $columns) . ') VALUES (' . implode(', ', $placeholders) . ')'
-        );
-        $statement->execute($params);
+        $model->save($data);
 
-        return isset($row['id']) && (int) $row['id'] > 0 ? (int) $row['id'] : (int) $this->pdo->lastInsertId();
+        return (int) $model->getAttr('id');
+    }
+
+    private function updateRow(string $collection, int $id, array $row): void
+    {
+        $model = $this->modelClass($collection)::find($id);
+        if ($model === null) {
+            return;
+        }
+
+        $data = $row;
+        unset($data['id']);
+
+        $model->save($data);
     }
 
     private function normalizeRecord(string $collection, array $payload, ?array $current = null): array
@@ -357,6 +303,16 @@ final class SettingsStore
         };
     }
 
+    private function modelClass(string $collection): string
+    {
+        return match ($collection) {
+            self::POLICY_COLLECTION => SettingsPolicy::class,
+            self::DICTIONARY_COLLECTION => SettingsDictionary::class,
+            self::WORKFLOW_COLLECTION => SettingsWorkflow::class,
+            default => throw new \InvalidArgumentException('unsupported_settings_collection'),
+        };
+    }
+
     private function collections(): array
     {
         return [
@@ -378,26 +334,11 @@ final class SettingsStore
 
     private function tableCount(string $collection): int
     {
-        return (int) $this->pdo->query('SELECT COUNT(*) FROM ' . $this->tableName($collection))->fetchColumn();
+        return (int) Db::name($this->tableName($collection))->count();
     }
 
     private function seedRecords(string $collection): array
     {
-        $statement = $this->pdo->prepare('SELECT payload FROM data_records WHERE collection = :collection ORDER BY record_id ASC');
-        $statement->execute([':collection' => $collection]);
-        $rows = $statement->fetchAll(PDO::FETCH_COLUMN) ?: [];
-        if ($rows !== []) {
-            $items = [];
-            foreach ($rows as $payload) {
-                $decoded = json_decode((string) $payload, true);
-                if (is_array($decoded)) {
-                    $items[] = $decoded;
-                }
-            }
-
-            return $items;
-        }
-
         $file = $this->storagePath . '/' . $collection . '.json';
         if (!is_file($file)) {
             return [];
@@ -410,7 +351,7 @@ final class SettingsStore
 
     private function ensureMysqlSchema(): void
     {
-        $this->pdo->exec(
+        Db::execute(
             'CREATE TABLE IF NOT EXISTS `settings_policies` (' .
             '`id` INT UNSIGNED NOT NULL AUTO_INCREMENT,' .
             '`name` VARCHAR(191) NOT NULL,' .
@@ -422,7 +363,7 @@ final class SettingsStore
             'PRIMARY KEY (`id`)' .
             ') ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
         );
-        $this->pdo->exec(
+        Db::execute(
             'CREATE TABLE IF NOT EXISTS `settings_dictionaries` (' .
             '`id` INT UNSIGNED NOT NULL AUTO_INCREMENT,' .
             '`dictionary_key` VARCHAR(64) NOT NULL,' .
@@ -434,7 +375,7 @@ final class SettingsStore
             'UNIQUE KEY `uniq_settings_dictionaries_key` (`dictionary_key`)' .
             ') ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
         );
-        $this->pdo->exec(
+        Db::execute(
             'CREATE TABLE IF NOT EXISTS `settings_workflows` (' .
             '`id` INT UNSIGNED NOT NULL AUTO_INCREMENT,' .
             '`name` VARCHAR(191) NOT NULL,' .
@@ -450,7 +391,7 @@ final class SettingsStore
 
     private function ensureSqliteSchema(): void
     {
-        $this->pdo->exec(
+        Db::execute(
             'CREATE TABLE IF NOT EXISTS settings_policies (' .
             'id INTEGER PRIMARY KEY AUTOINCREMENT,' .
             'name VARCHAR(191) NOT NULL,' .
@@ -461,7 +402,7 @@ final class SettingsStore
             'updated_at VARCHAR(32) NOT NULL DEFAULT \'\'' .
             ')'
         );
-        $this->pdo->exec(
+        Db::execute(
             'CREATE TABLE IF NOT EXISTS settings_dictionaries (' .
             'id INTEGER PRIMARY KEY AUTOINCREMENT,' .
             'dictionary_key VARCHAR(64) NOT NULL UNIQUE,' .
@@ -471,7 +412,7 @@ final class SettingsStore
             'updated_at VARCHAR(32) NOT NULL DEFAULT \'\'' .
             ')'
         );
-        $this->pdo->exec(
+        Db::execute(
             'CREATE TABLE IF NOT EXISTS settings_workflows (' .
             'id INTEGER PRIMARY KEY AUTOINCREMENT,' .
             'name VARCHAR(191) NOT NULL,' .
