@@ -13,6 +13,8 @@ final class JsonStore
 
     private static ?PDO $pdo = null;
 
+    private static ?string $databaseError = null;
+
     private string $storagePath;
 
     public function __construct(?string $storagePath = null)
@@ -118,6 +120,53 @@ final class JsonStore
         return null;
     }
 
+    public function diagnostics(array $collections = []): array
+    {
+        $connection = $this->currentConnection();
+        $driver = (string) ($connection['type'] ?? 'sqlite');
+        $usesDatabase = $this->usesDatabase();
+
+        if ($collections === []) {
+            $collections = $this->defaultCollections();
+        }
+
+        $collectionCounts = [];
+        foreach ($collections as $collection) {
+            $collectionCounts[$collection] = count($this->all($collection));
+        }
+
+        $diagnostics = [
+            'mode' => $usesDatabase ? 'database' : 'file',
+            'preferred_driver' => $driver,
+            'database_available' => $usesDatabase,
+            'database_error' => self::$databaseError,
+            'storage_path' => $this->storagePath,
+            'collection_counts' => $collectionCounts,
+        ];
+
+        if ($driver === 'mysql') {
+            $diagnostics['database'] = [
+                'driver' => 'mysql',
+                'host' => (string) ($connection['hostname'] ?? '127.0.0.1'),
+                'port' => (int) ($connection['hostport'] ?? 3306),
+                'name' => (string) ($connection['database'] ?? 'pm'),
+            ];
+        } else {
+            $sqlitePath = (string) ($connection['database'] ?? (dirname(__DIR__, 2) . '/storage/framework/thinkphp.sqlite'));
+            $diagnostics['database'] = [
+                'driver' => 'sqlite',
+                'path' => $sqlitePath,
+                'exists' => file_exists($sqlitePath),
+            ];
+        }
+
+        if ($usesDatabase) {
+            $diagnostics['database_record_count'] = $this->databaseRecordCount();
+        }
+
+        return $diagnostics;
+    }
+
     private function usesDatabase(): bool
     {
         if (self::$databaseAvailable !== null) {
@@ -133,12 +182,15 @@ final class JsonStore
     {
         $connection = $this->currentConnection();
         $driver = (string) ($connection['type'] ?? 'sqlite');
+        self::$databaseError = null;
 
         if ($driver === 'sqlite' && !extension_loaded('pdo_sqlite')) {
+            self::$databaseError = 'missing_pdo_sqlite_extension';
             return false;
         }
 
         if ($driver === 'mysql' && !extension_loaded('pdo_mysql')) {
+            self::$databaseError = 'missing_pdo_mysql_extension';
             return false;
         }
 
@@ -148,8 +200,9 @@ final class JsonStore
             $this->importJsonFilesIfNeeded(self::$pdo);
 
             return true;
-        } catch (Throwable) {
+        } catch (Throwable $exception) {
             self::$pdo = null;
+            self::$databaseError = $exception->getMessage();
             return false;
         }
     }
@@ -471,6 +524,24 @@ final class JsonStore
         $ids = array_map(static fn (array $item): int => (int) ($item['id'] ?? 0), $items);
 
         return $ids ? max($ids) + 1 : 1;
+    }
+
+    private function databaseRecordCount(): int
+    {
+        return (int) $this->pdo()->query('SELECT COUNT(*) FROM data_records')->fetchColumn();
+    }
+
+    private function defaultCollections(): array
+    {
+        $files = glob($this->storagePath . '/*.json') ?: [];
+        $collections = array_map(
+            static fn (string $file): string => pathinfo($file, PATHINFO_FILENAME),
+            $files
+        );
+
+        sort($collections);
+
+        return array_values(array_unique($collections));
     }
 
     private function pdo(): PDO
