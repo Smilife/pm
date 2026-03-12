@@ -46,11 +46,44 @@ Route::post('api/v1/worklogs', 'WorklogApiController/store')->completeMatch(true
 Route::get('api/v1/worklogs/<id>', 'WorklogApiController/show')->pattern(['id' => '\d+'])->completeMatch(true);
 Route::patch('api/v1/worklogs/<id>', 'WorklogApiController/update')->pattern(['id' => '\d+'])->completeMatch(true);
 
+Route::get('api/v1/daily-tasks', 'DailyTaskApiController/index')->completeMatch(true);
+Route::post('api/v1/daily-tasks', 'DailyTaskApiController/store')->completeMatch(true);
+Route::get('api/v1/daily-tasks/<id>', 'DailyTaskApiController/show')->pattern(['id' => '\d+'])->completeMatch(true);
+Route::patch('api/v1/daily-tasks/<id>', 'DailyTaskApiController/update')->pattern(['id' => '\d+'])->completeMatch(true);
+
+Route::get('api/v1/bugs', 'BugApiController/index')->completeMatch(true);
+Route::post('api/v1/bugs', 'BugApiController/store')->completeMatch(true);
+Route::get('api/v1/bugs/<id>', 'BugApiController/show')->pattern(['id' => '\d+'])->completeMatch(true);
+Route::patch('api/v1/bugs/<id>', 'BugApiController/update')->pattern(['id' => '\d+'])->completeMatch(true);
+Route::post('api/v1/bugs/batch-submit', 'BugApiController/batchSubmit')->completeMatch(true);
+
+Route::get('api/v1/settings/members', 'SettingsApiController/members')->completeMatch(true);
+Route::post('api/v1/settings/members', 'SettingsApiController/storeMember')->completeMatch(true);
+Route::patch('api/v1/settings/members/<id>', 'SettingsApiController/updateMember')->pattern(['id' => '\d+'])->completeMatch(true);
+Route::get('api/v1/settings/roles', 'SettingsApiController/roles')->completeMatch(true);
+Route::post('api/v1/settings/roles', 'SettingsApiController/storeRole')->completeMatch(true);
+Route::patch('api/v1/settings/roles/<id>', 'SettingsApiController/updateRole')->pattern(['id' => '\d+'])->completeMatch(true);
+Route::delete('api/v1/settings/roles/<id>', 'SettingsApiController/destroyRole')->pattern(['id' => '\d+'])->completeMatch(true);
+Route::get('api/v1/settings/policies', 'SettingsApiController/policies')->completeMatch(true);
+Route::post('api/v1/settings/policies', 'SettingsApiController/storePolicy')->completeMatch(true);
+Route::patch('api/v1/settings/policies/<id>', 'SettingsApiController/updatePolicy')->pattern(['id' => '\d+'])->completeMatch(true);
+Route::delete('api/v1/settings/policies/<id>', 'SettingsApiController/destroyPolicy')->pattern(['id' => '\d+'])->completeMatch(true);
+Route::get('api/v1/settings/dictionaries', 'SettingsApiController/dictionaries')->completeMatch(true);
+Route::post('api/v1/settings/dictionaries', 'SettingsApiController/storeDictionary')->completeMatch(true);
+Route::patch('api/v1/settings/dictionaries/<id>', 'SettingsApiController/updateDictionary')->pattern(['id' => '\d+'])->completeMatch(true);
+Route::delete('api/v1/settings/dictionaries/<id>', 'SettingsApiController/destroyDictionary')->pattern(['id' => '\d+'])->completeMatch(true);
+Route::get('api/v1/settings/workflows', 'SettingsApiController/workflows')->completeMatch(true);
+Route::post('api/v1/settings/workflows', 'SettingsApiController/storeWorkflow')->completeMatch(true);
+Route::patch('api/v1/settings/workflows/<id>', 'SettingsApiController/updateWorkflow')->pattern(['id' => '\d+'])->completeMatch(true);
+Route::delete('api/v1/settings/workflows/<id>', 'SettingsApiController/destroyWorkflow')->pattern(['id' => '\d+'])->completeMatch(true);
+
 Route::get('api/v1/schedules/team-gantt', 'ScheduleApiController/teamGantt')->completeMatch(true);
 Route::get('api/v1/schedules/execution-gantt', 'ScheduleApiController/executionGantt')->completeMatch(true);
 
 Route::post('api/v1/reports/daily/generate', 'ReportApiController/generateDaily')->completeMatch(true);
 Route::post('api/v1/reports/weekly/generate', 'ReportApiController/generateWeekly')->completeMatch(true);
+
+Route::post('api/v1/permissions/check', 'PermissionApiController/check')->completeMatch(true);
 
 Route::rule('api/v1', static function (Request $request) {
     return ThinkBridge::dispatch($request);
