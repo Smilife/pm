@@ -4,94 +4,36 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
-use App\Support\Auth;
-use App\Support\JsonStore;
+use App\Service\AuthService;
 use App\Support\Request;
 use App\Support\Response;
 
 final class AuthController
 {
-    private JsonStore $store;
+    private AuthService $service;
 
     public function __construct()
     {
-        $this->store = new JsonStore();
+        $this->service = new AuthService();
     }
 
     public function login(Request $request, array $params): Response
     {
-        $account = trim((string) ($request->body['account'] ?? ''));
-        $password = trim((string) ($request->body['password'] ?? ''));
-
-        if ($account === '' || $password === '') {
-            return Response::error(422, 'missing_credentials', [], $request->requestId);
-        }
-
-        $users = $this->store->all('users');
-        $user = null;
-
-        foreach ($users as $candidate) {
-            $candidateAccount = (string) ($candidate['email'] ?? $candidate['name'] ?? '');
-            $candidateName = (string) ($candidate['name'] ?? '');
-            if ($account === $candidateAccount || $account === $candidateName) {
-                $user = $candidate;
-                break;
-            }
-        }
-
-        if ($user === null || $password !== (string) ($user['password'] ?? '')) {
-            return Response::error(401, 'invalid_credentials', [], $request->requestId);
-        }
-
-        $updatedUser = $this->store->update('users', (int) ($user['id'] ?? 0), [
-            'last_login_at' => date('c'),
-        ]);
-        if ($updatedUser !== null) {
-            $user = $updatedUser;
-        }
-
-        return Response::success([
-            'token' => Auth::tokenForUser($user),
-            'user' => $this->sanitizeUser($user),
-        ], $request->requestId);
+        return $this->service->login($request, $params);
     }
 
     public function logout(Request $request, array $params): Response
     {
-        if (!Auth::isAuthorized($request)) {
-            return Response::error(401, 'unauthorized', [], $request->requestId);
-        }
-
-        return Response::success(['logged_out' => true], $request->requestId);
+        return $this->service->logout($request, $params);
     }
 
     public function me(Request $request, array $params): Response
     {
-        $user = Auth::currentUser($request);
-        if ($user === null) {
-            return Response::error(401, 'unauthorized', [], $request->requestId);
-        }
-
-        return Response::success($this->sanitizeUser($user), $request->requestId);
+        return $this->service->me($request, $params);
     }
 
     public function permissions(Request $request, array $params): Response
     {
-        $user = Auth::currentUser($request);
-        if ($user === null) {
-            return Response::error(401, 'unauthorized', [], $request->requestId);
-        }
-
-        return Response::success([
-            'roles' => $user['roles'] ?? [],
-            'permissions' => $user['permissions'] ?? [],
-        ], $request->requestId);
-    }
-
-    private function sanitizeUser(array $user): array
-    {
-        unset($user['password']);
-
-        return $user;
+        return $this->service->permissions($request, $params);
     }
 }

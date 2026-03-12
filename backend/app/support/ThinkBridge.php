@@ -15,12 +15,12 @@ final class ThinkBridge
         $request = Request::fromThinkRequest($thinkRequest);
 
         if ($request->method !== 'OPTIONS' && $request->path !== '/auth/login' && !Auth::isAuthorized($request)) {
-            return self::toThinkResponse(Response::error(401, 'unauthorized', [], $request->requestId));
+            return ThinkResponseFactory::fromLegacy(Response::error(401, 'unauthorized', [], $request->requestId));
         }
 
         $authorizationError = Authorization::authorizeRequest($request);
         if ($authorizationError !== null) {
-            return self::toThinkResponse($authorizationError);
+            return ThinkResponseFactory::fromLegacy($authorizationError);
         }
 
         $router = new Router();
@@ -43,14 +43,6 @@ final class ThinkBridge
             );
         }
 
-        return self::toThinkResponse($response);
-    }
-
-    private static function toThinkResponse(Response $response): ThinkResponse
-    {
-        return ThinkResponse::create($response->payload(), 'json', $response->statusCode())
-            ->header([
-                'Content-Type' => 'application/json; charset=utf-8',
-            ]);
+        return ThinkResponseFactory::fromLegacy($response);
     }
 }

@@ -6,12 +6,39 @@ use App\Support\ThinkBridge;
 use think\Request;
 use think\facade\Route;
 
+Route::post('api/v1/auth/login', 'AuthApiController/login')->completeMatch(true);
+Route::post('api/v1/auth/logout', 'AuthApiController/logout')->completeMatch(true);
+Route::get('api/v1/auth/me', 'AuthApiController/me')->completeMatch(true);
+Route::get('api/v1/auth/permissions', 'AuthApiController/permissions')->completeMatch(true);
+
+Route::post('api/v1/requirements/batch-generate-executions', 'RequirementApiController/batchGenerateExecutions')->completeMatch(true);
+Route::post('api/v1/requirements/batch-generate-tasks', 'RequirementApiController/batchGenerateTasks')->completeMatch(true);
+Route::get('api/v1/requirements', 'RequirementApiController/index')->completeMatch(true);
+Route::post('api/v1/requirements', 'RequirementApiController/store')->completeMatch(true);
+Route::post('api/v1/requirements/<id>/attachments', 'RequirementApiController/storeAttachment')->pattern(['id' => '\d+'])->completeMatch(true);
+Route::post('api/v1/requirements/<id>/actions/submit-review', 'RequirementApiController/submitForReview')->pattern(['id' => '\d+'])->completeMatch(true);
+Route::post('api/v1/requirements/<id>/reviews', 'RequirementApiController/storeReview')->pattern(['id' => '\d+'])->completeMatch(true);
+Route::get('api/v1/requirements/<id>/reviews', 'RequirementApiController/listReviews')->pattern(['id' => '\d+'])->completeMatch(true);
+Route::get('api/v1/requirements/<id>', 'RequirementApiController/show')->pattern(['id' => '\d+'])->completeMatch(true);
+Route::patch('api/v1/requirements/<id>', 'RequirementApiController/update')->pattern(['id' => '\d+'])->completeMatch(true);
+
+Route::get('api/v1/executions', 'ExecutionApiController/index')->completeMatch(true);
+Route::post('api/v1/executions', 'ExecutionApiController/store')->completeMatch(true);
+Route::get('api/v1/executions/<id>/tasks', 'ExecutionApiController/listTasks')->pattern(['id' => '\d+'])->completeMatch(true);
+Route::get('api/v1/executions/<id>', 'ExecutionApiController/show')->pattern(['id' => '\d+'])->completeMatch(true);
+Route::patch('api/v1/executions/<id>', 'ExecutionApiController/update')->pattern(['id' => '\d+'])->completeMatch(true);
+
+Route::get('api/v1/tasks', 'ExecutionApiController/taskIndex')->completeMatch(true);
+Route::post('api/v1/tasks', 'ExecutionApiController/taskStore')->completeMatch(true);
+Route::get('api/v1/tasks/<id>', 'ExecutionApiController/taskShow')->pattern(['id' => '\d+'])->completeMatch(true);
+Route::patch('api/v1/tasks/<id>', 'ExecutionApiController/taskUpdate')->pattern(['id' => '\d+'])->completeMatch(true);
+
 Route::rule('api/v1', static function (Request $request) {
     return ThinkBridge::dispatch($request);
-}, '*');
+}, '*')->completeMatch(true);
 
 Route::rule('api/v1/<path>', static function (Request $request, string $path) {
     return ThinkBridge::dispatch($request);
 }, '*')->pattern([
     'path' => '.+',
-]);
+])->completeMatch(true);
