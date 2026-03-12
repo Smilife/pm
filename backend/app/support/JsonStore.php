@@ -13,6 +13,8 @@ final class JsonStore
 
     private const DELIVERY_COLLECTIONS = ['projects', 'requirements', 'executions', 'tasks'];
 
+    private const COLLABORATION_COLLECTIONS = ['worklogs', 'daily_tasks', 'bugs', 'requirement_reviews', 'requirement_attachments'];
+
     private static ?bool $databaseAvailable = null;
 
     private static ?PDO $pdo = null;
@@ -24,6 +26,8 @@ final class JsonStore
     private ?IdentityStore $identityStore = null;
 
     private ?DeliveryStore $deliveryStore = null;
+
+    private ?CollaborationStore $collaborationStore = null;
 
     public function __construct(?string $storagePath = null)
     {
@@ -197,6 +201,7 @@ final class JsonStore
             $diagnostics['database_record_count'] = $this->databaseRecordCount();
             $diagnostics['identity_tables'] = $this->identityStore()->diagnostics();
             $diagnostics['delivery_tables'] = $this->deliveryStore()->diagnostics();
+            $diagnostics['collaboration_tables'] = $this->collaborationStore()->diagnostics();
         }
 
         return $diagnostics;
@@ -237,12 +242,15 @@ final class JsonStore
             $this->identityStore($driver)->importIfNeeded();
             $this->deliveryStore($driver)->ensureSchema();
             $this->deliveryStore($driver)->importIfNeeded();
+            $this->collaborationStore($driver)->ensureSchema();
+            $this->collaborationStore($driver)->importIfNeeded();
 
             return true;
         } catch (Throwable $exception) {
             self::$pdo = null;
             $this->identityStore = null;
             $this->deliveryStore = null;
+            $this->collaborationStore = null;
             self::$databaseError = $exception->getMessage();
             return false;
         }
@@ -519,6 +527,11 @@ final class JsonStore
             'requirements' => $this->deliveryStore()->allRequirements(),
             'executions' => $this->deliveryStore()->allExecutions(),
             'tasks' => $this->deliveryStore()->allTasks(),
+            'worklogs' => $this->collaborationStore()->allWorklogs(),
+            'daily_tasks' => $this->collaborationStore()->allDailyTasks(),
+            'bugs' => $this->collaborationStore()->allBugs(),
+            'requirement_reviews' => $this->collaborationStore()->allRequirementReviews(),
+            'requirement_attachments' => $this->collaborationStore()->allRequirementAttachments(),
             default => [],
         };
     }
@@ -532,6 +545,11 @@ final class JsonStore
             'requirements' => $this->deliveryStore()->findRequirement($id),
             'executions' => $this->deliveryStore()->findExecution($id),
             'tasks' => $this->deliveryStore()->findTask($id),
+            'worklogs' => $this->collaborationStore()->findWorklog($id),
+            'daily_tasks' => $this->collaborationStore()->findDailyTask($id),
+            'bugs' => $this->collaborationStore()->findBug($id),
+            'requirement_reviews' => $this->collaborationStore()->findRequirementReview($id),
+            'requirement_attachments' => $this->collaborationStore()->findRequirementAttachment($id),
             default => null,
         };
     }
@@ -545,6 +563,11 @@ final class JsonStore
             'requirements' => $this->deliveryStore()->createRequirement($payload),
             'executions' => $this->deliveryStore()->createExecution($payload),
             'tasks' => $this->deliveryStore()->createTask($payload),
+            'worklogs' => $this->collaborationStore()->createWorklog($payload),
+            'daily_tasks' => $this->collaborationStore()->createDailyTask($payload),
+            'bugs' => $this->collaborationStore()->createBug($payload),
+            'requirement_reviews' => $this->collaborationStore()->createRequirementReview($payload),
+            'requirement_attachments' => $this->collaborationStore()->createRequirementAttachment($payload),
             default => $payload,
         };
     }
@@ -558,6 +581,11 @@ final class JsonStore
             'requirements' => $this->deliveryStore()->updateRequirement($id, $payload),
             'executions' => $this->deliveryStore()->updateExecution($id, $payload),
             'tasks' => $this->deliveryStore()->updateTask($id, $payload),
+            'worklogs' => $this->collaborationStore()->updateWorklog($id, $payload),
+            'daily_tasks' => $this->collaborationStore()->updateDailyTask($id, $payload),
+            'bugs' => $this->collaborationStore()->updateBug($id, $payload),
+            'requirement_reviews' => $this->collaborationStore()->updateRequirementReview($id, $payload),
+            'requirement_attachments' => $this->collaborationStore()->updateRequirementAttachment($id, $payload),
             default => null,
         };
     }
@@ -570,6 +598,11 @@ final class JsonStore
             'requirements' => $this->deliveryStore()->replaceAllRequirements($items),
             'executions' => $this->deliveryStore()->replaceAllExecutions($items),
             'tasks' => $this->deliveryStore()->replaceAllTasks($items),
+            'worklogs' => $this->collaborationStore()->replaceAllWorklogs($items),
+            'daily_tasks' => $this->collaborationStore()->replaceAllDailyTasks($items),
+            'bugs' => $this->collaborationStore()->replaceAllBugs($items),
+            'requirement_reviews' => $this->collaborationStore()->replaceAllRequirementReviews($items),
+            'requirement_attachments' => $this->collaborationStore()->replaceAllRequirementAttachments($items),
             default => null,
         };
     }
@@ -582,13 +615,18 @@ final class JsonStore
             'requirements' => $this->deliveryStore()->deleteRequirement($id),
             'executions' => $this->deliveryStore()->deleteExecution($id),
             'tasks' => $this->deliveryStore()->deleteTask($id),
+            'worklogs' => $this->collaborationStore()->deleteWorklog($id),
+            'daily_tasks' => $this->collaborationStore()->deleteDailyTask($id),
+            'bugs' => $this->collaborationStore()->deleteBug($id),
+            'requirement_reviews' => $this->collaborationStore()->deleteRequirementReview($id),
+            'requirement_attachments' => $this->collaborationStore()->deleteRequirementAttachment($id),
             default => null,
         };
     }
 
     private function usesDedicatedCollection(string $name): bool
     {
-        return in_array($name, self::IDENTITY_COLLECTIONS, true) || in_array($name, self::DELIVERY_COLLECTIONS, true);
+        return in_array($name, self::IDENTITY_COLLECTIONS, true) || in_array($name, self::DELIVERY_COLLECTIONS, true) || in_array($name, self::COLLABORATION_COLLECTIONS, true);
     }
 
     private function deliveryStore(?string $driver = null): DeliveryStore
@@ -604,6 +642,21 @@ final class JsonStore
         );
 
         return $this->deliveryStore;
+    }
+
+    private function collaborationStore(?string $driver = null): CollaborationStore
+    {
+        if ($this->collaborationStore instanceof CollaborationStore) {
+            return $this->collaborationStore;
+        }
+
+        $this->collaborationStore = new CollaborationStore(
+            $this->pdo(),
+            $driver ?? (string) ($this->currentConnection()['type'] ?? 'sqlite'),
+            $this->storagePath,
+        );
+
+        return $this->collaborationStore;
     }
 
     private function identityStore(?string $driver = null): IdentityStore
