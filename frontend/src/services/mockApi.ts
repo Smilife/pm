@@ -29,7 +29,7 @@ const workspaceSummary: WorkspaceSummary = {
   projectOverview: [
     {
       id: 201,
-      name: 'Project Management Platform V1',
+      name: '研发项目主线协同 V1',
       code: 'PM-V1',
       ownerName: 'Zhao Kai',
       status: 'Active',
@@ -46,7 +46,7 @@ const workspaceSummary: WorkspaceSummary = {
     },
     {
       id: 202,
-      name: 'Unified Notification Center',
+      name: '统一通知中心',
       code: 'NOTIFY',
       ownerName: 'Chen Jing',
       status: 'Risk',
@@ -223,7 +223,7 @@ let requirementRecords: RequirementRecord[] = [
 let projects: Project[] = [
   {
     id: 201,
-    name: 'Project Management Platform V1',
+    name: '研发项目主线协同 V1',
     code: 'PM-V1',
     ownerName: 'Zhao Kai',
     status: 'Active',
@@ -232,7 +232,7 @@ let projects: Project[] = [
   },
   {
     id: 202,
-    name: 'Unified Notification Center',
+    name: '统一通知中心',
     code: 'NOTIFY',
     ownerName: 'Chen Jing',
     status: 'Risk',
@@ -244,8 +244,8 @@ let projects: Project[] = [
 let executions: Execution[] = [
   {
     id: 3001,
-    name: 'Build frontend and backend skeleton',
-    projectName: 'Project Management Platform V1',
+    name: '搭建前后端基础工程',
+    projectName: '研发项目主线协同 V1',
     ownerName: 'Wang Jun',
     status: 'InProgress',
     planStart: '2026-03-09',
@@ -255,8 +255,8 @@ let executions: Execution[] = [
   },
   {
     id: 3002,
-    name: 'Implement requirement pool base APIs',
-    projectName: 'Project Management Platform V1',
+    name: '实现需求池基础接口',
+    projectName: '研发项目主线协同 V1',
     ownerName: 'Li Nan',
     status: 'Blocked',
     planStart: '2026-03-10',
@@ -266,8 +266,8 @@ let executions: Execution[] = [
   },
   {
     id: 3003,
-    name: 'Implement daily report aggregation',
-    projectName: 'Project Management Platform V1',
+    name: '实现日报聚合能力',
+    projectName: '研发项目主线协同 V1',
     ownerName: 'Chen Jing',
     status: 'NotStarted',
     planStart: '2026-03-13',
@@ -422,7 +422,7 @@ export const mockApi = {
       const executionId = nextExecutionId() + created.length;
       const execution: Execution = {
         id: executionId,
-        name: `Execution - ${requirement.title}`,
+        name: `执行 - ${requirement.title}`,
         projectName: payload.projectName,
         ownerName: requirement.ownerName,
         status: 'NotStarted',

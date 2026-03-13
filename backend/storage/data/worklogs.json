@@ -1,29 +1,29 @@
 [
-  {
-    "id": 6001,
-    "execution_id": 3001,
-    "execution_name": "Build frontend and backend skeleton",
-    "owner_name": "Wang Jun",
-    "work_date": "2026-03-09",
-    "hours": 4.5,
-    "summary": "Connected requirement page to the real backend APIs."
-  },
-  {
-    "id": 6002,
-    "execution_id": 3002,
-    "execution_name": "Implement requirement pool base APIs",
-    "owner_name": "Li Na",
-    "work_date": "2026-03-08",
-    "hours": 3,
-    "summary": "Reviewed route and payload shape for requirement review endpoints."
-  },
-  {
-    "id": 6003,
-    "execution_id": 3003,
-    "execution_name": "Implement daily report aggregation",
-    "owner_name": "Chen Jing",
-    "work_date": "2026-03-07",
-    "hours": 2.5,
-    "summary": "Drafted the report sections and aligned the next-step template."
-  }
+    {
+        "id": 6001,
+        "execution_id": 3001,
+        "execution_name": "搭建前后端基础工程",
+        "owner_name": "Wang Jun",
+        "work_date": "2026-03-09",
+        "hours": 4.5,
+        "summary": "已将需求页接入真实后端接口。"
+    },
+    {
+        "id": 6002,
+        "execution_id": 3002,
+        "execution_name": "实现需求池基础接口",
+        "owner_name": "Li Na",
+        "work_date": "2026-03-08",
+        "hours": 3,
+        "summary": "已梳理需求评审接口的路由与请求结构。"
+    },
+    {
+        "id": 6003,
+        "execution_id": 3003,
+        "execution_name": "实现日报聚合能力",
+        "owner_name": "Chen Jing",
+        "work_date": "2026-03-07",
+        "hours": 2.5,
+        "summary": "已完成日报分段草稿，并对齐下一步模板。"
+    }
 ]

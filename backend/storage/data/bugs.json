@@ -1,42 +1,42 @@
 [
   {
     "id": 1,
-    "title": "Execution detail drawer misses dependency summary",
+    "title": "执行详情抽屉缺少依赖摘要",
     "severity": "High",
     "priority": "P1",
     "status": "Open",
     "link_type": "execution",
     "link_id": 3001,
-    "link_name": "Build frontend and backend skeleton",
+    "link_name": "搭建前后端基础工程",
     "owner_name": "Wang Jun",
     "reporter_name": "Li Na",
     "reproduction_steps": [
-      "Open the execution detail drawer",
-      "Compare the page against the design notes"
+      "打开执行详情抽屉",
+      "对照设计说明查看信息区"
     ],
-    "expected_result": "Dependencies and blockers should be visible in the detail area.",
-    "actual_result": "The current drawer only shows progress and linked requirements.",
+    "expected_result": "详情区域应展示依赖关系和阻塞信息。",
+    "actual_result": "当前抽屉只展示进度和关联需求。",
     "created_at": "2026-03-07T10:00:00+08:00",
     "updated_at": "2026-03-08T14:30:00+08:00",
     "submitted_at": "2026-03-07T10:05:00+08:00"
   },
   {
     "id": 2,
-    "title": "Daily report regeneration keeps stale excluded tasks",
+    "title": "重新生成日报后仍保留已排除的日常事项",
     "severity": "Medium",
     "priority": "P2",
     "status": "Draft",
     "link_type": "project",
     "link_id": 201,
-    "link_name": "Project Management Platform V1",
+    "link_name": "研发项目主线协同 V1",
     "owner_name": "Wang Jun",
     "reporter_name": "Chen Yu",
     "reproduction_steps": [
-      "Exclude a daily task from reports",
-      "Regenerate the daily report draft"
+      "将某条日常事项排除出汇报",
+      "重新生成日报草稿"
     ],
-    "expected_result": "Excluded tasks should disappear from the regenerated draft.",
-    "actual_result": "A cached entry can still appear in the draft summary.",
+    "expected_result": "已排除事项不应出现在重新生成的草稿中。",
+    "actual_result": "草稿摘要中仍可能出现缓存的旧事项。",
     "created_at": "2026-03-08T09:20:00+08:00",
     "updated_at": "2026-03-08T09:20:00+08:00",
     "submitted_at": null

@@ -1,18 +1,18 @@
 [
-  {
-    "id": 4001,
-    "execution_id": 3001,
-    "name": "Set up frontend build pipeline",
-    "owner_name": "Wang Jun",
-    "status": "Done",
-    "actual_progress": 100
-  },
-  {
-    "id": 4002,
-    "execution_id": 3001,
-    "name": "Implement requirement detail drawer",
-    "owner_name": "Wang Jun",
-    "status": "InProgress",
-    "actual_progress": 60
-  }
+    {
+        "id": 4001,
+        "execution_id": 3001,
+        "name": "搭建前端构建流程",
+        "owner_name": "Wang Jun",
+        "status": "Done",
+        "actual_progress": 100
+    },
+    {
+        "id": 4002,
+        "execution_id": 3001,
+        "name": "实现需求详情抽屉",
+        "owner_name": "Wang Jun",
+        "status": "InProgress",
+        "actual_progress": 60
+    }
 ]

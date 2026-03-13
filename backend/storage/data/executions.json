@@ -1,9 +1,9 @@
 [
   {
     "id": 3001,
-    "name": "Build frontend and backend skeleton",
+    "name": "搭建前后端基础工程",
     "project_id": 201,
-    "project_name": "Project Management Platform V1",
+    "project_name": "研发项目主线协同 V1",
     "owner_name": "Wang Jun",
     "status": "InProgress",
     "plan_start": "2026-03-09",
@@ -14,9 +14,9 @@
   },
   {
     "id": 3002,
-    "name": "Implement requirement pool base APIs",
+    "name": "实现需求池基础接口",
     "project_id": 201,
-    "project_name": "Project Management Platform V1",
+    "project_name": "研发项目主线协同 V1",
     "owner_name": "Li Na",
     "status": "Blocked",
     "plan_start": "2026-03-10",
@@ -27,9 +27,9 @@
   },
   {
     "id": 3003,
-    "name": "Implement daily report aggregation",
+    "name": "实现日报聚合能力",
     "project_id": 201,
-    "project_name": "Project Management Platform V1",
+    "project_name": "研发项目主线协同 V1",
     "owner_name": "Chen Jing",
     "status": "NotStarted",
     "plan_start": "2026-03-13",
