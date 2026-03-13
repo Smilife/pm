@@ -54,6 +54,9 @@ $checks = [
     'daily_tasks' => apiRequest('GET', $baseUrl . '/daily-tasks', null, $authHeaders),
     'bugs' => apiRequest('GET', $baseUrl . '/bugs', null, $authHeaders),
     'policies' => apiRequest('GET', $baseUrl . '/settings/policies', null, $authHeaders),
+    'project_gantt' => apiRequest('GET', $baseUrl . '/schedules/project-gantt', null, $authHeaders),
+    'team_gantt' => apiRequest('GET', $baseUrl . '/schedules/team-gantt', null, $authHeaders),
+    'execution_gantt' => apiRequest('GET', $baseUrl . '/schedules/execution-gantt', null, $authHeaders),
 ];
 
 $summary = [];

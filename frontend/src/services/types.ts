@@ -233,6 +233,27 @@ export interface CreateProjectPayload {
   status: 'Active' | 'Risk' | 'Done';
 }
 
+export interface ProjectScheduleItem {
+  id: number;
+  name: string;
+  code: string;
+  ownerName: string;
+  status: 'Active' | 'Risk' | 'Done';
+  health: 'healthy' | 'watch' | 'risk';
+  planStart: string;
+  planEnd: string;
+  executionCount: number;
+  activeExecutionCount: number;
+  blockedExecutionCount: number;
+  openBugCount: number;
+  riskCount: number;
+  averageProgress: number;
+  dueSoonCount: number;
+  overdueCount: number;
+  executionNames: string[];
+  lastActivityAt: string;
+}
+
 export interface Execution {
   id: number;
   name: string;

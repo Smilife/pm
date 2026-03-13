@@ -258,7 +258,9 @@ body {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 4px;
-}.requirement-attachment-card {
+}
+
+.requirement-attachment-card {
   width: 100%;
   border-radius: 16px;
   background: linear-gradient(180deg, rgba(247, 251, 248, 0.92), rgba(255, 255, 255, 0.98));
@@ -271,4 +273,45 @@ body {
   object-fit: cover;
   border-radius: 12px;
   border: 1px solid rgba(22, 48, 44, 0.08);
+}
+
+.gantt-timeline {
+  min-width: 260px;
+}
+
+.gantt-timeline__labels {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  color: rgba(22, 48, 44, 0.6);
+  font-size: 12px;
+}
+
+.gantt-timeline__track {
+  position: relative;
+  height: 12px;
+  border-radius: 999px;
+  background: rgba(31, 122, 109, 0.12);
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+
+.gantt-timeline__bar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 999px;
+  box-shadow: 0 8px 16px rgba(22, 48, 44, 0.16);
+}
+
+.gantt-timeline__bar--healthy {
+  background: linear-gradient(90deg, #2da895, #57c4b3);
+}
+
+.gantt-timeline__bar--watch {
+  background: linear-gradient(90deg, #f0a202, #f7c75d);
+}
+
+.gantt-timeline__bar--risk {
+  background: linear-gradient(90deg, #d64545, #f26d6d);
 }

@@ -75,6 +75,7 @@ Route::post('api/v1/settings/workflows', 'SettingsApiController/storeWorkflow')-
 Route::patch('api/v1/settings/workflows/<id>', 'SettingsApiController/updateWorkflow')->pattern(['id' => '\d+'])->completeMatch(true);
 Route::delete('api/v1/settings/workflows/<id>', 'SettingsApiController/destroyWorkflow')->pattern(['id' => '\d+'])->completeMatch(true);
 
+Route::get('api/v1/schedules/project-gantt', 'ScheduleApiController/projectGantt')->completeMatch(true);
 Route::get('api/v1/schedules/team-gantt', 'ScheduleApiController/teamGantt')->completeMatch(true);
 Route::get('api/v1/schedules/execution-gantt', 'ScheduleApiController/executionGantt')->completeMatch(true);
 
@@ -82,4 +83,5 @@ Route::post('api/v1/reports/daily/generate', 'ReportApiController/generateDaily'
 Route::post('api/v1/reports/weekly/generate', 'ReportApiController/generateWeekly')->completeMatch(true);
 
 Route::post('api/v1/permissions/check', 'PermissionApiController/check')->completeMatch(true);
+
 

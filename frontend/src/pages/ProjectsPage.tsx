@@ -1,7 +1,8 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Card, Form, Input, Modal, Select, Space, Table, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
+import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '../components/PageHeader';
 import { StatusTag } from '../components/StatusTag';
 import { useAuthStore } from '../store/authStore';
@@ -21,7 +22,9 @@ const columns: ColumnsType<Project> = [
 export function ProjectsPage() {
   const permissions = useAuthStore((state) => state.permissions);
   const currentUserName = useAuthStore((state) => state.user?.name ?? 'Wang Jun');
+  const navigate = useNavigate();
   const canCreateProject = permissions.includes('project.create.org');
+  const canViewSchedule = permissions.includes('schedule.view.related');
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [messageApi, contextHolder] = message.useMessage();
   const [form] = Form.useForm<CreateProjectPayload>();
@@ -70,13 +73,18 @@ export function ProjectsPage() {
       {contextHolder}
       <PageHeader
         title="项目"
-        description="用于查看项目健康度和基础交付信息。"
+        description="用于查看项目健康度、交付规模和项目级排期。"
         extra={
-          canCreateProject ? (
-            <Button type="primary" onClick={openCreateModal}>
-              新建项目
-            </Button>
-          ) : null
+          <Space>
+            {canViewSchedule ? (
+              <Button onClick={() => navigate('/gantt?view=project')}>项目甘特图</Button>
+            ) : null}
+            {canCreateProject ? (
+              <Button type="primary" onClick={openCreateModal}>
+                新建项目
+              </Button>
+            ) : null}
+          </Space>
         }
       />
       <Card title="项目列表">

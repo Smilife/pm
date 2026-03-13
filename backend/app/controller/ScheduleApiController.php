@@ -16,6 +16,11 @@ final class ScheduleApiController extends BaseApiController
     ) {
     }
 
+    public function projectGantt(ThinkRequest $request): ThinkResponse
+    {
+        return $this->run($request, fn (ApiContext $apiRequest) => $this->service->projectGantt($apiRequest, []));
+    }
+
     public function teamGantt(ThinkRequest $request): ThinkResponse
     {
         return $this->run($request, fn (ApiContext $apiRequest) => $this->service->teamGantt($apiRequest, []));

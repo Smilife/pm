@@ -25,6 +25,7 @@ import type {
   PerformanceRange,
   PerformanceSummary,
   Project,
+  ProjectScheduleItem,
   Requirement,
   RequirementAttachment,
   RequirementDetail,
@@ -387,6 +388,29 @@ function mapExecutionScheduleItem(item: any): ExecutionScheduleItem {
     projectName: String(item?.project_name ?? ''),
     planStart: String(item?.plan_start ?? ''),
     planEnd: String(item?.plan_end ?? ''),
+  };
+}
+
+function mapProjectScheduleItem(item: any): ProjectScheduleItem {
+  return {
+    id: Number(item?.id ?? 0),
+    name: String(item?.name ?? ''),
+    code: String(item?.code ?? ''),
+    ownerName: String(item?.owner_name ?? ''),
+    status: item?.status ?? 'Active',
+    health: item?.health ?? 'healthy',
+    planStart: String(item?.plan_start ?? ''),
+    planEnd: String(item?.plan_end ?? ''),
+    executionCount: Number(item?.execution_count ?? 0),
+    activeExecutionCount: Number(item?.active_execution_count ?? 0),
+    blockedExecutionCount: Number(item?.blocked_execution_count ?? 0),
+    openBugCount: Number(item?.open_bug_count ?? 0),
+    riskCount: Number(item?.risk_count ?? 0),
+    averageProgress: Number(item?.average_progress ?? 0),
+    dueSoonCount: Number(item?.due_soon_count ?? 0),
+    overdueCount: Number(item?.overdue_count ?? 0),
+    executionNames: toStringArray(item?.execution_names),
+    lastActivityAt: formatDateTime(item?.last_activity_at),
   };
 }
 
@@ -1100,6 +1124,10 @@ export const pmApi = {
 
     return mapSettingsWorkflow(data);
   },
+  async getProjectSchedule(): Promise<ProjectScheduleItem[]> {
+    const data = await request<any>('/schedules/project-gantt');
+    return Array.isArray(data?.items) ? data.items.map(mapProjectScheduleItem) : [];
+  },
   async getTeamSchedule(): Promise<TeamScheduleItem[]> {
     const data = await request<any>('/schedules/team-gantt');
     return Array.isArray(data?.items) ? data.items.map(mapTeamScheduleItem) : [];
@@ -1117,4 +1145,5 @@ export const pmApi = {
     return mapWeeklyReport(data);
   },
 };
+
 
