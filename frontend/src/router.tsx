@@ -1,17 +1,20 @@
+import { Suspense, lazy } from 'react';
+import { Spin } from 'antd';
 import { createBrowserRouter } from 'react-router-dom';
 import { ProtectedAppShell, PublicLoginRoute, PermissionGuard } from './auth/AuthRoutes';
-import { WorkspacePage } from './pages/WorkspacePage';
-import { RequirementsPage } from './pages/RequirementsPage';
-import { ProjectsPage } from './pages/ProjectsPage';
-import { ExecutionsPage } from './pages/ExecutionsPage';
-import { BugsPage } from './pages/BugsPage';
-import { DailyTasksPage } from './pages/DailyTasksPage';
-import { ReportsDailyPage } from './pages/ReportsDailyPage';
-import { ReportsWeeklyPage } from './pages/ReportsWeeklyPage';
-import { GanttPage } from './pages/GanttPage';
-import { PerformancePage } from './pages/PerformancePage';
-import { SettingsPage } from './pages/SettingsPage';
-import { NotFoundPage } from './pages/NotFoundPage';
+
+const WorkspacePage = lazy(() => import('./pages/WorkspacePage').then((module) => ({ default: module.WorkspacePage })));
+const RequirementsPage = lazy(() => import('./pages/RequirementsPage').then((module) => ({ default: module.RequirementsPage })));
+const ProjectsPage = lazy(() => import('./pages/ProjectsPage').then((module) => ({ default: module.ProjectsPage })));
+const ExecutionsPage = lazy(() => import('./pages/ExecutionsPage').then((module) => ({ default: module.ExecutionsPage })));
+const BugsPage = lazy(() => import('./pages/BugsPage').then((module) => ({ default: module.BugsPage })));
+const DailyTasksPage = lazy(() => import('./pages/DailyTasksPage').then((module) => ({ default: module.DailyTasksPage })));
+const ReportsDailyPage = lazy(() => import('./pages/ReportsDailyPage').then((module) => ({ default: module.ReportsDailyPage })));
+const ReportsWeeklyPage = lazy(() => import('./pages/ReportsWeeklyPage').then((module) => ({ default: module.ReportsWeeklyPage })));
+const GanttPage = lazy(() => import('./pages/GanttPage').then((module) => ({ default: module.GanttPage })));
+const PerformancePage = lazy(() => import('./pages/PerformancePage').then((module) => ({ default: module.PerformancePage })));
+const SettingsPage = lazy(() => import('./pages/SettingsPage').then((module) => ({ default: module.SettingsPage })));
+const NotFoundPage = lazy(() => import('./pages/NotFoundPage').then((module) => ({ default: module.NotFoundPage })));
 
 const settingsPermissions = [
   'settings.member.manage.org',
@@ -20,6 +23,19 @@ const settingsPermissions = [
   'settings.dictionary.view.org',
   'settings.workflow.view.org',
 ];
+
+function RouteLoading() {
+  return (
+    <div className="auth-screen auth-screen--loading">
+      <Spin size="large" />
+      <div>正在加载页面...</div>
+    </div>
+  );
+}
+
+function withLazyPage(element: JSX.Element) {
+  return <Suspense fallback={<RouteLoading />}>{element}</Suspense>;
+}
 
 export const router = createBrowserRouter([
   {
@@ -30,13 +46,13 @@ export const router = createBrowserRouter([
     path: '/',
     element: <ProtectedAppShell />,
     children: [
-      { index: true, element: <WorkspacePage /> },
-      { path: 'workspace', element: <WorkspacePage /> },
+      { index: true, element: withLazyPage(<WorkspacePage />) },
+      { path: 'workspace', element: withLazyPage(<WorkspacePage />) },
       {
         path: 'requirements',
         element: (
           <PermissionGuard permission="requirement.view.related">
-            <RequirementsPage />
+            {withLazyPage(<RequirementsPage />)}
           </PermissionGuard>
         ),
       },
@@ -44,7 +60,7 @@ export const router = createBrowserRouter([
         path: 'projects',
         element: (
           <PermissionGuard permission="project.view.related">
-            <ProjectsPage />
+            {withLazyPage(<ProjectsPage />)}
           </PermissionGuard>
         ),
       },
@@ -52,7 +68,7 @@ export const router = createBrowserRouter([
         path: 'executions',
         element: (
           <PermissionGuard permission="execution.view.related">
-            <ExecutionsPage />
+            {withLazyPage(<ExecutionsPage />)}
           </PermissionGuard>
         ),
       },
@@ -60,7 +76,7 @@ export const router = createBrowserRouter([
         path: 'bugs',
         element: (
           <PermissionGuard permission="bug.view.related">
-            <BugsPage />
+            {withLazyPage(<BugsPage />)}
           </PermissionGuard>
         ),
       },
@@ -68,7 +84,7 @@ export const router = createBrowserRouter([
         path: 'daily-tasks',
         element: (
           <PermissionGuard permission="daily_task.view.self">
-            <DailyTasksPage />
+            {withLazyPage(<DailyTasksPage />)}
           </PermissionGuard>
         ),
       },
@@ -76,7 +92,7 @@ export const router = createBrowserRouter([
         path: 'reports/daily',
         element: (
           <PermissionGuard permission="report.daily.generate.self">
-            <ReportsDailyPage />
+            {withLazyPage(<ReportsDailyPage />)}
           </PermissionGuard>
         ),
       },
@@ -84,7 +100,7 @@ export const router = createBrowserRouter([
         path: 'reports/weekly',
         element: (
           <PermissionGuard permission="report.weekly.generate.self">
-            <ReportsWeeklyPage />
+            {withLazyPage(<ReportsWeeklyPage />)}
           </PermissionGuard>
         ),
       },
@@ -92,7 +108,7 @@ export const router = createBrowserRouter([
         path: 'gantt',
         element: (
           <PermissionGuard permission="schedule.view.related">
-            <GanttPage />
+            {withLazyPage(<GanttPage />)}
           </PermissionGuard>
         ),
       },
@@ -100,7 +116,7 @@ export const router = createBrowserRouter([
         path: 'performance',
         element: (
           <PermissionGuard permission="execution.view.related">
-            <PerformancePage />
+            {withLazyPage(<PerformancePage />)}
           </PermissionGuard>
         ),
       },
@@ -108,7 +124,7 @@ export const router = createBrowserRouter([
         path: 'settings',
         element: (
           <PermissionGuard permissions={settingsPermissions}>
-            <SettingsPage />
+            {withLazyPage(<SettingsPage />)}
           </PermissionGuard>
         ),
       },
@@ -116,6 +132,6 @@ export const router = createBrowserRouter([
   },
   {
     path: '*',
-    element: <NotFoundPage />,
+    element: withLazyPage(<NotFoundPage />),
   },
 ]);

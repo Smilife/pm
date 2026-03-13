@@ -20,3 +20,5 @@ tools/composer-setup.php
 Thumbs.db
 backend/.env
 backend/.env.local
+backend/storage/data/requirement_attachments.json
+tmp_utf8_test.txt
