@@ -655,7 +655,7 @@ body {
   }
 }
 .gantt-board {
-  padding-bottom: 10px;
+  padding-bottom: 4px;
 }
 
 .gantt-board__viewport {
@@ -674,12 +674,12 @@ body {
 }
 
 .gantt-board__row > :nth-child(2) {
-  left: 360px;
+  left: 320px;
 }
 
 .gantt-board__row > :nth-child(3) {
-  left: 540px;
-  box-shadow: 14px 0 20px rgba(22, 48, 44, 0.08);
+  left: 470px;
+  box-shadow: 12px 0 18px rgba(22, 48, 44, 0.07);
 }
 
 .gantt-board__row--header > :nth-child(-n + 3) {
@@ -687,28 +687,28 @@ body {
 }
 
 .gantt-board__head {
-  padding: 16px 18px;
-  font-size: 13px;
+  padding: 12px 14px;
+  font-size: 12px;
 }
 
 .gantt-board__cell {
-  min-height: 128px;
-  padding: 18px 18px;
+  min-height: 92px;
+  padding: 12px 14px;
 }
 
 .gantt-axis__month {
-  padding: 12px 14px;
-  font-size: 13px;
+  padding: 8px 10px;
+  font-size: 12px;
 }
 
 .gantt-axis__day {
-  padding: 12px 4px;
-  gap: 4px;
+  padding: 8px 4px;
+  gap: 2px;
 }
 
 .gantt-hierarchy {
   width: 100%;
-  gap: 8px;
+  gap: 4px;
 }
 
 .gantt-hierarchy .ant-typography {
@@ -716,35 +716,35 @@ body {
 }
 
 .gantt-progress-cell {
-  gap: 8px;
+  gap: 4px;
 }
 
 .gantt-lane {
-  min-height: 128px;
+  min-height: 92px;
 }
 
 .gantt-lane__content {
-  min-height: 128px;
-  padding: 18px 20px;
-  gap: 10px;
+  min-height: 92px;
+  padding: 12px 14px;
+  gap: 6px;
 }
 
 .gantt-lane__bar-wrap {
-  height: 40px;
+  height: 28px;
 }
 
 .gantt-lane__bar {
-  top: 5px;
-  bottom: 5px;
+  top: 3px;
+  bottom: 2px;
 }
 
 .gantt-lane__bar--project {
-  top: 3px;
-  bottom: 3px;
+  top: 2px;
+  bottom: 2px;
 }
 
 .gantt-lane__meta {
-  gap: 4px;
+  gap: 2px;
 }
 
 .gantt-lane__meta .ant-typography:first-child {
@@ -772,5 +772,5 @@ body {
 }
 
 .gantt-hierarchy__header .ant-btn {
-  padding-inline: 4px;
+  padding-inline: 2px;
 }

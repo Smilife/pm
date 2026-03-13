@@ -879,11 +879,11 @@ function buildDayColumns(dayCount: number): string {
 }
 
 function getTimelineWidth(range: TimelineRange | null): number {
-  return Math.max((range?.totalDays ?? 0) * 56, 960);
+  return Math.max((range?.totalDays ?? 0) * 48, 840);
 }
 
 function buildBoardColumns(timelineWidth: number): string {
-  return `360px 180px 200px ${timelineWidth}px`;
+  return `320px 150px 180px ${timelineWidth}px`;
 }
 
 function getTimelineMetrics(startValue: string, endValue: string, range: TimelineRange | null): { left: number; width: number } | null {
