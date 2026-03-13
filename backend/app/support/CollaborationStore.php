@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace App\Support;
 
-use PDO;
-use Throwable;
+use app\model\CollaborationBug;
+use app\model\CollaborationDailyTask;
+use app\model\CollaborationRequirementAttachment;
+use app\model\CollaborationRequirementReview;
+use app\model\CollaborationWorklog;
+use think\facade\Db;
 
 final class CollaborationStore
 {
@@ -16,7 +20,6 @@ final class CollaborationStore
     private const REQUIREMENT_ATTACHMENT_COLLECTION = 'requirement_attachments';
 
     public function __construct(
-        private readonly PDO $pdo,
         private readonly string $driver,
         private readonly string $storagePath,
     ) {
@@ -44,24 +47,12 @@ final class CollaborationStore
                 continue;
             }
 
-            $startedTransaction = !$this->pdo->inTransaction();
-            if ($startedTransaction) {
-                $this->pdo->beginTransaction();
-            }
-
-            try {
+            Db::transaction(function () use ($collection, $items): void {
                 foreach ($items as $item) {
-                    $this->insertRow($collection, $this->rowFromRecord($collection, $this->normalizeRecord($collection, $item)));
+                    $row = $this->rowFromRecord($collection, $this->normalizeRecord($collection, $item));
+                    $this->insertRow($collection, $row);
                 }
-                if ($startedTransaction) {
-                    $this->pdo->commit();
-                }
-            } catch (Throwable $exception) {
-                if ($startedTransaction && $this->pdo->inTransaction()) {
-                    $this->pdo->rollBack();
-                }
-                throw $exception;
-            }
+            });
         }
     }
 
@@ -113,42 +104,29 @@ final class CollaborationStore
 
     private function all(string $collection): array
     {
-        $statement = $this->pdo->query('SELECT * FROM ' . $this->tableName($collection) . ' ORDER BY id ASC');
-        $rows = $statement->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        $items = [];
+        foreach ($this->modelClass($collection)::order('id', 'asc')->select() as $model) {
+            $items[] = $this->recordFromRow($collection, $model->toArray());
+        }
 
-        return array_map(fn (array $row): array => $this->recordFromRow($collection, $row), $rows);
+        return $items;
     }
 
     private function find(string $collection, int $id): ?array
     {
-        $statement = $this->pdo->prepare('SELECT * FROM ' . $this->tableName($collection) . ' WHERE id = :id LIMIT 1');
-        $statement->execute([':id' => $id]);
-        $row = $statement->fetch(PDO::FETCH_ASSOC);
+        $model = $this->modelClass($collection)::find($id);
 
-        return $row === false ? null : $this->recordFromRow($collection, $row);
+        return $model === null ? null : $this->recordFromRow($collection, $model->toArray());
     }
 
     private function create(string $collection, array $payload): array
     {
-        $startedTransaction = !$this->pdo->inTransaction();
-        if ($startedTransaction) {
-            $this->pdo->beginTransaction();
-        }
-
-        try {
+        return Db::transaction(function () use ($collection, $payload): array {
             $record = $this->normalizeRecord($collection, $payload);
             $id = $this->insertRow($collection, $this->rowFromRecord($collection, $record));
-            if ($startedTransaction) {
-                $this->pdo->commit();
-            }
 
             return $this->find($collection, $id) ?? array_merge($record, ['id' => $id]);
-        } catch (Throwable $exception) {
-            if ($startedTransaction && $this->pdo->inTransaction()) {
-                $this->pdo->rollBack();
-            }
-            throw $exception;
-        }
+        });
     }
 
     private function update(string $collection, int $id, array $payload): ?array
@@ -160,45 +138,26 @@ final class CollaborationStore
 
         $current = $this->recordFromRow($collection, $currentRow);
         $record = $this->normalizeRecord($collection, $payload, $current);
-        $row = $this->rowFromRecord($collection, array_merge($record, ['id' => $id]), (string) ($currentRow['created_at'] ?? date('c')), date('c'));
+        $row = $this->rowFromRecord(
+            $collection,
+            array_merge($record, ['id' => $id]),
+            (string) ($currentRow['created_at'] ?? date('c')),
+            date('c'),
+        );
 
-        $assignments = [];
-        $params = [':id' => $id];
-        foreach ($row as $column => $value) {
-            if ($column === 'id' || $column === 'created_at') {
-                continue;
-            }
-            $assignments[] = $column . ' = :' . $column;
-            $params[':' . $column] = $value;
-        }
-
-        $statement = $this->pdo->prepare('UPDATE ' . $this->tableName($collection) . ' SET ' . implode(', ', $assignments) . ' WHERE id = :id');
-        $statement->execute($params);
+        $this->updateRow($collection, $id, $row);
 
         return $this->find($collection, $id);
     }
 
     private function replaceAll(string $collection, array $items): void
     {
-        $startedTransaction = !$this->pdo->inTransaction();
-        if ($startedTransaction) {
-            $this->pdo->beginTransaction();
-        }
-
-        try {
-            $this->pdo->exec('DELETE FROM ' . $this->tableName($collection));
+        Db::transaction(function () use ($collection, $items): void {
+            Db::execute('DELETE FROM ' . $this->tableName($collection));
             foreach ($items as $item) {
                 $this->insertRow($collection, $this->rowFromRecord($collection, $this->normalizeRecord($collection, $item)));
             }
-            if ($startedTransaction) {
-                $this->pdo->commit();
-            }
-        } catch (Throwable $exception) {
-            if ($startedTransaction && $this->pdo->inTransaction()) {
-                $this->pdo->rollBack();
-            }
-            throw $exception;
-        }
+        });
     }
 
     private function delete(string $collection, int $id): ?array
@@ -208,41 +167,45 @@ final class CollaborationStore
             return null;
         }
 
-        $statement = $this->pdo->prepare('DELETE FROM ' . $this->tableName($collection) . ' WHERE id = :id');
-        $statement->execute([':id' => $id]);
+        $model = $this->modelClass($collection)::find($id);
+        if ($model !== null) {
+            $model->delete();
+        }
 
         return $current;
     }
 
     private function insertRow(string $collection, array $row): int
     {
-        $columns = [];
-        $placeholders = [];
-        $params = [];
-
-        foreach ($row as $column => $value) {
-            if ($column === 'id' && ($value === null || (int) $value <= 0)) {
-                continue;
-            }
-
-            $columns[] = $column;
-            $placeholders[] = ':' . $column;
-            $params[':' . $column] = $value;
+        $modelClass = $this->modelClass($collection);
+        $model = new $modelClass();
+        $data = $row;
+        if (!isset($data['id']) || $data['id'] === null || (int) $data['id'] <= 0) {
+            unset($data['id']);
         }
 
-        $statement = $this->pdo->prepare('INSERT INTO ' . $this->tableName($collection) . ' (' . implode(', ', $columns) . ') VALUES (' . implode(', ', $placeholders) . ')');
-        $statement->execute($params);
+        $model->save($data);
 
-        return isset($row['id']) && (int) $row['id'] > 0 ? (int) $row['id'] : (int) $this->pdo->lastInsertId();
+        return (int) $model->getAttr('id');
+    }
+
+    private function updateRow(string $collection, int $id, array $row): void
+    {
+        $model = $this->modelClass($collection)::find($id);
+        if ($model === null) {
+            return;
+        }
+
+        $data = $row;
+        unset($data['id']);
+        $model->save($data);
     }
 
     private function rawRow(string $collection, int $id): ?array
     {
-        $statement = $this->pdo->prepare('SELECT * FROM ' . $this->tableName($collection) . ' WHERE id = :id LIMIT 1');
-        $statement->execute([':id' => $id]);
-        $row = $statement->fetch(PDO::FETCH_ASSOC);
+        $model = $this->modelClass($collection)::find($id);
 
-        return $row === false ? null : $row;
+        return $model === null ? null : $model->toArray();
     }
 
     private function recordFromRow(string $collection, array $row): array
@@ -412,6 +375,18 @@ final class CollaborationStore
         };
     }
 
+    private function modelClass(string $collection): string
+    {
+        return match ($collection) {
+            self::WORKLOG_COLLECTION => CollaborationWorklog::class,
+            self::DAILY_TASK_COLLECTION => CollaborationDailyTask::class,
+            self::BUG_COLLECTION => CollaborationBug::class,
+            self::REQUIREMENT_REVIEW_COLLECTION => CollaborationRequirementReview::class,
+            self::REQUIREMENT_ATTACHMENT_COLLECTION => CollaborationRequirementAttachment::class,
+            default => throw new \InvalidArgumentException('unsupported_collaboration_collection'),
+        };
+    }
+
     private function collections(): array
     {
         return [
@@ -437,25 +412,11 @@ final class CollaborationStore
 
     private function tableCount(string $collection): int
     {
-        return (int) $this->pdo->query('SELECT COUNT(*) FROM ' . $this->tableName($collection))->fetchColumn();
+        return (int) Db::name($this->tableName($collection))->count();
     }
 
     private function seedRecords(string $collection): array
     {
-        $statement = $this->pdo->prepare('SELECT payload FROM data_records WHERE collection = :collection ORDER BY record_id ASC');
-        $statement->execute([':collection' => $collection]);
-        $rows = $statement->fetchAll(PDO::FETCH_COLUMN) ?: [];
-        if ($rows !== []) {
-            $items = [];
-            foreach ($rows as $payload) {
-                $decoded = json_decode((string) $payload, true);
-                if (is_array($decoded)) {
-                    $items[] = $decoded;
-                }
-            }
-            return $items;
-        }
-
         $file = $this->storagePath . '/' . $collection . '.json';
         if (!is_file($file)) {
             return [];
@@ -482,24 +443,24 @@ final class CollaborationStore
 
     private function ensureMysqlSchema(): void
     {
-        $this->pdo->exec('CREATE TABLE IF NOT EXISTS `collaboration_worklogs` (`id` INT UNSIGNED NOT NULL AUTO_INCREMENT, `execution_id` INT NOT NULL DEFAULT 0, `owner_name` VARCHAR(128) NOT NULL, `work_date` VARCHAR(32) NOT NULL, `payload_json` LONGTEXT NOT NULL, `created_at` VARCHAR(32) NOT NULL DEFAULT \'\', `updated_at` VARCHAR(32) NOT NULL DEFAULT \'\', PRIMARY KEY (`id`), KEY `idx_collaboration_worklogs_execution` (`execution_id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
-        $this->pdo->exec('CREATE TABLE IF NOT EXISTS `collaboration_daily_tasks` (`id` INT UNSIGNED NOT NULL AUTO_INCREMENT, `owner_name` VARCHAR(128) NOT NULL, `status` VARCHAR(32) NOT NULL, `due_at` VARCHAR(32) NOT NULL, `exclude_from_report` TINYINT(1) NOT NULL DEFAULT 0, `payload_json` LONGTEXT NOT NULL, `created_at` VARCHAR(32) NOT NULL DEFAULT \'\', `updated_at` VARCHAR(32) NOT NULL DEFAULT \'\', PRIMARY KEY (`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
-        $this->pdo->exec('CREATE TABLE IF NOT EXISTS `collaboration_bugs` (`id` INT UNSIGNED NOT NULL AUTO_INCREMENT, `status` VARCHAR(32) NOT NULL, `link_type` VARCHAR(32) NOT NULL, `link_id` INT NOT NULL DEFAULT 0, `owner_name` VARCHAR(128) NOT NULL, `reporter_name` VARCHAR(128) NOT NULL, `submitted_at` VARCHAR(32) DEFAULT NULL, `payload_json` LONGTEXT NOT NULL, `created_at` VARCHAR(32) NOT NULL DEFAULT \'\', `updated_at` VARCHAR(32) NOT NULL DEFAULT \'\', PRIMARY KEY (`id`), KEY `idx_collaboration_bugs_link` (`link_type`, `link_id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
-        $this->pdo->exec('CREATE TABLE IF NOT EXISTS `collaboration_requirement_reviews` (`id` INT UNSIGNED NOT NULL AUTO_INCREMENT, `requirement_id` INT NOT NULL DEFAULT 0, `reviewed_at` VARCHAR(32) NOT NULL, `payload_json` LONGTEXT NOT NULL, `created_at` VARCHAR(32) NOT NULL DEFAULT \'\', `updated_at` VARCHAR(32) NOT NULL DEFAULT \'\', PRIMARY KEY (`id`), KEY `idx_collaboration_requirement_reviews_requirement` (`requirement_id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
-        $this->pdo->exec('CREATE TABLE IF NOT EXISTS `collaboration_requirement_attachments` (`id` INT UNSIGNED NOT NULL AUTO_INCREMENT, `requirement_id` INT NOT NULL DEFAULT 0, `file_type` VARCHAR(32) NOT NULL, `uploaded_at` VARCHAR(32) NOT NULL, `payload_json` LONGTEXT NOT NULL, `created_at` VARCHAR(32) NOT NULL DEFAULT \'\', `updated_at` VARCHAR(32) NOT NULL DEFAULT \'\', PRIMARY KEY (`id`), KEY `idx_collaboration_requirement_attachments_requirement` (`requirement_id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+        Db::execute('CREATE TABLE IF NOT EXISTS `collaboration_worklogs` (`id` INT UNSIGNED NOT NULL AUTO_INCREMENT, `execution_id` INT NOT NULL DEFAULT 0, `owner_name` VARCHAR(128) NOT NULL, `work_date` VARCHAR(32) NOT NULL, `payload_json` LONGTEXT NOT NULL, `created_at` VARCHAR(32) NOT NULL DEFAULT \'\', `updated_at` VARCHAR(32) NOT NULL DEFAULT \'\', PRIMARY KEY (`id`), KEY `idx_collaboration_worklogs_execution` (`execution_id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+        Db::execute('CREATE TABLE IF NOT EXISTS `collaboration_daily_tasks` (`id` INT UNSIGNED NOT NULL AUTO_INCREMENT, `owner_name` VARCHAR(128) NOT NULL, `status` VARCHAR(32) NOT NULL, `due_at` VARCHAR(32) NOT NULL, `exclude_from_report` TINYINT(1) NOT NULL DEFAULT 0, `payload_json` LONGTEXT NOT NULL, `created_at` VARCHAR(32) NOT NULL DEFAULT \'\', `updated_at` VARCHAR(32) NOT NULL DEFAULT \'\', PRIMARY KEY (`id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+        Db::execute('CREATE TABLE IF NOT EXISTS `collaboration_bugs` (`id` INT UNSIGNED NOT NULL AUTO_INCREMENT, `status` VARCHAR(32) NOT NULL, `link_type` VARCHAR(32) NOT NULL, `link_id` INT NOT NULL DEFAULT 0, `owner_name` VARCHAR(128) NOT NULL, `reporter_name` VARCHAR(128) NOT NULL, `submitted_at` VARCHAR(32) DEFAULT NULL, `payload_json` LONGTEXT NOT NULL, `created_at` VARCHAR(32) NOT NULL DEFAULT \'\', `updated_at` VARCHAR(32) NOT NULL DEFAULT \'\', PRIMARY KEY (`id`), KEY `idx_collaboration_bugs_link` (`link_type`, `link_id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+        Db::execute('CREATE TABLE IF NOT EXISTS `collaboration_requirement_reviews` (`id` INT UNSIGNED NOT NULL AUTO_INCREMENT, `requirement_id` INT NOT NULL DEFAULT 0, `reviewed_at` VARCHAR(32) NOT NULL, `payload_json` LONGTEXT NOT NULL, `created_at` VARCHAR(32) NOT NULL DEFAULT \'\', `updated_at` VARCHAR(32) NOT NULL DEFAULT \'\', PRIMARY KEY (`id`), KEY `idx_collaboration_requirement_reviews_requirement` (`requirement_id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+        Db::execute('CREATE TABLE IF NOT EXISTS `collaboration_requirement_attachments` (`id` INT UNSIGNED NOT NULL AUTO_INCREMENT, `requirement_id` INT NOT NULL DEFAULT 0, `file_type` VARCHAR(32) NOT NULL, `uploaded_at` VARCHAR(32) NOT NULL, `payload_json` LONGTEXT NOT NULL, `created_at` VARCHAR(32) NOT NULL DEFAULT \'\', `updated_at` VARCHAR(32) NOT NULL DEFAULT \'\', PRIMARY KEY (`id`), KEY `idx_collaboration_requirement_attachments_requirement` (`requirement_id`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
     }
 
     private function ensureSqliteSchema(): void
     {
-        $this->pdo->exec('CREATE TABLE IF NOT EXISTS collaboration_worklogs (id INTEGER PRIMARY KEY AUTOINCREMENT, execution_id INTEGER NOT NULL DEFAULT 0, owner_name VARCHAR(128) NOT NULL, work_date VARCHAR(32) NOT NULL, payload_json TEXT NOT NULL, created_at VARCHAR(32) NOT NULL DEFAULT \'\', updated_at VARCHAR(32) NOT NULL DEFAULT \'\')');
-        $this->pdo->exec('CREATE INDEX IF NOT EXISTS idx_collaboration_worklogs_execution ON collaboration_worklogs(execution_id)');
-        $this->pdo->exec('CREATE TABLE IF NOT EXISTS collaboration_daily_tasks (id INTEGER PRIMARY KEY AUTOINCREMENT, owner_name VARCHAR(128) NOT NULL, status VARCHAR(32) NOT NULL, due_at VARCHAR(32) NOT NULL, exclude_from_report INTEGER NOT NULL DEFAULT 0, payload_json TEXT NOT NULL, created_at VARCHAR(32) NOT NULL DEFAULT \'\', updated_at VARCHAR(32) NOT NULL DEFAULT \'\')');
-        $this->pdo->exec('CREATE TABLE IF NOT EXISTS collaboration_bugs (id INTEGER PRIMARY KEY AUTOINCREMENT, status VARCHAR(32) NOT NULL, link_type VARCHAR(32) NOT NULL, link_id INTEGER NOT NULL DEFAULT 0, owner_name VARCHAR(128) NOT NULL, reporter_name VARCHAR(128) NOT NULL, submitted_at VARCHAR(32) DEFAULT NULL, payload_json TEXT NOT NULL, created_at VARCHAR(32) NOT NULL DEFAULT \'\', updated_at VARCHAR(32) NOT NULL DEFAULT \'\')');
-        $this->pdo->exec('CREATE INDEX IF NOT EXISTS idx_collaboration_bugs_link ON collaboration_bugs(link_type, link_id)');
-        $this->pdo->exec('CREATE TABLE IF NOT EXISTS collaboration_requirement_reviews (id INTEGER PRIMARY KEY AUTOINCREMENT, requirement_id INTEGER NOT NULL DEFAULT 0, reviewed_at VARCHAR(32) NOT NULL, payload_json TEXT NOT NULL, created_at VARCHAR(32) NOT NULL DEFAULT \'\', updated_at VARCHAR(32) NOT NULL DEFAULT \'\')');
-        $this->pdo->exec('CREATE INDEX IF NOT EXISTS idx_collaboration_requirement_reviews_requirement ON collaboration_requirement_reviews(requirement_id)');
-        $this->pdo->exec('CREATE TABLE IF NOT EXISTS collaboration_requirement_attachments (id INTEGER PRIMARY KEY AUTOINCREMENT, requirement_id INTEGER NOT NULL DEFAULT 0, file_type VARCHAR(32) NOT NULL, uploaded_at VARCHAR(32) NOT NULL, payload_json TEXT NOT NULL, created_at VARCHAR(32) NOT NULL DEFAULT \'\', updated_at VARCHAR(32) NOT NULL DEFAULT \'\')');
-        $this->pdo->exec('CREATE INDEX IF NOT EXISTS idx_collaboration_requirement_attachments_requirement ON collaboration_requirement_attachments(requirement_id)');
+        Db::execute('CREATE TABLE IF NOT EXISTS collaboration_worklogs (id INTEGER PRIMARY KEY AUTOINCREMENT, execution_id INTEGER NOT NULL DEFAULT 0, owner_name VARCHAR(128) NOT NULL, work_date VARCHAR(32) NOT NULL, payload_json TEXT NOT NULL, created_at VARCHAR(32) NOT NULL DEFAULT \'\', updated_at VARCHAR(32) NOT NULL DEFAULT \'\')');
+        Db::execute('CREATE INDEX IF NOT EXISTS idx_collaboration_worklogs_execution ON collaboration_worklogs(execution_id)');
+        Db::execute('CREATE TABLE IF NOT EXISTS collaboration_daily_tasks (id INTEGER PRIMARY KEY AUTOINCREMENT, owner_name VARCHAR(128) NOT NULL, status VARCHAR(32) NOT NULL, due_at VARCHAR(32) NOT NULL, exclude_from_report INTEGER NOT NULL DEFAULT 0, payload_json TEXT NOT NULL, created_at VARCHAR(32) NOT NULL DEFAULT \'\', updated_at VARCHAR(32) NOT NULL DEFAULT \'\')');
+        Db::execute('CREATE TABLE IF NOT EXISTS collaboration_bugs (id INTEGER PRIMARY KEY AUTOINCREMENT, status VARCHAR(32) NOT NULL, link_type VARCHAR(32) NOT NULL, link_id INTEGER NOT NULL DEFAULT 0, owner_name VARCHAR(128) NOT NULL, reporter_name VARCHAR(128) NOT NULL, submitted_at VARCHAR(32) DEFAULT NULL, payload_json TEXT NOT NULL, created_at VARCHAR(32) NOT NULL DEFAULT \'\', updated_at VARCHAR(32) NOT NULL DEFAULT \'\')');
+        Db::execute('CREATE INDEX IF NOT EXISTS idx_collaboration_bugs_link ON collaboration_bugs(link_type, link_id)');
+        Db::execute('CREATE TABLE IF NOT EXISTS collaboration_requirement_reviews (id INTEGER PRIMARY KEY AUTOINCREMENT, requirement_id INTEGER NOT NULL DEFAULT 0, reviewed_at VARCHAR(32) NOT NULL, payload_json TEXT NOT NULL, created_at VARCHAR(32) NOT NULL DEFAULT \'\', updated_at VARCHAR(32) NOT NULL DEFAULT \'\')');
+        Db::execute('CREATE INDEX IF NOT EXISTS idx_collaboration_requirement_reviews_requirement ON collaboration_requirement_reviews(requirement_id)');
+        Db::execute('CREATE TABLE IF NOT EXISTS collaboration_requirement_attachments (id INTEGER PRIMARY KEY AUTOINCREMENT, requirement_id INTEGER NOT NULL DEFAULT 0, file_type VARCHAR(32) NOT NULL, uploaded_at VARCHAR(32) NOT NULL, payload_json TEXT NOT NULL, created_at VARCHAR(32) NOT NULL DEFAULT \'\', updated_at VARCHAR(32) NOT NULL DEFAULT \'\')');
+        Db::execute('CREATE INDEX IF NOT EXISTS idx_collaboration_requirement_attachments_requirement ON collaboration_requirement_attachments(requirement_id)');
     }
 
     private function normalizeStringList(mixed $items): array

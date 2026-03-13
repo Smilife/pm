@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Support;
 
-use PDO;
 use Throwable;
 
 final class JsonStore
@@ -19,7 +18,6 @@ final class JsonStore
 
     private static ?bool $databaseAvailable = null;
 
-    private static ?PDO $pdo = null;
 
     private static ?string $databaseError = null;
 
@@ -214,7 +212,7 @@ final class JsonStore
         }
 
         try {
-            self::$pdo = $this->createPdo($connection);
+            $this->prepareStorageDirectory($connection);
             $this->identityStore($driver)->ensureSchema();
             $this->identityStore($driver)->importIfNeeded();
             $this->deliveryStore($driver)->ensureSchema();
@@ -226,7 +224,6 @@ final class JsonStore
 
             return true;
         } catch (Throwable $exception) {
-            self::$pdo = null;
             $this->identityStore = null;
             $this->deliveryStore = null;
             $this->collaborationStore = null;
@@ -247,28 +244,11 @@ final class JsonStore
         return is_array($connection) ? $connection : [];
     }
 
-    private function createPdo(array $connection): PDO
+    private function prepareStorageDirectory(array $connection): void
     {
         $driver = (string) ($connection['type'] ?? 'sqlite');
-        if ($driver === 'mysql') {
-            $dsn = sprintf(
-                'mysql:host=%s;port=%d;dbname=%s;charset=%s',
-                (string) ($connection['hostname'] ?? '127.0.0.1'),
-                (int) ($connection['hostport'] ?? 3306),
-                (string) ($connection['database'] ?? 'pm'),
-                (string) ($connection['charset'] ?? 'utf8mb4')
-            );
-
-            return new PDO(
-                $dsn,
-                (string) ($connection['username'] ?? 'root'),
-                (string) ($connection['password'] ?? ''),
-                [
-                    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                    PDO::ATTR_EMULATE_PREPARES => false,
-                ]
-            );
+        if ($driver !== 'sqlite') {
+            return;
         }
 
         $databaseFile = (string) ($connection['database'] ?? (dirname(__DIR__, 2) . '/storage/framework/thinkphp.sqlite'));
@@ -276,17 +256,6 @@ final class JsonStore
         if (!is_dir($directory)) {
             mkdir($directory, 0777, true);
         }
-
-        return new PDO(
-            'sqlite:' . $databaseFile,
-            null,
-            null,
-            [
-                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                PDO::ATTR_EMULATE_PREPARES => false,
-            ]
-        );
     }
 
     private function allFromDedicatedCollection(string $name): array
@@ -428,14 +397,12 @@ final class JsonStore
         }
 
         $this->deliveryStore = new DeliveryStore(
-            $this->pdo(),
             $driver ?? (string) ($this->currentConnection()['type'] ?? 'sqlite'),
             $this->storagePath,
         );
 
         return $this->deliveryStore;
     }
-
     private function collaborationStore(?string $driver = null): CollaborationStore
     {
         if ($this->collaborationStore instanceof CollaborationStore) {
@@ -443,14 +410,12 @@ final class JsonStore
         }
 
         $this->collaborationStore = new CollaborationStore(
-            $this->pdo(),
             $driver ?? (string) ($this->currentConnection()['type'] ?? 'sqlite'),
             $this->storagePath,
         );
 
         return $this->collaborationStore;
     }
-
     private function settingsStore(?string $driver = null): SettingsStore
     {
         if ($this->settingsStore instanceof SettingsStore) {
@@ -529,12 +494,4 @@ final class JsonStore
         return array_values(array_unique($collections));
     }
 
-    private function pdo(): PDO
-    {
-        if (self::$pdo instanceof PDO) {
-            return self::$pdo;
-        }
-
-        throw new \RuntimeException('database_not_initialized');
-    }
 }
