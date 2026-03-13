@@ -654,3 +654,114 @@ body {
     padding-right: 12px;
   }
 }
+.gantt-board {
+  padding-bottom: 10px;
+}
+
+.gantt-board__viewport {
+  position: relative;
+}
+
+.gantt-board__row > :nth-child(1),
+.gantt-board__row > :nth-child(2),
+.gantt-board__row > :nth-child(3),
+.gantt-board__row > :nth-child(4) {
+  position: sticky;
+  z-index: 2;
+}
+
+.gantt-board__row > :nth-child(1) {
+  left: 0;
+}
+
+.gantt-board__row > :nth-child(2) {
+  left: 420px;
+}
+
+.gantt-board__row > :nth-child(3) {
+  left: 580px;
+}
+
+.gantt-board__row > :nth-child(4) {
+  left: 750px;
+  box-shadow: 14px 0 20px rgba(22, 48, 44, 0.08);
+}
+
+.gantt-board__row--header > :nth-child(-n + 4) {
+  z-index: 6;
+}
+
+.gantt-board__head {
+  padding: 16px 18px;
+  font-size: 13px;
+}
+
+.gantt-board__cell {
+  min-height: 128px;
+  padding: 18px 18px;
+}
+
+.gantt-axis__month {
+  padding: 12px 14px;
+  font-size: 13px;
+}
+
+.gantt-axis__day {
+  padding: 12px 4px;
+  gap: 4px;
+}
+
+.gantt-hierarchy {
+  width: 100%;
+  gap: 8px;
+}
+
+.gantt-hierarchy .ant-typography {
+  margin-bottom: 0;
+}
+
+.gantt-progress-cell {
+  gap: 8px;
+}
+
+.gantt-lane {
+  min-height: 128px;
+}
+
+.gantt-lane__content {
+  min-height: 128px;
+  padding: 18px 20px;
+  gap: 10px;
+}
+
+.gantt-lane__bar-wrap {
+  height: 40px;
+}
+
+.gantt-lane__bar {
+  top: 5px;
+  bottom: 5px;
+}
+
+.gantt-lane__bar--project {
+  top: 3px;
+  bottom: 3px;
+}
+
+.gantt-lane__meta {
+  gap: 4px;
+}
+
+.gantt-lane__meta .ant-typography:first-child {
+  font-weight: 600;
+}
+
+@media (max-width: 1200px) {
+  .gantt-board__row > :nth-child(1),
+  .gantt-board__row > :nth-child(2),
+  .gantt-board__row > :nth-child(3),
+  .gantt-board__row > :nth-child(4) {
+    position: static;
+    box-shadow: none;
+  }
+}

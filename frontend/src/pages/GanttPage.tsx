@@ -249,7 +249,7 @@ export function GanttPage() {
       {renderViewAlert(view, ownerConflictCount, blockedExecutionCount, projectRiskCount, overdueProjectCount, dueSoonProjectCount)}
 
       {view === 'project' ? (
-        <Card title={text.projectCardTitle} extra={<Typography.Text type="secondary">{text.projectCardHint}</Typography.Text>}>
+        <Card title={text.projectCardTitle} extra={<Typography.Text type="secondary">{text.projectCardHint}</Typography.Text>} styles={{ body: { padding: 0 } }}>
           <ProjectGanttBoard groups={projectGroups} range={projectRange} loading={projectQuery.isLoading || teamQuery.isLoading} />
         </Card>
       ) : null}
@@ -864,11 +864,11 @@ function buildDayColumns(dayCount: number): string {
 }
 
 function getTimelineWidth(range: TimelineRange | null): number {
-  return Math.max((range?.totalDays ?? 0) * 44, 720);
+  return Math.max((range?.totalDays ?? 0) * 56, 960);
 }
 
 function buildBoardColumns(timelineWidth: number): string {
-  return `320px 140px 150px 160px ${timelineWidth}px`;
+  return `420px 160px 170px 210px ${timelineWidth}px`;
 }
 
 function getTimelineMetrics(startValue: string, endValue: string, range: TimelineRange | null): { left: number; width: number } | null {
