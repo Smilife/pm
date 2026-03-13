@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+﻿import { Fragment, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Alert, Card, Progress, Segmented, Space, Statistic, Table, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
@@ -27,6 +27,24 @@ type ProjectExecutionGroup = {
   executions: TeamScheduleItem[];
 };
 
+type TimelineDay = {
+  key: string;
+  dayLabel: string;
+  weekLabel: string;
+  monthKey: string;
+  monthLabel: string;
+  isWeekend: boolean;
+  isToday: boolean;
+};
+
+type TimelineMonthSegment = {
+  key: string;
+  label: string;
+  span: number;
+};
+
+const WEEKDAY_LABELS = ['\u65e5', '\u4e00', '\u4e8c', '\u4e09', '\u56db', '\u4e94', '\u516d'] as const;
+
 const text = {
   pageTitle: '\u7518\u7279\u56fe',
   pageDescription: '\u4ece\u9879\u76ee\u3001\u56e2\u961f\u548c\u6267\u884c\u4e09\u4e2a\u5c42\u7ea7\u89c2\u5bdf\u6392\u671f\u7a97\u53e3\u3001\u98ce\u9669\u8282\u70b9\u4e0e\u4efb\u52a1\u62c6\u89e3\u3002',
@@ -34,7 +52,7 @@ const text = {
   teamView: '\u56e2\u961f\u6392\u671f',
   executionView: '\u6267\u884c\u62c6\u89e3',
   projectCardTitle: '\u9879\u76ee\u7518\u7279\u56fe',
-  projectCardHint: '\u4ee5\u9879\u76ee\u4e3a\u4e3b\u7ebf\uff0c\u5728\u540c\u4e00\u65f6\u95f4\u8f74\u4e0a\u76f4\u89c2\u5c55\u793a\u6267\u884c\u3001\u8d1f\u8d23\u4eba\u548c\u65f6\u95f4\u5173\u7cfb\u3002',
+  projectCardHint: '\u5de6\u4fa7\u770b\u5c42\u7ea7\uff0c\u53f3\u4fa7\u770b\u65f6\u95f4\u8f74\uff0c\u9879\u76ee\u6761\u548c\u6267\u884c\u6761\u4f1a\u5728\u540c\u4e00\u6761\u65e5\u5386\u8f74\u4e0a\u5bf9\u9f50\u3002',
   teamCardTitle: '\u56e2\u961f\u6392\u671f\u603b\u89c8',
   teamCardHint: '\u8868\u683c\u6309\u8d1f\u8d23\u4eba\u7406\u89e3\u5373\u53ef\uff0c\u51b2\u7a81\u4f1a\u5728\u6bcf\u4e00\u884c\u76f4\u63a5\u6807\u8bb0\u3002',
   executionCardTitle: '\u6267\u884c\u62c6\u89e3\u89c6\u56fe',
@@ -52,15 +70,16 @@ const text = {
   taskDoneCount: '\u5df2\u5b8c\u6210\u5b50\u4efb\u52a1',
   linkedExecutionCount: '\u5173\u8054\u6267\u884c\u6570',
   projectAlertRiskTitle: '\u9879\u76ee\u5c42\u5b58\u5728\u9700\u8981\u4f18\u5148\u5173\u6ce8\u7684\u4ea4\u4ed8\u98ce\u9669',
-  projectAlertRiskDescription: '\u4e0b\u65b9\u7684\u9879\u76ee\u7518\u7279\u5df2\u7ecf\u6309\u9879\u76ee\u5c55\u5f00\u6267\u884c\u548c\u8d1f\u8d23\u4eba\uff0c\u53ef\u4ee5\u76f4\u63a5\u770b\u5230\u98ce\u9669\u51fa\u5728\u54ea\u4e00\u6bb5\u65f6\u95f4\u3002',
+  projectAlertRiskDescription: '\u73b0\u5728\u53ef\u4ee5\u76f4\u63a5\u4ece\u9879\u76ee\u6761\u770b\u5230\u603b\u5468\u671f\uff0c\u518d\u4ece\u4e0b\u65b9\u6267\u884c\u6761\u5bf9\u7167\u8d1f\u8d23\u4eba\u548c\u5177\u4f53\u65f6\u6bb5\u3002',
   projectAlertStableTitle: '\u9879\u76ee\u5c42\u65f6\u95f4\u5173\u7cfb\u5df2\u7ecf\u6e05\u6670\u5c55\u5f00',
-  projectAlertStableDescription: '\u73b0\u5728\u53ef\u4ee5\u4ece\u4e0b\u65b9\u76f4\u63a5\u5bf9\u6bd4\u6bcf\u4e2a\u9879\u76ee\u4e0b\u7684\u6267\u884c\u3001\u4eba\u5458\u548c\u65f6\u95f4\u6761\u3002',
+  projectAlertStableDescription: '\u73b0\u5728\u53ef\u4ee5\u76f4\u63a5\u5bf9\u6bd4\u6bcf\u4e2a\u9879\u76ee\u4e0b\u7684\u6267\u884c\u3001\u4eba\u5458\u548c\u65f6\u95f4\u6761\u3002',
   teamAlertConflictTitle: '\u68c0\u6d4b\u5230\u8d1f\u8d23\u4eba\u6392\u671f\u91cd\u53e0',
   teamAlertConflictDescription: '\u8bf7\u4f18\u5148\u8c03\u6574\u540c\u4e00\u4eba\u5728\u540c\u4e00\u65f6\u95f4\u7a97\u5185\u7684\u591a\u4e2a\u6267\u884c\u5b89\u6392\u3002',
   teamAlertStableTitle: '\u5f53\u524d\u672a\u53d1\u73b0\u56e2\u961f\u7ea7\u6392\u671f\u51b2\u7a81',
   teamAlertStableDescription: '\u53ef\u4ee5\u7ed3\u5408\u963b\u585e\u72b6\u6001\u548c\u8fdb\u5ea6\u504f\u5dee\u6301\u7eed\u5173\u6ce8\u3002',
   executionAlertTitle: '\u6267\u884c\u62c6\u89e3\u89c6\u56fe\u7528\u4e8e\u8ddf\u8e2a\u6700\u7ec6\u9897\u7c92\u5ea6\u7684\u63a8\u8fdb\u60c5\u51b5',
   executionAlertDescription: '\u8fd9\u4e00\u5c42\u4e3b\u8981\u7528\u6765\u5bf9\u7167\u9879\u76ee\u7518\u7279\u4e2d\u7684\u6267\u884c\u6761\u3002',
+  hierarchy: '\u9879\u76ee / \u6267\u884c',
   owner: '\u8d1f\u8d23\u4eba',
   status: '\u72b6\u6001',
   progress: '\u8fdb\u5ea6',
@@ -71,22 +90,25 @@ const text = {
   overlapPrefix: '\u91cd\u53e0',
   execution: '\u6267\u884c',
   project: '\u9879\u76ee',
-  timeline: '\u65f6\u95f4\u8f74',
   childTask: '\u5b50\u4efb\u52a1',
   linkedExecution: '\u6240\u5c5e\u6267\u884c',
   linkedProject: '\u6240\u5c5e\u9879\u76ee',
   inheritWindow: '\u7ee7\u627f\u65f6\u95f4\u7a97',
   planWindow: '\u8ba1\u5212\u7a97\u53e3',
   projectOwner: '\u9879\u76ee\u8d1f\u8d23\u4eba',
-  projectWindow: '\u9879\u76ee\u65f6\u95f4\u7a97',
   latestActivity: '\u6700\u8fd1\u6d3b\u52a8',
-  projectSummary: '\u9879\u76ee\u603b\u89c8',
   summaryHint: '\u6c47\u603b\u65f6\u95f4\u7a97',
+  rowTypeProject: '\u9879\u76ee',
+  rowTypeExecution: '\u6267\u884c',
+  riskAndBug: '\u98ce\u9669 / \u7f3a\u9677',
+  deviation: '\u8fdb\u5ea6\u504f\u5dee',
+  timelineEmpty: '\u6682\u65e0\u6392\u671f',
+  emptyProjectGantt: '\u6682\u65e0\u53ef\u5c55\u793a\u7684\u9879\u76ee\u6392\u671f',
   noCode: '\u672a\u8bbe\u7f6e\u7f16\u7801',
   noActivity: '\u6682\u65e0\u66f4\u65b0',
   noSchedule: '\u672a\u6392\u671f',
   noExecutions: '\u6682\u65e0\u6267\u884c\u6392\u671f',
-  noExecutionsHint: '\u8fd9\u4e2a\u9879\u76ee\u8fd8\u6ca1\u6709\u62c6\u51fa\u6267\u884c\uff0c\u6240\u4ee5\u770b\u4e0d\u5230\u4eba\u5458\u4e0e\u65f6\u95f4\u7684\u5173\u7cfb\u3002',
+  noExecutionsHint: '\u8fd9\u4e2a\u9879\u76ee\u8fd8\u6ca1\u6709\u62c6\u51fa\u6267\u884c\uff0c\u6240\u4ee5\u5f53\u524d\u53ea\u80fd\u770b\u5230\u9879\u76ee\u603b\u5468\u671f\u3002',
   healthy: '\u5065\u5eb7',
   watch: '\u5173\u6ce8',
   risk: '\u98ce\u9669',
@@ -183,7 +205,7 @@ export function GanttPage() {
     ownerConflictCount,
     blockedExecutionCount,
     coveredProjectCount,
-    taskCount: (executionQuery.data ?? []).length,
+    taskCount: executionQuery.data?.length ?? 0,
     executionInProgressCount,
     executionDoneCount,
     linkedExecutionCount,
@@ -234,33 +256,18 @@ export function GanttPage() {
 
       {view === 'team' ? (
         <Card title={text.teamCardTitle} extra={<Typography.Text type="secondary">{text.teamCardHint}</Typography.Text>}>
-          <Table
-            rowKey="id"
-            columns={teamColumns}
-            dataSource={teamRows}
-            loading={teamQuery.isLoading}
-            pagination={false}
-            scroll={{ x: 1200 }}
-          />
+          <Table rowKey="id" columns={teamColumns} dataSource={teamRows} loading={teamQuery.isLoading} pagination={false} scroll={{ x: 1200 }} />
         </Card>
       ) : null}
 
       {view === 'execution' ? (
         <Card title={text.executionCardTitle} extra={<Typography.Text type="secondary">{text.executionCardHint}</Typography.Text>}>
-          <Table
-            rowKey="id"
-            columns={executionColumns}
-            dataSource={executionQuery.data ?? []}
-            loading={executionQuery.isLoading}
-            pagination={false}
-            scroll={{ x: 1200 }}
-          />
+          <Table rowKey="id" columns={executionColumns} dataSource={executionQuery.data ?? []} loading={executionQuery.isLoading} pagination={false} scroll={{ x: 1200 }} />
         </Card>
       ) : null}
     </Space>
   );
 }
-
 function ProjectGanttBoard({
   groups,
   range,
@@ -270,164 +277,327 @@ function ProjectGanttBoard({
   range: TimelineRange | null;
   loading: boolean;
 }) {
+  const days = useMemo(() => buildTimelineDays(range), [range]);
+  const monthSegments = useMemo(() => buildTimelineMonthSegments(days), [days]);
+  const timelineWidth = useMemo(() => getTimelineWidth(range), [range]);
+  const boardColumns = useMemo(() => buildBoardColumns(timelineWidth), [timelineWidth]);
+  const dayColumns = useMemo(() => buildDayColumns(days.length), [days.length]);
+
   if (loading) {
     return <Typography.Text type="secondary">{text.loadingProjectGantt}</Typography.Text>;
   }
 
+  if (groups.length === 0) {
+    return <Typography.Text type="secondary">{text.emptyProjectGantt}</Typography.Text>;
+  }
+
   return (
-    <Space direction="vertical" size={16} className="gantt-project-board">
-      {groups.map((group) => (
-        <div key={group.project.id} className="gantt-project-group">
-          <div className="gantt-project-group__header">
-            <Space direction="vertical" size={4}>
-              <Space size={[8, 8]} wrap>
-                <Typography.Title level={5}>{group.project.name}</Typography.Title>
-                <Tag>{group.project.code || text.noCode}</Tag>
-                <ProjectHealthTag health={group.project.health} />
-                <ProjectMilestoneTag project={group.project} />
-              </Space>
-              <Typography.Text type="secondary">
-                {`${text.projectOwner}\uff1a${group.project.ownerName || '-'} | ${text.projectWindow}\uff1a${formatWindow(group.project.planStart, group.project.planEnd)} | ${text.latestActivity}\uff1a${group.project.lastActivityAt || text.noActivity}`}
-              </Typography.Text>
-            </Space>
-            <Space size={[8, 8]} wrap>
-              <Tag color="processing">{`${text.execution} ${group.executions.length}`}</Tag>
-              <Tag color={group.project.blockedExecutionCount > 0 ? 'error' : 'success'}>{`${text.blocked} ${group.project.blockedExecutionCount}`}</Tag>
-              <Tag color={group.project.health === 'risk' ? 'error' : group.project.health === 'watch' ? 'warning' : 'success'}>{`${text.progress} ${group.project.averageProgress}%`}</Tag>
-            </Space>
-          </div>
-
-          <div className="gantt-project-grid">
-            <div className="gantt-project-grid__head">{text.timeline}</div>
-            <div className="gantt-project-grid__head">{text.owner}</div>
-            <div className="gantt-project-grid__head">{text.status}</div>
-            <div className="gantt-project-grid__head">{text.execution}</div>
-
-            <ProjectSummaryRow project={group.project} range={range} />
-
-            {group.executions.length > 0
-              ? group.executions.map((execution) => <ExecutionTimelineRow key={execution.id} execution={execution} range={range} />)
-              : <EmptyProjectRow />}
+    <div className="gantt-board">
+      <div className="gantt-board__viewport">
+        <div className="gantt-board__row gantt-board__row--header" style={{ gridTemplateColumns: boardColumns }}>
+          <div className="gantt-board__head">{text.hierarchy}</div>
+          <div className="gantt-board__head">{text.owner}</div>
+          <div className="gantt-board__head">{text.status}</div>
+          <div className="gantt-board__head">{text.progress}</div>
+          <div className="gantt-board__head gantt-board__head--timeline">
+            <TimelineAxis days={days} monthSegments={monthSegments} dayColumns={dayColumns} />
           </div>
         </div>
-      ))}
-    </Space>
+
+        {groups.map((group) => (
+          <Fragment key={group.project.id}>
+            <ProjectTimelineRow group={group} range={range} days={days} dayColumns={dayColumns} boardColumns={boardColumns} />
+            {group.executions.length > 0
+              ? group.executions.map((execution) => (
+                  <ExecutionTimelineRow
+                    key={execution.id}
+                    execution={execution}
+                    range={range}
+                    days={days}
+                    dayColumns={dayColumns}
+                    boardColumns={boardColumns}
+                  />
+                ))
+              : <EmptyExecutionRow boardColumns={boardColumns} days={days} dayColumns={dayColumns} />}
+          </Fragment>
+        ))}
+      </div>
+    </div>
   );
 }
 
-function ProjectSummaryRow({ project, range }: { project: ProjectScheduleItem; range: TimelineRange | null }) {
+function TimelineAxis({
+  days,
+  monthSegments,
+  dayColumns,
+}: {
+  days: TimelineDay[];
+  monthSegments: TimelineMonthSegment[];
+  dayColumns: string;
+}) {
   return (
-    <>
-      <div className="gantt-project-grid__cell">
-        <TimelineBar
-          start={project.planStart}
-          end={project.planEnd}
-          range={range}
-          tone={project.health}
-          label={formatWindow(project.planStart, project.planEnd)}
-          hint={text.summaryHint}
-        />
+    <div className="gantt-axis">
+      <div className="gantt-axis__months">
+        {monthSegments.map((segment) => (
+          <div key={segment.key} className="gantt-axis__month" style={{ flex: segment.span }}>
+            {segment.label}
+          </div>
+        ))}
       </div>
-      <div className="gantt-project-grid__cell">
-        <Typography.Text strong>{project.ownerName || '-'}</Typography.Text>
+      <div className="gantt-axis__days" style={{ gridTemplateColumns: dayColumns }}>
+        {days.map((day) => (
+          <div
+            key={day.key}
+            className={[
+              'gantt-axis__day',
+              day.isWeekend ? 'gantt-axis__day--weekend' : '',
+              day.isToday ? 'gantt-axis__day--today' : '',
+            ]
+              .filter(Boolean)
+              .join(' ')}
+          >
+            <Typography.Text strong>{day.dayLabel}</Typography.Text>
+            <Typography.Text type="secondary">{day.weekLabel}</Typography.Text>
+          </div>
+        ))}
       </div>
-      <div className="gantt-project-grid__cell">
-        <ProjectMilestoneTag project={project} />
+    </div>
+  );
+}
+
+function ProjectTimelineRow({
+  group,
+  range,
+  days,
+  dayColumns,
+  boardColumns,
+}: {
+  group: ProjectExecutionGroup;
+  range: TimelineRange | null;
+  days: TimelineDay[];
+  dayColumns: string;
+  boardColumns: string;
+}) {
+  const subtitle = `${group.project.code || text.noCode} \u00b7 ${text.projectOwner}\uff1a${group.project.ownerName || '-'} \u00b7 ${text.execution} ${group.executions.length}`;
+  const progressHint = `${text.riskAndBug}\uff1a${group.project.riskCount} / ${group.project.openBugCount}`;
+
+  return (
+    <div className="gantt-board__row gantt-board__row--project" style={{ gridTemplateColumns: boardColumns }}>
+      <div className="gantt-board__cell gantt-board__cell--project">
+        <div className="gantt-hierarchy">
+          <Space size={[8, 8]} wrap>
+            <Tag color="geekblue">{text.rowTypeProject}</Tag>
+            <Typography.Text strong>{group.project.name}</Typography.Text>
+            <ProjectHealthTag health={group.project.health} />
+            <ProjectMilestoneTag project={group.project} />
+          </Space>
+          <Typography.Text type="secondary">{subtitle}</Typography.Text>
+        </div>
       </div>
-      <div className="gantt-project-grid__cell">
-        <Space direction="vertical" size={2}>
-          <Typography.Text strong>{text.projectSummary}</Typography.Text>
-          <Typography.Text type="secondary">{`${text.progress}\uff1a${project.averageProgress}%`}</Typography.Text>
+
+      <div className="gantt-board__cell gantt-board__cell--project">
+        <Typography.Text strong>{group.project.ownerName || '-'}</Typography.Text>
+      </div>
+
+      <div className="gantt-board__cell gantt-board__cell--project">
+        <Space direction="vertical" size={4}>
+          <ProjectMilestoneTag project={group.project} />
+          <Typography.Text type="secondary">{`${text.latestActivity}\uff1a${group.project.lastActivityAt || text.noActivity}`}</Typography.Text>
         </Space>
       </div>
-    </>
+
+      <div className="gantt-board__cell gantt-board__cell--project">
+        <div className="gantt-progress-cell">
+          <Typography.Text strong>{`${group.project.averageProgress}%`}</Typography.Text>
+          <Progress percent={group.project.averageProgress} size="small" />
+          <Typography.Text type="secondary">{progressHint}</Typography.Text>
+        </div>
+      </div>
+
+      <div className="gantt-board__cell gantt-board__cell--timeline gantt-board__cell--project">
+        <TimelineLane
+          start={group.project.planStart}
+          end={group.project.planEnd}
+          range={range}
+          days={days}
+          dayColumns={dayColumns}
+          tone={group.project.health}
+          variant="project"
+          label={formatWindow(group.project.planStart, group.project.planEnd)}
+          subtitle={`${text.summaryHint} \u00b7 ${text.blocked} ${group.project.blockedExecutionCount}`}
+        />
+      </div>
+    </div>
   );
 }
 
-function ExecutionTimelineRow({ execution, range }: { execution: TeamScheduleItem; range: TimelineRange | null }) {
+function ExecutionTimelineRow({
+  execution,
+  range,
+  days,
+  dayColumns,
+  boardColumns,
+}: {
+  execution: TeamScheduleItem;
+  range: TimelineRange | null;
+  days: TimelineDay[];
+  dayColumns: string;
+  boardColumns: string;
+}) {
+  const deviation = execution.actualProgress - execution.planProgress;
+  const deviationPrefix = deviation >= 0 ? '+' : '';
+
   return (
-    <>
-      <div className="gantt-project-grid__cell">
-        <TimelineBar
+    <div className="gantt-board__row" style={{ gridTemplateColumns: boardColumns }}>
+      <div className="gantt-board__cell">
+        <div className="gantt-hierarchy gantt-hierarchy--child">
+          <Space size={[8, 8]} wrap>
+            <span className="gantt-hierarchy__indent" />
+            <Tag>{text.rowTypeExecution}</Tag>
+            <Typography.Text strong>{execution.name}</Typography.Text>
+          </Space>
+          <Typography.Text type="secondary">{`${text.linkedProject}\uff1a${execution.projectName || '-'} \u00b7 ${text.planWindow}\uff1a${formatWindow(execution.planStart, execution.planEnd)}`}</Typography.Text>
+        </div>
+      </div>
+
+      <div className="gantt-board__cell">
+        <Typography.Text>{execution.ownerName || '-'}</Typography.Text>
+      </div>
+
+      <div className="gantt-board__cell">
+        <StatusTag value={execution.status} />
+      </div>
+
+      <div className="gantt-board__cell">
+        <div className="gantt-progress-cell">
+          <Typography.Text strong>{`${execution.actualProgress}%`}</Typography.Text>
+          <Progress percent={execution.actualProgress} size="small" />
+          <Typography.Text type="secondary">{`${text.deviation}\uff1a${deviationPrefix}${deviation}%`}</Typography.Text>
+        </div>
+      </div>
+
+      <div className="gantt-board__cell gantt-board__cell--timeline">
+        <TimelineLane
           start={execution.planStart}
           end={execution.planEnd}
           range={range}
+          days={days}
+          dayColumns={dayColumns}
           tone={getExecutionTone(execution.status)}
+          variant="execution"
           label={formatWindow(execution.planStart, execution.planEnd)}
-          hint={`${text.actual}\uff1a${execution.actualProgress}%  ${text.plan}\uff1a${execution.planProgress}%`}
+          subtitle={`${text.actual}\uff1a${execution.actualProgress}% \u00b7 ${text.plan}\uff1a${execution.planProgress}%`}
         />
       </div>
-      <div className="gantt-project-grid__cell">
-        <Typography.Text>{execution.ownerName || '-'}</Typography.Text>
-      </div>
-      <div className="gantt-project-grid__cell">
-        <StatusTag value={execution.status} />
-      </div>
-      <div className="gantt-project-grid__cell">
-        <Space direction="vertical" size={4} style={{ width: '100%' }}>
-          <Typography.Text strong>{execution.name}</Typography.Text>
-          <Progress percent={execution.actualProgress} size="small" />
-        </Space>
-      </div>
-    </>
+    </div>
   );
 }
 
-function EmptyProjectRow() {
+function EmptyExecutionRow({
+  boardColumns,
+  days,
+  dayColumns,
+}: {
+  boardColumns: string;
+  days: TimelineDay[];
+  dayColumns: string;
+}) {
   return (
-    <>
-      <div className="gantt-project-grid__cell">
-        <div className="gantt-timeline gantt-timeline--empty">
-          <Typography.Text type="secondary">{text.noSchedule}</Typography.Text>
+    <div className="gantt-board__row" style={{ gridTemplateColumns: boardColumns }}>
+      <div className="gantt-board__cell">
+        <div className="gantt-hierarchy gantt-hierarchy--child">
+          <Space size={[8, 8]} wrap>
+            <span className="gantt-hierarchy__indent" />
+            <Tag>{text.rowTypeExecution}</Tag>
+            <Typography.Text strong>{text.noExecutions}</Typography.Text>
+          </Space>
+          <Typography.Text type="secondary">{text.noExecutionsHint}</Typography.Text>
         </div>
       </div>
-      <div className="gantt-project-grid__cell">
+      <div className="gantt-board__cell">
         <Typography.Text type="secondary">-</Typography.Text>
       </div>
-      <div className="gantt-project-grid__cell">
-        <Tag>{text.noExecutions}</Tag>
+      <div className="gantt-board__cell">
+        <Tag>{text.timelineEmpty}</Tag>
       </div>
-      <div className="gantt-project-grid__cell">
-        <Typography.Text type="secondary">{text.noExecutionsHint}</Typography.Text>
+      <div className="gantt-board__cell">
+        <Typography.Text type="secondary">{text.noSchedule}</Typography.Text>
       </div>
-    </>
+      <div className="gantt-board__cell gantt-board__cell--timeline">
+        <TimelineLane
+          start=""
+          end=""
+          range={null}
+          days={days}
+          dayColumns={dayColumns}
+          tone="watch"
+          variant="execution"
+          label={text.noSchedule}
+          subtitle={text.noExecutionsHint}
+        />
+      </div>
+    </div>
   );
 }
-
-function TimelineBar({
+function TimelineLane({
   start,
   end,
   range,
+  days,
+  dayColumns,
   tone,
+  variant,
   label,
-  hint,
+  subtitle,
 }: {
   start: string;
   end: string;
   range: TimelineRange | null;
+  days: TimelineDay[];
+  dayColumns: string;
   tone: 'healthy' | 'watch' | 'risk';
+  variant: 'project' | 'execution';
   label: string;
-  hint?: string;
+  subtitle: string;
 }) {
   const metrics = getTimelineMetrics(start, end, range);
 
   return (
-    <div className="gantt-timeline">
-      <div className="gantt-timeline__labels">
-        <span>{range?.start.format('MM-DD') ?? '--'}</span>
-        <span>{range?.end.format('MM-DD') ?? '--'}</span>
+    <div className="gantt-lane">
+      <div className="gantt-lane__grid" style={{ gridTemplateColumns: dayColumns }}>
+        {days.map((day) => (
+          <div
+            key={day.key}
+            className={[
+              'gantt-lane__day',
+              day.isWeekend ? 'gantt-lane__day--weekend' : '',
+              day.isToday ? 'gantt-lane__day--today' : '',
+            ]
+              .filter(Boolean)
+              .join(' ')}
+          />
+        ))}
       </div>
-      <div className="gantt-timeline__track">
-        {metrics ? (
-          <div className={`gantt-timeline__bar gantt-timeline__bar--${tone}`} style={{ left: `${metrics.left}%`, width: `${metrics.width}%` }} />
-        ) : (
-          <div className="gantt-timeline__placeholder" />
-        )}
+      <div className="gantt-lane__content">
+        <div className="gantt-lane__bar-wrap">
+          {metrics ? (
+            <div
+              className={[
+                'gantt-lane__bar',
+                `gantt-lane__bar--${tone}`,
+                `gantt-lane__bar--${variant}`,
+              ].join(' ')}
+              style={{ left: `${metrics.left}%`, width: `${metrics.width}%` }}
+            />
+          ) : (
+            <div className="gantt-lane__empty" />
+          )}
+        </div>
+        <div className="gantt-lane__meta">
+          <Typography.Text>{label}</Typography.Text>
+          <Typography.Text type="secondary">{subtitle}</Typography.Text>
+        </div>
       </div>
-      <Space direction="vertical" size={0}>
-        <Typography.Text>{label}</Typography.Text>
-        {hint ? <Typography.Text type="secondary">{hint}</Typography.Text> : null}
-      </Space>
     </div>
   );
 }
@@ -445,7 +615,14 @@ function renderViewAlert(
       return <Alert type="warning" showIcon message={text.projectAlertRiskTitle} description={text.projectAlertRiskDescription} />;
     }
 
-    return <Alert type="success" showIcon message={text.projectAlertStableTitle} description={`${text.projectAlertStableDescription} ${text.dueSoonCount} ${dueSoonProjectCount}`} />;
+    return (
+      <Alert
+        type="success"
+        showIcon
+        message={text.projectAlertStableTitle}
+        description={`${text.projectAlertStableDescription} ${text.dueSoonCount} ${dueSoonProjectCount}`}
+      />
+    );
   }
 
   if (view === 'team') {
@@ -453,7 +630,14 @@ function renderViewAlert(
       return <Alert type="warning" showIcon message={text.teamAlertConflictTitle} description={text.teamAlertConflictDescription} />;
     }
 
-    return <Alert type="success" showIcon message={text.teamAlertStableTitle} description={`${text.teamAlertStableDescription} ${text.blockedExecutionCount} ${blockedExecutionCount}`} />;
+    return (
+      <Alert
+        type="success"
+        showIcon
+        message={text.teamAlertStableTitle}
+        description={`${text.teamAlertStableDescription} ${text.blockedExecutionCount} ${blockedExecutionCount}`}
+      />
+    );
   }
 
   return <Alert type="info" showIcon message={text.executionAlertTitle} description={text.executionAlertDescription} />;
@@ -544,7 +728,6 @@ function ScheduleProgress({ actual, plan }: { actual: number; plan: number }) {
     </Space>
   );
 }
-
 function withOverlapCount(items: TeamScheduleItem[]): Array<TeamScheduleItem & { overlapCount: number }> {
   return items.map((item) => ({
     ...item,
@@ -601,7 +784,15 @@ function buildProjectExecutionGroups(projects: ProjectScheduleItem[], executions
           return left.ownerName.localeCompare(right.ownerName);
         }),
     }))
-    .sort((left, right) => left.project.name.localeCompare(right.project.name));
+    .sort((left, right) => {
+      const leftStart = left.project.planStart || '9999-12-31';
+      const rightStart = right.project.planStart || '9999-12-31';
+      if (leftStart !== rightStart) {
+        return leftStart.localeCompare(rightStart);
+      }
+
+      return left.project.name.localeCompare(right.project.name);
+    });
 }
 
 function getProjectTimelineRange(groups: ProjectExecutionGroup[]): TimelineRange | null {
@@ -629,6 +820,57 @@ function getProjectTimelineRange(groups: ProjectExecutionGroup[]): TimelineRange
   };
 }
 
+function buildTimelineDays(range: TimelineRange | null): TimelineDay[] {
+  if (!range) {
+    return [];
+  }
+
+  return Array.from({ length: range.totalDays }, (_, index) => {
+    const date = range.start.add(index, 'day');
+    return {
+      key: date.format('YYYY-MM-DD'),
+      dayLabel: date.format('DD'),
+      weekLabel: WEEKDAY_LABELS[date.day()],
+      monthKey: date.format('YYYY-MM'),
+      monthLabel: `${date.format('YYYY')}\u5e74${date.format('M')}\u6708`,
+      isWeekend: date.day() === 0 || date.day() === 6,
+      isToday: date.isSame(dayjs(), 'day'),
+    };
+  });
+}
+
+function buildTimelineMonthSegments(days: TimelineDay[]): TimelineMonthSegment[] {
+  const segments: TimelineMonthSegment[] = [];
+
+  days.forEach((day) => {
+    const last = segments[segments.length - 1];
+    if (last && last.key === day.monthKey) {
+      last.span += 1;
+      return;
+    }
+
+    segments.push({
+      key: day.monthKey,
+      label: day.monthLabel,
+      span: 1,
+    });
+  });
+
+  return segments;
+}
+
+function buildDayColumns(dayCount: number): string {
+  return `repeat(${Math.max(dayCount, 1)}, minmax(0, 1fr))`;
+}
+
+function getTimelineWidth(range: TimelineRange | null): number {
+  return Math.max((range?.totalDays ?? 0) * 44, 720);
+}
+
+function buildBoardColumns(timelineWidth: number): string {
+  return `320px 140px 150px 160px ${timelineWidth}px`;
+}
+
 function getTimelineMetrics(startValue: string, endValue: string, range: TimelineRange | null): { left: number; width: number } | null {
   if (!range || !startValue || !endValue) {
     return null;
@@ -645,7 +887,7 @@ function getTimelineMetrics(startValue: string, endValue: string, range: Timelin
 
   return {
     left: (offsetDays / range.totalDays) * 100,
-    width: Math.max((spanDays / range.totalDays) * 100, 8),
+    width: Math.max((spanDays / range.totalDays) * 100, 4),
   };
 }
 
