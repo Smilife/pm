@@ -1,6 +1,6 @@
-import { Fragment, useMemo } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Alert, Card, Progress, Segmented, Space, Statistic, Table, Tag, Typography } from 'antd';
+import { Alert, Button, Card, Progress, Segmented, Space, Statistic, Table, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs, { type Dayjs } from 'dayjs';
 import { useSearchParams } from 'react-router-dom';
@@ -22,9 +22,16 @@ type SummaryCardItem = {
   loading: boolean;
 };
 
+type TeamScheduleRow = TeamScheduleItem & { overlapCount: number };
+
 type ProjectExecutionGroup = {
   project: ProjectScheduleItem;
-  executions: TeamScheduleItem[];
+  executions: TeamScheduleRow[];
+};
+
+type OwnerExecutionGroup = {
+  ownerName: string;
+  executions: TeamScheduleRow[];
 };
 
 type TimelineDay = {
@@ -49,12 +56,12 @@ const text = {
   pageTitle: '\u7518\u7279\u56fe',
   pageDescription: '\u4ece\u9879\u76ee\u3001\u56e2\u961f\u548c\u6267\u884c\u4e09\u4e2a\u5c42\u7ea7\u89c2\u5bdf\u6392\u671f\u7a97\u53e3\u3001\u98ce\u9669\u8282\u70b9\u4e0e\u4efb\u52a1\u62c6\u89e3\u3002',
   projectView: '\u9879\u76ee\u7518\u7279',
-  teamView: '\u56e2\u961f\u6392\u671f',
+  teamView: '\u56e2\u961f\u7518\u7279',
   executionView: '\u6267\u884c\u62c6\u89e3',
   projectCardTitle: '\u9879\u76ee\u7518\u7279\u56fe',
-  projectCardHint: '\u5de6\u4fa7\u770b\u5c42\u7ea7\uff0c\u53f3\u4fa7\u770b\u65f6\u95f4\u8f74\uff0c\u9879\u76ee\u6761\u548c\u6267\u884c\u6761\u4f1a\u5728\u540c\u4e00\u6761\u65e5\u5386\u8f74\u4e0a\u5bf9\u9f50\u3002',
-  teamCardTitle: '\u56e2\u961f\u6392\u671f\u603b\u89c8',
-  teamCardHint: '\u8868\u683c\u6309\u8d1f\u8d23\u4eba\u7406\u89e3\u5373\u53ef\uff0c\u51b2\u7a81\u4f1a\u5728\u6bcf\u4e00\u884c\u76f4\u63a5\u6807\u8bb0\u3002',
+  projectCardHint: '\u9ed8\u8ba4\u7a81\u51fa\u9879\u76ee\u4e3b\u6761\uff0c\u6267\u884c\u660e\u7ec6\u53ef\u6309\u9700\u5c55\u5f00\uff0c\u907f\u514d\u4e00\u6b21\u628a\u6240\u6709\u4fe1\u606f\u6324\u5728\u4e00\u8d77\u3002',
+  teamCardTitle: '\u56e2\u961f\u6574\u4f53\u7518\u7279\u56fe',
+  teamCardHint: '\u4ee5\u8d1f\u8d23\u4eba\u4e3a\u5206\u7ec4\u67e5\u770b\u56e2\u961f\u6574\u4f53\u6392\u671f\uff0c\u4e0d\u91cd\u8981\u7684\u4eba\u5458\u660e\u7ec6\u4e5f\u53ef\u4ee5\u6298\u53e0\u3002',
   executionCardTitle: '\u6267\u884c\u62c6\u89e3\u89c6\u56fe',
   executionCardHint: '\u5f53\u524d\u5b50\u4efb\u52a1\u9ed8\u8ba4\u7ee7\u627f\u7236\u6267\u884c\u7684\u8ba1\u5212\u65f6\u95f4\u7a97\u53e3\u3002',
   projectCount: '\u9879\u76ee\u6570',
@@ -70,17 +77,18 @@ const text = {
   taskDoneCount: '\u5df2\u5b8c\u6210\u5b50\u4efb\u52a1',
   linkedExecutionCount: '\u5173\u8054\u6267\u884c\u6570',
   projectAlertRiskTitle: '\u9879\u76ee\u5c42\u5b58\u5728\u9700\u8981\u4f18\u5148\u5173\u6ce8\u7684\u4ea4\u4ed8\u98ce\u9669',
-  projectAlertRiskDescription: '\u73b0\u5728\u53ef\u4ee5\u76f4\u63a5\u4ece\u9879\u76ee\u6761\u770b\u5230\u603b\u5468\u671f\uff0c\u518d\u4ece\u4e0b\u65b9\u6267\u884c\u6761\u5bf9\u7167\u8d1f\u8d23\u4eba\u548c\u5177\u4f53\u65f6\u6bb5\u3002',
+  projectAlertRiskDescription: '\u73b0\u5728\u53ef\u4ee5\u5148\u770b\u9879\u76ee\u4e3b\u6761\uff0c\u6709\u95ee\u9898\u7684\u9879\u76ee\u518d\u5c55\u5f00\u6267\u884c\u660e\u7ec6\u8ddf\u5230\u4eba\u548c\u65f6\u6bb5\u3002',
   projectAlertStableTitle: '\u9879\u76ee\u5c42\u65f6\u95f4\u5173\u7cfb\u5df2\u7ecf\u6e05\u6670\u5c55\u5f00',
-  projectAlertStableDescription: '\u73b0\u5728\u53ef\u4ee5\u76f4\u63a5\u5bf9\u6bd4\u6bcf\u4e2a\u9879\u76ee\u4e0b\u7684\u6267\u884c\u3001\u4eba\u5458\u548c\u65f6\u95f4\u6761\u3002',
+  projectAlertStableDescription: '\u4fdd\u6301\u6298\u53e0\u975e\u5173\u952e\u660e\u7ec6\uff0c\u5c55\u5f00\u91cd\u70b9\u9879\u76ee\u65f6\u53ef\u4ee5\u66f4\u5feb\u770b\u5230\u4eba\u4e0e\u65f6\u95f4\u7684\u5bf9\u5e94\u3002',
   teamAlertConflictTitle: '\u68c0\u6d4b\u5230\u8d1f\u8d23\u4eba\u6392\u671f\u91cd\u53e0',
-  teamAlertConflictDescription: '\u8bf7\u4f18\u5148\u8c03\u6574\u540c\u4e00\u4eba\u5728\u540c\u4e00\u65f6\u95f4\u7a97\u5185\u7684\u591a\u4e2a\u6267\u884c\u5b89\u6392\u3002',
+  teamAlertConflictDescription: '\u8bf7\u4f18\u5148\u5c55\u5f00\u51b2\u7a81\u8d1f\u8d23\u4eba\uff0c\u67e5\u770b\u540c\u4e00\u65f6\u95f4\u7a97\u5185\u7684\u591a\u4e2a\u6267\u884c\u5b89\u6392\u3002',
   teamAlertStableTitle: '\u5f53\u524d\u672a\u53d1\u73b0\u56e2\u961f\u7ea7\u6392\u671f\u51b2\u7a81',
-  teamAlertStableDescription: '\u53ef\u4ee5\u7ed3\u5408\u963b\u585e\u72b6\u6001\u548c\u8fdb\u5ea6\u504f\u5dee\u6301\u7eed\u5173\u6ce8\u3002',
+  teamAlertStableDescription: '\u4fdd\u6301\u56e2\u961f\u89c6\u89d2\u7684\u6298\u53e0\u67e5\u770b\uff0c\u9700\u8981\u65f6\u518d\u5c55\u5f00\u8d1f\u8d23\u4eba\u660e\u7ec6\u3002',
   executionAlertTitle: '\u6267\u884c\u62c6\u89e3\u89c6\u56fe\u7528\u4e8e\u8ddf\u8e2a\u6700\u7ec6\u9897\u7c92\u5ea6\u7684\u63a8\u8fdb\u60c5\u51b5',
   executionAlertDescription: '\u8fd9\u4e00\u5c42\u4e3b\u8981\u7528\u6765\u5bf9\u7167\u9879\u76ee\u7518\u7279\u4e2d\u7684\u6267\u884c\u6761\u3002',
   hierarchy: '\u9879\u76ee / \u6267\u884c',
   owner: '\u8d1f\u8d23\u4eba',
+  linkedProject: '\u6240\u5c5e\u9879\u76ee',
   status: '\u72b6\u6001',
   progress: '\u8fdb\u5ea6',
   actual: '\u5b9e\u9645',
@@ -92,7 +100,6 @@ const text = {
   project: '\u9879\u76ee',
   childTask: '\u5b50\u4efb\u52a1',
   linkedExecution: '\u6240\u5c5e\u6267\u884c',
-  linkedProject: '\u6240\u5c5e\u9879\u76ee',
   inheritWindow: '\u7ee7\u627f\u65f6\u95f4\u7a97',
   planWindow: '\u8ba1\u5212\u7a97\u53e3',
   projectOwner: '\u9879\u76ee\u8d1f\u8d23\u4eba',
@@ -100,15 +107,21 @@ const text = {
   summaryHint: '\u6c47\u603b\u65f6\u95f4\u7a97',
   rowTypeProject: '\u9879\u76ee',
   rowTypeExecution: '\u6267\u884c',
+  rowTypeOwner: '\u8d1f\u8d23\u4eba',
   riskAndBug: '\u98ce\u9669 / \u7f3a\u9677',
   deviation: '\u8fdb\u5ea6\u504f\u5dee',
   timelineEmpty: '\u6682\u65e0\u6392\u671f',
+  executionCount: '\u6267\u884c\u6570',
+  hiddenExecutionCount: '\u5df2\u6298\u53e0\u6267\u884c',
+  expand: '\u5c55\u5f00',
+  collapse: '\u6536\u8d77',
   emptyProjectGantt: '\u6682\u65e0\u53ef\u5c55\u793a\u7684\u9879\u76ee\u6392\u671f',
+  emptyTeamGantt: '\u6682\u65e0\u53ef\u5c55\u793a\u7684\u56e2\u961f\u6392\u671f',
   noCode: '\u672a\u8bbe\u7f6e\u7f16\u7801',
   noActivity: '\u6682\u65e0\u66f4\u65b0',
   noSchedule: '\u672a\u6392\u671f',
   noExecutions: '\u6682\u65e0\u6267\u884c\u6392\u671f',
-  noExecutionsHint: '\u8fd9\u4e2a\u9879\u76ee\u8fd8\u6ca1\u6709\u62c6\u51fa\u6267\u884c\uff0c\u6240\u4ee5\u5f53\u524d\u53ea\u80fd\u770b\u5230\u9879\u76ee\u603b\u5468\u671f\u3002',
+  noExecutionsHint: '\u8fd9\u4e2a\u5206\u7ec4\u6682\u65f6\u6ca1\u6709\u9700\u8981\u5c55\u793a\u7684\u6267\u884c\u660e\u7ec6\u3002',
   healthy: '\u5065\u5eb7',
   watch: '\u5173\u6ce8',
   risk: '\u98ce\u9669',
@@ -118,7 +131,7 @@ const text = {
   loadingProjectGantt: '\u6b63\u5728\u52a0\u8f7d\u9879\u76ee\u7518\u7279\u6570\u636e...',
 } as const;
 
-const teamColumns: ColumnsType<TeamScheduleItem & { overlapCount: number }> = [
+const teamColumns: ColumnsType<TeamScheduleRow> = [
   { title: text.owner, dataIndex: 'ownerName', width: 140 },
   { title: text.execution, dataIndex: 'name' },
   { title: text.linkedProject, dataIndex: 'projectName', width: 220 },
@@ -171,17 +184,19 @@ export function GanttPage() {
   const projectRows = projectQuery.data ?? [];
   const scheduleRows = teamQuery.data ?? [];
   const teamRows = useMemo(() => withOverlapCount(scheduleRows), [scheduleRows]);
-  const projectGroups = useMemo(() => buildProjectExecutionGroups(projectRows, scheduleRows), [projectRows, scheduleRows]);
+  const projectGroups = useMemo(() => buildProjectExecutionGroups(projectRows, teamRows), [projectRows, teamRows]);
+  const ownerGroups = useMemo(() => buildOwnerExecutionGroups(teamRows), [teamRows]);
   const projectRange = useMemo(() => getProjectTimelineRange(projectGroups), [projectGroups]);
+  const teamRange = useMemo(() => getOwnerTimelineRange(ownerGroups), [ownerGroups]);
   const ownerConflictCount = useMemo(
     () => new Set(teamRows.filter((item) => item.overlapCount > 0).map((item) => item.ownerName)).size,
     [teamRows],
   );
-  const blockedExecutionCount = useMemo(() => scheduleRows.filter((item) => item.status === 'Blocked').length, [scheduleRows]);
+  const blockedExecutionCount = useMemo(() => teamRows.filter((item) => item.status === 'Blocked').length, [teamRows]);
   const projectRiskCount = useMemo(() => projectRows.filter((item) => item.health === 'risk').length, [projectRows]);
   const dueSoonProjectCount = useMemo(() => projectRows.filter((item) => item.dueSoonCount > 0).length, [projectRows]);
   const overdueProjectCount = useMemo(() => projectRows.filter((item) => item.overdueCount > 0).length, [projectRows]);
-  const coveredProjectCount = useMemo(() => new Set(scheduleRows.map((item) => item.projectName).filter(Boolean)).size, [scheduleRows]);
+  const coveredProjectCount = useMemo(() => new Set(teamRows.map((item) => item.projectName).filter(Boolean)).size, [teamRows]);
   const executionInProgressCount = useMemo(
     () => (executionQuery.data ?? []).filter((item) => item.status === 'InProgress').length,
     [executionQuery.data],
@@ -194,6 +209,29 @@ export function GanttPage() {
     () => new Set((executionQuery.data ?? []).map((item) => item.executionId)).size,
     [executionQuery.data],
   );
+
+  const [expandedProjects, setExpandedProjects] = useState<Record<number, boolean>>({});
+  const [expandedOwners, setExpandedOwners] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    setExpandedProjects((previous) => {
+      const next: Record<number, boolean> = {};
+      projectGroups.forEach((group, index) => {
+        next[group.project.id] = previous[group.project.id] ?? shouldExpandProject(group.project, index);
+      });
+      return next;
+    });
+  }, [projectGroups]);
+
+  useEffect(() => {
+    setExpandedOwners((previous) => {
+      const next: Record<string, boolean> = {};
+      ownerGroups.forEach((group, index) => {
+        next[group.ownerName] = previous[group.ownerName] ?? shouldExpandOwner(group, index);
+      });
+      return next;
+    });
+  }, [ownerGroups]);
 
   const summaryCards = buildSummaryCards({
     view,
@@ -247,16 +285,37 @@ export function GanttPage() {
       </Space>
 
       {renderViewAlert(view, ownerConflictCount, blockedExecutionCount, projectRiskCount, overdueProjectCount, dueSoonProjectCount)}
-
       {view === 'project' ? (
         <Card title={text.projectCardTitle} extra={<Typography.Text type="secondary">{text.projectCardHint}</Typography.Text>} styles={{ body: { padding: 0 } }}>
-          <ProjectGanttBoard groups={projectGroups} range={projectRange} loading={projectQuery.isLoading || teamQuery.isLoading} />
+          <ProjectGanttBoard
+            groups={projectGroups}
+            range={projectRange}
+            loading={projectQuery.isLoading || teamQuery.isLoading}
+            expandedState={expandedProjects}
+            onToggle={(projectId) =>
+              setExpandedProjects((previous) => ({
+                ...previous,
+                [projectId]: !previous[projectId],
+              }))
+            }
+          />
         </Card>
       ) : null}
 
       {view === 'team' ? (
-        <Card title={text.teamCardTitle} extra={<Typography.Text type="secondary">{text.teamCardHint}</Typography.Text>}>
-          <Table rowKey="id" columns={teamColumns} dataSource={teamRows} loading={teamQuery.isLoading} pagination={false} scroll={{ x: 1200 }} />
+        <Card title={text.teamCardTitle} extra={<Typography.Text type="secondary">{text.teamCardHint}</Typography.Text>} styles={{ body: { padding: 0 } }}>
+          <TeamGanttBoard
+            groups={ownerGroups}
+            range={teamRange}
+            loading={teamQuery.isLoading}
+            expandedState={expandedOwners}
+            onToggle={(ownerName) =>
+              setExpandedOwners((previous) => ({
+                ...previous,
+                [ownerName]: !previous[ownerName],
+              }))
+            }
+          />
         </Card>
       ) : null}
 
@@ -268,14 +327,19 @@ export function GanttPage() {
     </Space>
   );
 }
+
 function ProjectGanttBoard({
   groups,
   range,
   loading,
+  expandedState,
+  onToggle,
 }: {
   groups: ProjectExecutionGroup[];
   range: TimelineRange | null;
   loading: boolean;
+  expandedState: Record<number, boolean>;
+  onToggle: (projectId: number) => void;
 }) {
   const days = useMemo(() => buildTimelineDays(range), [range]);
   const monthSegments = useMemo(() => buildTimelineMonthSegments(days), [days]);
@@ -284,11 +348,11 @@ function ProjectGanttBoard({
   const dayColumns = useMemo(() => buildDayColumns(days.length), [days.length]);
 
   if (loading) {
-    return <Typography.Text type="secondary">{text.loadingProjectGantt}</Typography.Text>;
+    return <Typography.Text type="secondary" style={{ padding: 16, display: 'block' }}>{text.loadingProjectGantt}</Typography.Text>;
   }
 
   if (groups.length === 0) {
-    return <Typography.Text type="secondary">{text.emptyProjectGantt}</Typography.Text>;
+    return <Typography.Text type="secondary" style={{ padding: 16, display: 'block' }}>{text.emptyProjectGantt}</Typography.Text>;
   }
 
   return (
@@ -304,23 +368,107 @@ function ProjectGanttBoard({
           </div>
         </div>
 
-        {groups.map((group) => (
-          <Fragment key={group.project.id}>
-            <ProjectTimelineRow group={group} range={range} days={days} dayColumns={dayColumns} boardColumns={boardColumns} />
-            {group.executions.length > 0
-              ? group.executions.map((execution) => (
-                  <ExecutionTimelineRow
-                    key={execution.id}
-                    execution={execution}
-                    range={range}
-                    days={days}
-                    dayColumns={dayColumns}
-                    boardColumns={boardColumns}
-                  />
-                ))
-              : <EmptyExecutionRow boardColumns={boardColumns} days={days} dayColumns={dayColumns} />}
-          </Fragment>
-        ))}
+        {groups.map((group) => {
+          const expanded = expandedState[group.project.id] ?? true;
+          return (
+            <Fragment key={group.project.id}>
+              <ProjectTimelineRow
+                group={group}
+                range={range}
+                days={days}
+                dayColumns={dayColumns}
+                boardColumns={boardColumns}
+                expanded={expanded}
+                onToggle={() => onToggle(group.project.id)}
+              />
+              {expanded
+                ? group.executions.map((execution) => (
+                    <ProjectExecutionRow
+                      key={execution.id}
+                      execution={execution}
+                      range={range}
+                      days={days}
+                      dayColumns={dayColumns}
+                      boardColumns={boardColumns}
+                    />
+                  ))
+                : null}
+            </Fragment>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function TeamGanttBoard({
+  groups,
+  range,
+  loading,
+  expandedState,
+  onToggle,
+}: {
+  groups: OwnerExecutionGroup[];
+  range: TimelineRange | null;
+  loading: boolean;
+  expandedState: Record<string, boolean>;
+  onToggle: (ownerName: string) => void;
+}) {
+  const days = useMemo(() => buildTimelineDays(range), [range]);
+  const monthSegments = useMemo(() => buildTimelineMonthSegments(days), [days]);
+  const timelineWidth = useMemo(() => getTimelineWidth(range), [range]);
+  const boardColumns = useMemo(() => buildBoardColumns(timelineWidth), [timelineWidth]);
+  const dayColumns = useMemo(() => buildDayColumns(days.length), [days.length]);
+
+  if (loading) {
+    return <Typography.Text type="secondary" style={{ padding: 16, display: 'block' }}>{text.loadingProjectGantt}</Typography.Text>;
+  }
+
+  if (groups.length === 0) {
+    return <Typography.Text type="secondary" style={{ padding: 16, display: 'block' }}>{text.emptyTeamGantt}</Typography.Text>;
+  }
+
+  return (
+    <div className="gantt-board">
+      <div className="gantt-board__viewport">
+        <div className="gantt-board__row gantt-board__row--header" style={{ gridTemplateColumns: boardColumns }}>
+          <div className="gantt-board__head">{text.hierarchy}</div>
+          <div className="gantt-board__head">{text.linkedProject}</div>
+          <div className="gantt-board__head">{text.status}</div>
+          <div className="gantt-board__head">{text.progress}</div>
+          <div className="gantt-board__head gantt-board__head--timeline">
+            <TimelineAxis days={days} monthSegments={monthSegments} dayColumns={dayColumns} />
+          </div>
+        </div>
+
+        {groups.map((group) => {
+          const expanded = expandedState[group.ownerName] ?? true;
+          return (
+            <Fragment key={group.ownerName}>
+              <OwnerTimelineRow
+                group={group}
+                range={range}
+                days={days}
+                dayColumns={dayColumns}
+                boardColumns={boardColumns}
+                expanded={expanded}
+                onToggle={() => onToggle(group.ownerName)}
+              />
+              {expanded
+                ? group.executions.map((execution) => (
+                    <OwnerExecutionRow
+                      key={execution.id}
+                      execution={execution}
+                      range={range}
+                      days={days}
+                      dayColumns={dayColumns}
+                      boardColumns={boardColumns}
+                    />
+                  ))
+                : null}
+            </Fragment>
+          );
+        })}
       </div>
     </div>
   );
@@ -352,9 +500,7 @@ function TimelineAxis({
               'gantt-axis__day',
               day.isWeekend ? 'gantt-axis__day--weekend' : '',
               day.isToday ? 'gantt-axis__day--today' : '',
-            ]
-              .filter(Boolean)
-              .join(' ')}
+            ].filter(Boolean).join(' ')}
           >
             <Typography.Text strong>{day.dayLabel}</Typography.Text>
             <Typography.Text type="secondary">{day.weekLabel}</Typography.Text>
@@ -364,48 +510,50 @@ function TimelineAxis({
     </div>
   );
 }
-
 function ProjectTimelineRow({
   group,
   range,
   days,
   dayColumns,
   boardColumns,
+  expanded,
+  onToggle,
 }: {
   group: ProjectExecutionGroup;
   range: TimelineRange | null;
   days: TimelineDay[];
   dayColumns: string;
   boardColumns: string;
+  expanded: boolean;
+  onToggle: () => void;
 }) {
-  const subtitle = `${group.project.code || text.noCode} \u00b7 ${text.projectOwner}\uff1a${group.project.ownerName || '-'} \u00b7 ${text.execution} ${group.executions.length}`;
+  const subtitle = `${group.project.code || text.noCode} \u00b7 ${text.projectOwner}\uff1a${group.project.ownerName || '-'} \u00b7 ${text.executionCount} ${group.executions.length}`;
   const progressHint = `${text.riskAndBug}\uff1a${group.project.riskCount} / ${group.project.openBugCount}`;
 
   return (
     <div className="gantt-board__row gantt-board__row--project" style={{ gridTemplateColumns: boardColumns }}>
       <div className="gantt-board__cell gantt-board__cell--project">
         <div className="gantt-hierarchy">
-          <Space size={[8, 8]} wrap>
+          <Space size={[8, 8]} wrap className="gantt-hierarchy__header">
+            <Button type="text" size="small" onClick={onToggle}>{expanded ? text.collapse : text.expand}</Button>
             <Tag color="geekblue">{text.rowTypeProject}</Tag>
             <Typography.Text strong>{group.project.name}</Typography.Text>
             <ProjectHealthTag health={group.project.health} />
             <ProjectMilestoneTag project={group.project} />
           </Space>
           <Typography.Text type="secondary">{subtitle}</Typography.Text>
+          {!expanded ? <Typography.Text type="secondary">{`${text.hiddenExecutionCount}\uff1a${group.executions.length}`}</Typography.Text> : null}
         </div>
       </div>
-
       <div className="gantt-board__cell gantt-board__cell--project">
         <Typography.Text strong>{group.project.ownerName || '-'}</Typography.Text>
       </div>
-
       <div className="gantt-board__cell gantt-board__cell--project">
         <Space direction="vertical" size={4}>
           <ProjectMilestoneTag project={group.project} />
           <Typography.Text type="secondary">{`${text.latestActivity}\uff1a${group.project.lastActivityAt || text.noActivity}`}</Typography.Text>
         </Space>
       </div>
-
       <div className="gantt-board__cell gantt-board__cell--project">
         <div className="gantt-progress-cell">
           <Typography.Text strong>{`${group.project.averageProgress}%`}</Typography.Text>
@@ -413,7 +561,6 @@ function ProjectTimelineRow({
           <Typography.Text type="secondary">{progressHint}</Typography.Text>
         </div>
       </div>
-
       <div className="gantt-board__cell gantt-board__cell--timeline gantt-board__cell--project">
         <TimelineLane
           start={group.project.planStart}
@@ -431,14 +578,14 @@ function ProjectTimelineRow({
   );
 }
 
-function ExecutionTimelineRow({
+function ProjectExecutionRow({
   execution,
   range,
   days,
   dayColumns,
   boardColumns,
 }: {
-  execution: TeamScheduleItem;
+  execution: TeamScheduleRow;
   range: TimelineRange | null;
   days: TimelineDay[];
   dayColumns: string;
@@ -459,15 +606,12 @@ function ExecutionTimelineRow({
           <Typography.Text type="secondary">{`${text.linkedProject}\uff1a${execution.projectName || '-'} \u00b7 ${text.planWindow}\uff1a${formatWindow(execution.planStart, execution.planEnd)}`}</Typography.Text>
         </div>
       </div>
-
       <div className="gantt-board__cell">
         <Typography.Text>{execution.ownerName || '-'}</Typography.Text>
       </div>
-
       <div className="gantt-board__cell">
         <StatusTag value={execution.status} />
       </div>
-
       <div className="gantt-board__cell">
         <div className="gantt-progress-cell">
           <Typography.Text strong>{`${execution.actualProgress}%`}</Typography.Text>
@@ -475,7 +619,6 @@ function ExecutionTimelineRow({
           <Typography.Text type="secondary">{`${text.deviation}\uff1a${deviationPrefix}${deviation}%`}</Typography.Text>
         </div>
       </div>
-
       <div className="gantt-board__cell gantt-board__cell--timeline">
         <TimelineLane
           start={execution.planStart}
@@ -493,15 +636,88 @@ function ExecutionTimelineRow({
   );
 }
 
-function EmptyExecutionRow({
-  boardColumns,
+function OwnerTimelineRow({
+  group,
+  range,
   days,
   dayColumns,
+  boardColumns,
+  expanded,
+  onToggle,
 }: {
-  boardColumns: string;
+  group: OwnerExecutionGroup;
+  range: TimelineRange | null;
   days: TimelineDay[];
   dayColumns: string;
+  boardColumns: string;
+  expanded: boolean;
+  onToggle: () => void;
 }) {
+  const window = getExecutionWindow(group.executions);
+  const averageActual = Math.round(group.executions.reduce((sum, item) => sum + item.actualProgress, 0) / Math.max(group.executions.length, 1));
+  const overlapCount = group.executions.filter((item) => item.overlapCount > 0).length;
+  const blockedCount = group.executions.filter((item) => item.status === 'Blocked').length;
+
+  return (
+    <div className="gantt-board__row gantt-board__row--owner" style={{ gridTemplateColumns: boardColumns }}>
+      <div className="gantt-board__cell gantt-board__cell--owner">
+        <div className="gantt-hierarchy">
+          <Space size={[8, 8]} wrap className="gantt-hierarchy__header">
+            <Button type="text" size="small" onClick={onToggle}>{expanded ? text.collapse : text.expand}</Button>
+            <Tag color="cyan">{text.rowTypeOwner}</Tag>
+            <Typography.Text strong>{group.ownerName || '-'}</Typography.Text>
+            {overlapCount > 0 ? <Tag color="error">{`${text.overlapPrefix} ${overlapCount}`}</Tag> : <Tag color="success">{text.overlapNormal}</Tag>}
+          </Space>
+          <Typography.Text type="secondary">{`${text.executionCount}\uff1a${group.executions.length} \u00b7 ${text.blocked}\uff1a${blockedCount}`}</Typography.Text>
+          {!expanded ? <Typography.Text type="secondary">{`${text.hiddenExecutionCount}\uff1a${group.executions.length}`}</Typography.Text> : null}
+        </div>
+      </div>
+      <div className="gantt-board__cell gantt-board__cell--owner">
+        <Typography.Text>{group.executions.map((item) => item.projectName).filter(Boolean).filter((value, index, array) => array.indexOf(value) === index).join(' / ') || '-'}</Typography.Text>
+      </div>
+      <div className="gantt-board__cell gantt-board__cell--owner">
+        {blockedCount > 0 ? <Tag color="error">{text.blocked}</Tag> : <Tag color="success">{text.active}</Tag>}
+      </div>
+      <div className="gantt-board__cell gantt-board__cell--owner">
+        <div className="gantt-progress-cell">
+          <Typography.Text strong>{`${averageActual}%`}</Typography.Text>
+          <Progress percent={averageActual} size="small" />
+          <Typography.Text type="secondary">{`${text.executionCount}\uff1a${group.executions.length}`}</Typography.Text>
+        </div>
+      </div>
+      <div className="gantt-board__cell gantt-board__cell--timeline gantt-board__cell--owner">
+        <TimelineLane
+          start={window.start}
+          end={window.end}
+          range={range}
+          days={days}
+          dayColumns={dayColumns}
+          tone={blockedCount > 0 ? 'risk' : overlapCount > 0 ? 'watch' : 'healthy'}
+          variant="project"
+          label={formatWindow(window.start, window.end)}
+          subtitle={`${text.executionCount}\uff1a${group.executions.length} \u00b7 ${text.overlap}\uff1a${overlapCount}`}
+        />
+      </div>
+    </div>
+  );
+}
+
+function OwnerExecutionRow({
+  execution,
+  range,
+  days,
+  dayColumns,
+  boardColumns,
+}: {
+  execution: TeamScheduleRow;
+  range: TimelineRange | null;
+  days: TimelineDay[];
+  dayColumns: string;
+  boardColumns: string;
+}) {
+  const deviation = execution.actualProgress - execution.planProgress;
+  const deviationPrefix = deviation >= 0 ? '+' : '';
+
   return (
     <div className="gantt-board__row" style={{ gridTemplateColumns: boardColumns }}>
       <div className="gantt-board__cell">
@@ -509,31 +725,35 @@ function EmptyExecutionRow({
           <Space size={[8, 8]} wrap>
             <span className="gantt-hierarchy__indent" />
             <Tag>{text.rowTypeExecution}</Tag>
-            <Typography.Text strong>{text.noExecutions}</Typography.Text>
+            <Typography.Text strong>{execution.name}</Typography.Text>
           </Space>
-          <Typography.Text type="secondary">{text.noExecutionsHint}</Typography.Text>
+          <Typography.Text type="secondary">{`${text.owner}\uff1a${execution.ownerName || '-'} \u00b7 ${text.planWindow}\uff1a${formatWindow(execution.planStart, execution.planEnd)}`}</Typography.Text>
         </div>
       </div>
       <div className="gantt-board__cell">
-        <Typography.Text type="secondary">-</Typography.Text>
+        <Typography.Text>{execution.projectName || '-'}</Typography.Text>
       </div>
       <div className="gantt-board__cell">
-        <Tag>{text.timelineEmpty}</Tag>
+        <StatusTag value={execution.status} />
       </div>
       <div className="gantt-board__cell">
-        <Typography.Text type="secondary">{text.noSchedule}</Typography.Text>
+        <div className="gantt-progress-cell">
+          <Typography.Text strong>{`${execution.actualProgress}%`}</Typography.Text>
+          <Progress percent={execution.actualProgress} size="small" />
+          <Typography.Text type="secondary">{`${text.deviation}\uff1a${deviationPrefix}${deviation}%`}</Typography.Text>
+        </div>
       </div>
       <div className="gantt-board__cell gantt-board__cell--timeline">
         <TimelineLane
-          start=""
-          end=""
-          range={null}
+          start={execution.planStart}
+          end={execution.planEnd}
+          range={range}
           days={days}
           dayColumns={dayColumns}
-          tone="watch"
+          tone={getExecutionTone(execution.status)}
           variant="execution"
-          label={text.noSchedule}
-          subtitle={text.noExecutionsHint}
+          label={formatWindow(execution.planStart, execution.planEnd)}
+          subtitle={`${text.actual}\uff1a${execution.actualProgress}% \u00b7 ${text.plan}\uff1a${execution.planProgress}%`}
         />
       </div>
     </div>
@@ -572,9 +792,7 @@ function TimelineLane({
               'gantt-lane__day',
               day.isWeekend ? 'gantt-lane__day--weekend' : '',
               day.isToday ? 'gantt-lane__day--today' : '',
-            ]
-              .filter(Boolean)
-              .join(' ')}
+            ].filter(Boolean).join(' ')}
           />
         ))}
       </div>
@@ -582,11 +800,7 @@ function TimelineLane({
         <div className="gantt-lane__bar-wrap">
           {metrics ? (
             <div
-              className={[
-                'gantt-lane__bar',
-                `gantt-lane__bar--${tone}`,
-                `gantt-lane__bar--${variant}`,
-              ].join(' ')}
+              className={['gantt-lane__bar', `gantt-lane__bar--${tone}`, `gantt-lane__bar--${variant}`].join(' ')}
               style={{ left: `${metrics.left}%`, width: `${metrics.width}%` }}
             />
           ) : (
@@ -615,14 +829,7 @@ function renderViewAlert(
       return <Alert type="warning" showIcon message={text.projectAlertRiskTitle} description={text.projectAlertRiskDescription} />;
     }
 
-    return (
-      <Alert
-        type="success"
-        showIcon
-        message={text.projectAlertStableTitle}
-        description={`${text.projectAlertStableDescription} ${text.dueSoonCount} ${dueSoonProjectCount}`}
-      />
-    );
+    return <Alert type="success" showIcon message={text.projectAlertStableTitle} description={`${text.projectAlertStableDescription} ${text.dueSoonCount} ${dueSoonProjectCount}`} />;
   }
 
   if (view === 'team') {
@@ -630,14 +837,7 @@ function renderViewAlert(
       return <Alert type="warning" showIcon message={text.teamAlertConflictTitle} description={text.teamAlertConflictDescription} />;
     }
 
-    return (
-      <Alert
-        type="success"
-        showIcon
-        message={text.teamAlertStableTitle}
-        description={`${text.teamAlertStableDescription} ${text.blockedExecutionCount} ${blockedExecutionCount}`}
-      />
-    );
+    return <Alert type="success" showIcon message={text.teamAlertStableTitle} description={`${text.teamAlertStableDescription} ${text.blockedExecutionCount} ${blockedExecutionCount}`} />;
   }
 
   return <Alert type="info" showIcon message={text.executionAlertTitle} description={text.executionAlertDescription} />;
@@ -728,7 +928,8 @@ function ScheduleProgress({ actual, plan }: { actual: number; plan: number }) {
     </Space>
   );
 }
-function withOverlapCount(items: TeamScheduleItem[]): Array<TeamScheduleItem & { overlapCount: number }> {
+
+function withOverlapCount(items: TeamScheduleItem[]): TeamScheduleRow[] {
   return items.map((item) => ({
     ...item,
     overlapCount: items.filter((candidate) => hasOverlap(item, candidate)).length,
@@ -768,31 +969,41 @@ function formatWindow(start: string, end: string): string {
   return `${start} ~ ${end}`;
 }
 
-function buildProjectExecutionGroups(projects: ProjectScheduleItem[], executions: TeamScheduleItem[]): ProjectExecutionGroup[] {
+function buildProjectExecutionGroups(projects: ProjectScheduleItem[], executions: TeamScheduleRow[]): ProjectExecutionGroup[] {
   return projects
     .map((project) => ({
       project,
       executions: executions
         .filter((execution) => execution.projectId === project.id || execution.projectName === project.name)
-        .sort((left, right) => {
-          const leftStart = left.planStart || '9999-12-31';
-          const rightStart = right.planStart || '9999-12-31';
-          if (leftStart !== rightStart) {
-            return leftStart.localeCompare(rightStart);
-          }
-
-          return left.ownerName.localeCompare(right.ownerName);
-        }),
+        .sort((left, right) => sortByWindow(left.planStart, right.planStart, left.ownerName, right.ownerName)),
     }))
-    .sort((left, right) => {
-      const leftStart = left.project.planStart || '9999-12-31';
-      const rightStart = right.project.planStart || '9999-12-31';
-      if (leftStart !== rightStart) {
-        return leftStart.localeCompare(rightStart);
-      }
+    .sort((left, right) => sortByWindow(left.project.planStart, right.project.planStart, left.project.name, right.project.name));
+}
 
-      return left.project.name.localeCompare(right.project.name);
-    });
+function buildOwnerExecutionGroups(executions: TeamScheduleRow[]): OwnerExecutionGroup[] {
+  const grouped = new Map<string, TeamScheduleRow[]>();
+  executions.forEach((execution) => {
+    const ownerName = execution.ownerName || '-';
+    const existing = grouped.get(ownerName) ?? [];
+    existing.push(execution);
+    grouped.set(ownerName, existing);
+  });
+
+  return Array.from(grouped.entries())
+    .map(([ownerName, items]) => ({
+      ownerName,
+      executions: items.sort((left, right) => sortByWindow(left.planStart, right.planStart, left.name, right.name)),
+    }))
+    .sort((left, right) => sortByWindow(getExecutionWindow(left.executions).start, getExecutionWindow(right.executions).start, left.ownerName, right.ownerName));
+}
+
+function sortByWindow(leftStart: string, rightStart: string, leftFallback: string, rightFallback: string): number {
+  const normalizedLeft = leftStart || '9999-12-31';
+  const normalizedRight = rightStart || '9999-12-31';
+  if (normalizedLeft !== normalizedRight) {
+    return normalizedLeft.localeCompare(normalizedRight);
+  }
+  return leftFallback.localeCompare(rightFallback);
 }
 
 function getProjectTimelineRange(groups: ProjectExecutionGroup[]): TimelineRange | null {
@@ -801,8 +1012,16 @@ function getProjectTimelineRange(groups: ProjectExecutionGroup[]): TimelineRange
     group.project.planEnd,
     ...group.executions.flatMap((execution) => [execution.planStart, execution.planEnd]),
   ]);
-  const parsed = values.map((value) => dayjs(value)).filter((value) => value.isValid());
+  return buildTimelineRange(values);
+}
 
+function getOwnerTimelineRange(groups: OwnerExecutionGroup[]): TimelineRange | null {
+  const values = groups.flatMap((group) => group.executions.flatMap((execution) => [execution.planStart, execution.planEnd]));
+  return buildTimelineRange(values);
+}
+
+function buildTimelineRange(values: string[]): TimelineRange | null {
+  const parsed = values.map((value) => dayjs(value)).filter((value) => value.isValid());
   if (parsed.length === 0) {
     return null;
   }
@@ -841,21 +1060,14 @@ function buildTimelineDays(range: TimelineRange | null): TimelineDay[] {
 
 function buildTimelineMonthSegments(days: TimelineDay[]): TimelineMonthSegment[] {
   const segments: TimelineMonthSegment[] = [];
-
   days.forEach((day) => {
     const last = segments[segments.length - 1];
     if (last && last.key === day.monthKey) {
       last.span += 1;
       return;
     }
-
-    segments.push({
-      key: day.monthKey,
-      label: day.monthLabel,
-      span: 1,
-    });
+    segments.push({ key: day.monthKey, label: day.monthLabel, span: 1 });
   });
-
   return segments;
 }
 
@@ -895,12 +1107,34 @@ function getExecutionTone(status: TeamScheduleItem['status']): 'healthy' | 'watc
   if (status === 'Blocked') {
     return 'risk';
   }
-
   if (status === 'NotStarted' || status === 'ToVerify') {
     return 'watch';
   }
-
   return 'healthy';
+}
+
+function getExecutionWindow(executions: TeamScheduleRow[]): { start: string; end: string } {
+  if (executions.length === 0) {
+    return { start: '', end: '' };
+  }
+
+  const start = executions.map((item) => item.planStart || '9999-12-31').sort()[0] ?? '';
+  const end = executions.map((item) => item.planEnd || '').sort().reverse()[0] ?? '';
+  return { start, end };
+}
+
+function shouldExpandProject(project: ProjectScheduleItem, index: number): boolean {
+  if (index === 0) {
+    return true;
+  }
+  return project.health !== 'healthy' || project.blockedExecutionCount > 0 || project.dueSoonCount > 0 || project.overdueCount > 0;
+}
+
+function shouldExpandOwner(group: OwnerExecutionGroup, index: number): boolean {
+  if (index === 0) {
+    return true;
+  }
+  return group.executions.some((item) => item.overlapCount > 0 || item.status === 'Blocked');
 }
 
 function isClosedStatus(status: string): boolean {

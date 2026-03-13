@@ -765,3 +765,18 @@ body {
     box-shadow: none;
   }
 }
+.gantt-board__row--owner {
+  background: linear-gradient(90deg, rgba(22, 119, 255, 0.04), rgba(255, 255, 255, 0.98));
+}
+
+.gantt-board__cell--owner {
+  background: rgba(248, 250, 255, 0.94);
+}
+
+.gantt-hierarchy__header {
+  align-items: center;
+}
+
+.gantt-hierarchy__header .ant-btn {
+  padding-inline: 4px;
+}

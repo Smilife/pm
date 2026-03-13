@@ -60,6 +60,8 @@ const text = {
   projectList: '\u9879\u76ee\u5217\u8868',
   executionList: '\u6267\u884c\u5217\u8868',
   bugCenter: '\u7f3a\u9677\u4e2d\u5fc3',
+  teamGantt: '\u56e2\u961f\u7518\u7279\u56fe',
+  projectGantt: '\u9879\u76ee\u7518\u7279\u56fe',
   memberSettings: '\u6210\u5458\u4e0e\u8bbe\u7f6e',
   myExecutions: '\u6211\u8d1f\u8d23\u7684\u6267\u884c',
   myProjects: '\u6211\u53c2\u4e0e\u7684\u9879\u76ee',
@@ -194,6 +196,7 @@ export function WorkspacePage() {
   const canViewProjects = permissions.includes('project.view.related');
   const canViewExecutions = permissions.includes('execution.view.related');
   const canViewBugs = permissions.includes('bug.view.related');
+  const canViewSchedule = permissions.includes('schedule.view.related');
   const canViewSettings = settingsPermissions.some((permission) => permissions.includes(permission));
   const summaryQuery = useQuery({ queryKey: ['workspace-summary'], queryFn: pmApi.getWorkspaceSummary });
 
@@ -630,6 +633,8 @@ export function WorkspacePage() {
           <Space wrap>
             {canViewProjects ? <Button onClick={() => navigate('/projects')}>{text.projectList}</Button> : null}
             {canViewExecutions ? <Button onClick={() => navigate('/executions')}>{text.executionList}</Button> : null}
+            {canViewSchedule ? <Button onClick={() => navigate('/gantt?view=team')}>{text.teamGantt}</Button> : null}
+            {canViewSchedule ? <Button onClick={() => navigate('/gantt?view=project')}>{text.projectGantt}</Button> : null}
             {canViewBugs ? <Button onClick={() => navigate('/bugs')}>{text.bugCenter}</Button> : null}
             {canViewSettings ? (
               <Button type="primary" onClick={() => navigate('/settings')}>
