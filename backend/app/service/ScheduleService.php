@@ -4,32 +4,39 @@ declare(strict_types=1);
 
 namespace App\Service;
 
-use App\Support\JsonStore;
+use App\Support\StoreRegistry;
 use App\Support\RecordScope;
-use App\Support\Request;
-use App\Support\Response;
+use App\Support\ApiContext;
+use App\Support\ApiResponder;
+use think\Response as ThinkResponse;
 
 final class ScheduleService
 {
-    public function teamGantt(Request $request, array $params): Response
-    {
-        $store = new JsonStore();
-        $scope = new RecordScope($request, $store);
-        $executions = $scope->filterExecutions($store->all('executions'));
+    private StoreRegistry $store;
 
-        return Response::success([
+    public function __construct(StoreRegistry $store)
+    {
+        $this->store = $store;
+    }
+    public function teamGantt(ApiContext $request, array $params): ThinkResponse
+    {
+        $store = $this->store;
+        $scope = new RecordScope($request, $store);
+        $executions = $scope->filterExecutions($store->allExecutions());
+
+        return ApiResponder::success([
             'items' => $executions,
             'view' => 'team',
             'total' => count($executions),
         ], $request->requestId);
     }
 
-    public function executionGantt(Request $request, array $params): Response
+    public function executionGantt(ApiContext $request, array $params): ThinkResponse
     {
-        $store = new JsonStore();
+        $store = $this->store;
         $scope = new RecordScope($request, $store);
-        $tasks = $scope->filterTasks($store->all('tasks'));
-        $executions = $scope->filterExecutions($store->all('executions'));
+        $tasks = $scope->filterTasks($store->allTasks());
+        $executions = $scope->filterExecutions($store->allExecutions());
         $executionMap = [];
 
         foreach ($executions as $execution) {
@@ -53,7 +60,7 @@ final class ScheduleService
             ];
         }, $tasks)));
 
-        return Response::success([
+        return ApiResponder::success([
             'items' => $items,
             'view' => 'execution',
             'total' => count($items),

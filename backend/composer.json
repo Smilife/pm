@@ -12,5 +12,12 @@
       "App\\": "app/",
       "app\\": "app/"
     }
+  },
+  "scripts": {
+    "db:init": "@php scripts/db-init.php",
+    "db:migrate": "@php scripts/db-migrate.php",
+    "db:seed": "@php scripts/db-seed.php",
+    "db:clean-legacy": "@php scripts/db-clean-legacy.php",
+    "test:smoke": "@php scripts/api-smoke-test.php"
   }
 }

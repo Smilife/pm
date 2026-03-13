@@ -6,7 +6,7 @@ namespace App\Support;
 
 final class RecordScope
 {
-    private JsonStore $store;
+    private StoreRegistry $store;
     private ?array $currentUser;
     private array $roleMap;
 
@@ -14,14 +14,14 @@ final class RecordScope
     private ?array $accessMap = null;
 
     public function __construct(
-        private readonly Request $request,
-        ?JsonStore $store = null,
+        private readonly ApiContext $request,
+        ?StoreRegistry $store = null,
     ) {
-        $this->store = $store ?? new JsonStore();
+        $this->store = $store ?? app(StoreRegistry::class);
         $this->currentUser = Auth::currentUser($request);
         $this->roleMap = [];
 
-        foreach ($this->store->all('roles') as $role) {
+        foreach ($this->store->allRoles() as $role) {
             $key = trim((string) ($role['key'] ?? ''));
             if ($key !== '') {
                 $this->roleMap[$key] = $role;
@@ -161,7 +161,7 @@ final class RecordScope
         return $this->allows('bugs', $bugId);
     }
 
-    public function ensureCurrentUserField(string $value, string $field, string $resource, string $requestId, int $resourceId = 0): ?Response
+    public function ensureCurrentUserField(string $value, string $field, string $resource, string $requestId, int $resourceId = 0): ?\think\Response
     {
         if ($this->isOrgScope() || $this->matchesCurrentUser($value)) {
             return null;
@@ -176,10 +176,10 @@ final class RecordScope
             $data['resource_id'] = $resourceId;
         }
 
-        return Response::error(403, 'scope_forbidden', $data, $requestId);
+        return ApiResponder::error(403, 'scope_forbidden', $data, $requestId);
     }
 
-    public function scopeDenied(string $resource, string $requestId, int $resourceId = 0): Response
+    public function scopeDenied(string $resource, string $requestId, int $resourceId = 0): \think\Response
     {
         $data = ['resource' => $resource];
 
@@ -187,7 +187,7 @@ final class RecordScope
             $data['resource_id'] = $resourceId;
         }
 
-        return Response::error(403, 'scope_forbidden', $data, $requestId);
+        return ApiResponder::error(403, 'scope_forbidden', $data, $requestId);
     }
 
     /**
@@ -200,13 +200,13 @@ final class RecordScope
         }
 
         $collections = [
-            'projects' => $this->store->all('projects'),
-            'requirements' => $this->store->all('requirements'),
-            'executions' => $this->store->all('executions'),
-            'tasks' => $this->store->all('tasks'),
-            'worklogs' => $this->store->all('worklogs'),
-            'daily_tasks' => $this->store->all('daily_tasks'),
-            'bugs' => $this->store->all('bugs'),
+            'projects' => $this->store->allProjects(),
+            'requirements' => $this->store->allRequirements(),
+            'executions' => $this->store->allExecutions(),
+            'tasks' => $this->store->allTasks(),
+            'worklogs' => $this->store->allWorklogs(),
+            'daily_tasks' => $this->store->allDailyTasks(),
+            'bugs' => $this->store->allBugs(),
         ];
 
         if ($this->isOrgScope()) {

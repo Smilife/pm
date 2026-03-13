@@ -4,32 +4,33 @@ declare(strict_types=1);
 
 namespace App\Service;
 
-use App\Support\JsonStore;
+use App\Support\StoreRegistry;
 use App\Support\RecordScope;
-use App\Support\Request;
-use App\Support\Response;
+use App\Support\ApiContext;
+use App\Support\ApiResponder;
+use think\Response as ThinkResponse;
 
 final class RequirementService
 {
     private const DEFAULT_DRAFT_TITLE = 'Untitled draft';
     private const MAX_ATTACHMENT_SIZE = 20 * 1024 * 1024;
 
-    private JsonStore $store;
+    private StoreRegistry $store;
 
-    public function __construct()
+    public function __construct(StoreRegistry $store)
     {
-        $this->store = new JsonStore();
+        $this->store = $store;
     }
 
-    public function index(Request $request, array $params): Response
+    public function index(ApiContext $request, array $params): ThinkResponse
     {
         $scope = new RecordScope($request, $this->store);
         $items = array_map(
             fn (array $item): array => $this->mapSummary($item),
-            $scope->filterRequirements($this->store->all('requirements'))
+            $scope->filterRequirements($this->store->allRequirements())
         );
 
-        return Response::success([
+        return ApiResponder::success([
             'items' => $items,
             'page_no' => 1,
             'page_size' => 20,
@@ -37,22 +38,22 @@ final class RequirementService
         ], $request->requestId);
     }
 
-    public function store(Request $request, array $params): Response
+    public function store(ApiContext $request, array $params): ThinkResponse
     {
         $scope = new RecordScope($request, $this->store);
         $payload = $this->normalizeRequirementPayload($request->body, null, $scope);
-        $created = $this->store->create('requirements', $payload);
+        $created = $this->store->createRequirement($payload);
 
-        return Response::success($this->mapDetail($created, $scope), $request->requestId);
+        return ApiResponder::success($this->mapDetail($created, $scope), $request->requestId);
     }
 
-    public function show(Request $request, array $params): Response
+    public function show(ApiContext $request, array $params): ThinkResponse
     {
         $requirementId = (int) ($params['id'] ?? 0);
-        $requirement = $this->store->find('requirements', $requirementId);
+        $requirement = $this->store->findRequirement($requirementId);
 
         if ($requirement === null) {
-            return Response::error(404, 'requirement_not_found', [], $request->requestId);
+            return ApiResponder::error(404, 'requirement_not_found', [], $request->requestId);
         }
 
         $scope = new RecordScope($request, $this->store);
@@ -60,16 +61,16 @@ final class RequirementService
             return $scope->scopeDenied('requirement', $request->requestId, $requirementId);
         }
 
-        return Response::success($this->mapDetail($requirement, $scope), $request->requestId);
+        return ApiResponder::success($this->mapDetail($requirement, $scope), $request->requestId);
     }
 
-    public function update(Request $request, array $params): Response
+    public function update(ApiContext $request, array $params): ThinkResponse
     {
         $requirementId = (int) ($params['id'] ?? 0);
-        $current = $this->store->find('requirements', $requirementId);
+        $current = $this->store->findRequirement($requirementId);
 
         if ($current === null) {
-            return Response::error(404, 'requirement_not_found', [], $request->requestId);
+            return ApiResponder::error(404, 'requirement_not_found', [], $request->requestId);
         }
 
         $scope = new RecordScope($request, $this->store);
@@ -78,22 +79,22 @@ final class RequirementService
         }
 
         $payload = $this->normalizeRequirementPayload($request->body, $current, $scope);
-        $updated = $this->store->update('requirements', $requirementId, $payload);
+        $updated = $this->store->updateRequirement($requirementId, $payload);
 
         if ($updated === null) {
-            return Response::error(404, 'requirement_not_found', [], $request->requestId);
+            return ApiResponder::error(404, 'requirement_not_found', [], $request->requestId);
         }
 
-        return Response::success($this->mapDetail($updated, $scope), $request->requestId);
+        return ApiResponder::success($this->mapDetail($updated, $scope), $request->requestId);
     }
 
-    public function storeAttachment(Request $request, array $params): Response
+    public function storeAttachment(ApiContext $request, array $params): ThinkResponse
     {
         $requirementId = (int) ($params['id'] ?? 0);
-        $requirement = $this->store->find('requirements', $requirementId);
+        $requirement = $this->store->findRequirement($requirementId);
 
         if ($requirement === null) {
-            return Response::error(404, 'requirement_not_found', [], $request->requestId);
+            return ApiResponder::error(404, 'requirement_not_found', [], $request->requestId);
         }
 
         $scope = new RecordScope($request, $this->store);
@@ -103,20 +104,20 @@ final class RequirementService
 
         $file = is_array($request->files['file'] ?? null) ? $request->files['file'] : null;
         if ($file === null || ($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
-            return Response::error(422, 'attachment_missing', [], $request->requestId);
+            return ApiResponder::error(422, 'attachment_missing', [], $request->requestId);
         }
 
         if ((int) ($file['error'] ?? UPLOAD_ERR_OK) !== UPLOAD_ERR_OK) {
-            return Response::error(422, 'attachment_upload_failed', ['upload_error' => (int) ($file['error'] ?? 0)], $request->requestId);
+            return ApiResponder::error(422, 'attachment_upload_failed', ['upload_error' => (int) ($file['error'] ?? 0)], $request->requestId);
         }
 
         $size = (int) ($file['size'] ?? 0);
         if ($size <= 0) {
-            return Response::error(422, 'attachment_empty', [], $request->requestId);
+            return ApiResponder::error(422, 'attachment_empty', [], $request->requestId);
         }
 
         if ($size > self::MAX_ATTACHMENT_SIZE) {
-            return Response::error(422, 'attachment_too_large', ['max_size' => self::MAX_ATTACHMENT_SIZE], $request->requestId);
+            return ApiResponder::error(422, 'attachment_too_large', ['max_size' => self::MAX_ATTACHMENT_SIZE], $request->requestId);
         }
 
         $originalName = trim((string) ($file['name'] ?? ''));
@@ -125,12 +126,12 @@ final class RequirementService
         $attachmentType = $this->resolveAttachmentType($mimeType, $originalName);
 
         if ($attachmentType === 'other') {
-            return Response::error(422, 'attachment_type_not_supported', [], $request->requestId);
+            return ApiResponder::error(422, 'attachment_type_not_supported', [], $request->requestId);
         }
 
         $targetDirectory = dirname(__DIR__, 2) . '/public/uploads/requirements/' . $requirementId;
         if (!is_dir($targetDirectory) && !mkdir($targetDirectory, 0777, true) && !is_dir($targetDirectory)) {
-            return Response::error(500, 'attachment_storage_failed', [], $request->requestId);
+            return ApiResponder::error(500, 'attachment_storage_failed', [], $request->requestId);
         }
 
         $safeName = $this->sanitizeFileName($originalName);
@@ -145,10 +146,10 @@ final class RequirementService
             $stored = @copy($tmpName, $targetPath);
         }
         if (!$stored) {
-            return Response::error(500, 'attachment_storage_failed', [], $request->requestId);
+            return ApiResponder::error(500, 'attachment_storage_failed', [], $request->requestId);
         }
 
-        $attachment = $this->store->create('requirement_attachments', [
+        $attachment = $this->store->createRequirementAttachment([
             'requirement_id' => $requirementId,
             'file_name' => $originalName !== '' ? $originalName : $safeName,
             'file_type' => $attachmentType,
@@ -158,16 +159,16 @@ final class RequirementService
             'uploaded_at' => date(DATE_ATOM),
         ]);
 
-        return Response::success($this->mapAttachment($attachment), $request->requestId);
+        return ApiResponder::success($this->mapAttachment($attachment), $request->requestId);
     }
 
-    public function submitForReview(Request $request, array $params): Response
+    public function submitForReview(ApiContext $request, array $params): ThinkResponse
     {
         $requirementId = (int) ($params['id'] ?? 0);
-        $requirement = $this->store->find('requirements', $requirementId);
+        $requirement = $this->store->findRequirement($requirementId);
 
         if ($requirement === null) {
-            return Response::error(404, 'requirement_not_found', [], $request->requestId);
+            return ApiResponder::error(404, 'requirement_not_found', [], $request->requestId);
         }
 
         $scope = new RecordScope($request, $this->store);
@@ -176,7 +177,7 @@ final class RequirementService
         }
 
         $normalized = $this->normalizeRequirementPayload([], $requirement, $scope);
-        $this->store->update('requirements', $requirementId, ['maturity_checks' => $normalized['maturity_checks']]);
+        $this->store->updateRequirement($requirementId, ['maturity_checks' => $normalized['maturity_checks']]);
 
         $failedChecks = array_values(array_filter(
             $normalized['maturity_checks'],
@@ -184,25 +185,25 @@ final class RequirementService
         ));
 
         if ($failedChecks !== []) {
-            return Response::error(422, 'maturity_check_failed', ['failed_checks' => $failedChecks], $request->requestId);
+            return ApiResponder::error(422, 'maturity_check_failed', ['failed_checks' => $failedChecks], $request->requestId);
         }
 
-        $updated = $this->store->update('requirements', $requirementId, [
+        $updated = $this->store->updateRequirement($requirementId, [
             'status' => 'ToReview',
             'current_stage' => 'Pending review',
             'maturity_checks' => $normalized['maturity_checks'],
         ]);
 
-        return Response::success($this->mapDetail($updated ?? $requirement, $scope), $request->requestId);
+        return ApiResponder::success($this->mapDetail($updated ?? $requirement, $scope), $request->requestId);
     }
 
-    public function storeReview(Request $request, array $params): Response
+    public function storeReview(ApiContext $request, array $params): ThinkResponse
     {
         $requirementId = (int) ($params['id'] ?? 0);
-        $requirement = $this->store->find('requirements', $requirementId);
+        $requirement = $this->store->findRequirement($requirementId);
 
         if ($requirement === null) {
-            return Response::error(404, 'requirement_not_found', [], $request->requestId);
+            return ApiResponder::error(404, 'requirement_not_found', [], $request->requestId);
         }
 
         $scope = new RecordScope($request, $this->store);
@@ -217,7 +218,7 @@ final class RequirementService
         }
 
         $result = (string) ($request->body['result'] ?? 'supplement_required');
-        $review = $this->store->create('requirement_reviews', [
+        $review = $this->store->createRequirementReview([
             'requirement_id' => $requirementId,
             'result' => $result,
             'reviewer_name' => $reviewerName !== '' ? $reviewerName : 'Anonymous reviewer',
@@ -232,21 +233,21 @@ final class RequirementService
         };
 
         $currentStage = $result === 'approved' ? 'Reviewed' : 'Confirmed';
-        $this->store->update('requirements', $requirementId, [
+        $this->store->updateRequirement($requirementId, [
             'status' => $status,
             'current_stage' => $currentStage,
         ]);
 
-        return Response::success($this->mapReview($review), $request->requestId);
+        return ApiResponder::success($this->mapReview($review), $request->requestId);
     }
 
-    public function listReviews(Request $request, array $params): Response
+    public function listReviews(ApiContext $request, array $params): ThinkResponse
     {
         $requirementId = (int) ($params['id'] ?? 0);
-        $requirement = $this->store->find('requirements', $requirementId);
+        $requirement = $this->store->findRequirement($requirementId);
 
         if ($requirement === null) {
-            return Response::error(404, 'requirement_not_found', [], $request->requestId);
+            return ApiResponder::error(404, 'requirement_not_found', [], $request->requestId);
         }
 
         $scope = new RecordScope($request, $this->store);
@@ -254,19 +255,19 @@ final class RequirementService
             return $scope->scopeDenied('requirement', $request->requestId, $requirementId);
         }
 
-        $reviews = $this->store->filter(
-            'requirement_reviews',
+        $reviews = array_values(array_filter(
+            $this->store->allRequirementReviews(),
             static fn (array $item): bool => (int) ($item['requirement_id'] ?? 0) === $requirementId
-        );
+        ));
 
         usort($reviews, static fn (array $left, array $right): int => strcmp((string) ($right['reviewed_at'] ?? ''), (string) ($left['reviewed_at'] ?? '')));
 
-        return Response::success([
+        return ApiResponder::success([
             'items' => array_map(fn (array $item): array => $this->mapReview($item), $reviews),
         ], $request->requestId);
     }
 
-    public function batchGenerateExecutions(Request $request, array $params): Response
+    public function batchGenerateExecutions(ApiContext $request, array $params): ThinkResponse
     {
         $scope = new RecordScope($request, $this->store);
         $requirementIds = array_values(array_unique(array_map('intval', $request->body['requirement_ids'] ?? [])));
@@ -275,9 +276,9 @@ final class RequirementService
             return $scope->scopeDenied('project', $request->requestId, $projectId);
         }
 
-        $requirements = $this->store->all('requirements');
-        $executions = $this->store->all('executions');
-        $projects = $this->store->all('projects');
+        $requirements = $this->store->allRequirements();
+        $executions = $this->store->allExecutions();
+        $projects = $this->store->allProjects();
         $created = [];
         $skipped = [];
         $projectName = (string) ($request->body['project_name'] ?? 'Unassigned project');
@@ -348,11 +349,11 @@ final class RequirementService
             $projects[$index]['execution_count'] = (int) ($project['execution_count'] ?? 0) + count($created);
         }
 
-        $this->store->replaceAll('requirements', $requirements);
-        $this->store->replaceAll('executions', $executions);
-        $this->store->replaceAll('projects', $projects);
+        $this->store->replaceAllRequirements($requirements);
+        $this->store->replaceAllExecutions($executions);
+        $this->store->replaceAllProjects($projects);
 
-        return Response::success([
+        return ApiResponder::success([
             'items' => $created,
             'skipped_requirement_ids' => $skipped,
         ], $request->requestId);
@@ -373,24 +374,24 @@ final class RequirementService
 
     private function mapDetail(array $item, ?RecordScope $scope = null): array
     {
-        $reviews = $this->store->filter(
-            'requirement_reviews',
+        $reviews = array_values(array_filter(
+            $this->store->allRequirementReviews(),
             static fn (array $review): bool => (int) ($review['requirement_id'] ?? 0) === (int) ($item['id'] ?? 0)
-        );
+        ));
         usort($reviews, static fn (array $left, array $right): int => strcmp((string) ($right['reviewed_at'] ?? ''), (string) ($left['reviewed_at'] ?? '')));
 
         $executions = array_values(array_filter(array_map(
-            fn (int $executionId): ?array => $this->store->find('executions', $executionId),
+            fn (int $executionId): ?array => $this->store->findExecution($executionId),
             array_map('intval', is_array($item['linked_execution_ids'] ?? null) ? $item['linked_execution_ids'] : [])
         )));
         if ($scope !== null) {
             $executions = $scope->filterExecutions($executions);
         }
 
-        $attachments = $this->store->filter(
-            'requirement_attachments',
+        $attachments = array_values(array_filter(
+            $this->store->allRequirementAttachments(),
             static fn (array $attachment): bool => (int) ($attachment['requirement_id'] ?? 0) === (int) ($item['id'] ?? 0)
-        );
+        ));
         usort($attachments, static fn (array $left, array $right): int => strcmp((string) ($right['uploaded_at'] ?? ''), (string) ($left['uploaded_at'] ?? '')));
 
         return [

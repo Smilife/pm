@@ -4,35 +4,36 @@ declare(strict_types=1);
 
 namespace App\Service;
 
-use App\Support\JsonStore;
+use App\Support\StoreRegistry;
 use App\Support\RecordScope;
-use App\Support\Request;
-use App\Support\Response;
+use App\Support\ApiContext;
+use App\Support\ApiResponder;
+use think\Response as ThinkResponse;
 
 final class WorklogService
 {
-    private JsonStore $store;
+    private StoreRegistry $store;
 
-    public function __construct()
+    public function __construct(StoreRegistry $store)
     {
-        $this->store = new JsonStore();
+        $this->store = $store;
     }
 
-    public function index(Request $request, array $params): Response
+    public function index(ApiContext $request, array $params): ThinkResponse
     {
         $scope = new RecordScope($request, $this->store);
-        $items = $scope->filterWorklogs($this->store->all('worklogs'));
+        $items = $scope->filterWorklogs($this->store->allWorklogs());
 
-        return Response::success(['items' => $items, 'total' => count($items)], $request->requestId);
+        return ApiResponder::success(['items' => $items, 'total' => count($items)], $request->requestId);
     }
 
-    public function listByExecution(Request $request, array $params): Response
+    public function listByExecution(ApiContext $request, array $params): ThinkResponse
     {
         $executionId = (int) ($params['id'] ?? 0);
-        $execution = $this->store->find('executions', $executionId);
+        $execution = $this->store->findExecution($executionId);
 
         if ($execution === null) {
-            return Response::error(404, 'execution_not_found', [], $request->requestId);
+            return ApiResponder::error(404, 'execution_not_found', [], $request->requestId);
         }
 
         $scope = new RecordScope($request, $this->store);
@@ -40,24 +41,24 @@ final class WorklogService
             return $scope->scopeDenied('execution', $request->requestId, $executionId);
         }
 
-        $items = $scope->filterWorklogs($this->store->filter(
-            'worklogs',
+        $items = $scope->filterWorklogs(array_values(array_filter(
+            $this->store->allWorklogs(),
             static fn (array $item): bool => (int) ($item['execution_id'] ?? 0) === $executionId
-        ));
+        )));
 
         usort($items, static fn (array $left, array $right): int => strcmp((string) ($right['work_date'] ?? ''), (string) ($left['work_date'] ?? '')));
 
-        return Response::success(['items' => $items, 'total' => count($items)], $request->requestId);
+        return ApiResponder::success(['items' => $items, 'total' => count($items)], $request->requestId);
     }
 
-    public function store(Request $request, array $params): Response
+    public function store(ApiContext $request, array $params): ThinkResponse
     {
         $scope = new RecordScope($request, $this->store);
         $executionId = (int) ($request->body['execution_id'] ?? 0);
-        $execution = $this->store->find('executions', $executionId);
+        $execution = $this->store->findExecution($executionId);
 
         if ($execution === null) {
-            return Response::error(404, 'execution_not_found', [], $request->requestId);
+            return ApiResponder::error(404, 'execution_not_found', [], $request->requestId);
         }
 
         if (!$scope->canAccessExecution($execution)) {
@@ -79,16 +80,16 @@ final class WorklogService
             'summary' => $request->body['summary'] ?? '',
         ];
 
-        return Response::success($this->store->create('worklogs', $payload), $request->requestId);
+        return ApiResponder::success($this->store->createWorklog($payload), $request->requestId);
     }
 
-    public function show(Request $request, array $params): Response
+    public function show(ApiContext $request, array $params): ThinkResponse
     {
         $worklogId = (int) ($params['id'] ?? 0);
-        $item = $this->store->find('worklogs', $worklogId);
+        $item = $this->store->findWorklog($worklogId);
 
         if ($item === null) {
-            return Response::error(404, 'worklog_not_found', [], $request->requestId);
+            return ApiResponder::error(404, 'worklog_not_found', [], $request->requestId);
         }
 
         $scope = new RecordScope($request, $this->store);
@@ -96,16 +97,16 @@ final class WorklogService
             return $scope->scopeDenied('worklog', $request->requestId, $worklogId);
         }
 
-        return Response::success($item, $request->requestId);
+        return ApiResponder::success($item, $request->requestId);
     }
 
-    public function update(Request $request, array $params): Response
+    public function update(ApiContext $request, array $params): ThinkResponse
     {
         $id = (int) ($params['id'] ?? 0);
-        $current = $this->store->find('worklogs', $id);
+        $current = $this->store->findWorklog($id);
 
         if ($current === null) {
-            return Response::error(404, 'worklog_not_found', [], $request->requestId);
+            return ApiResponder::error(404, 'worklog_not_found', [], $request->requestId);
         }
 
         $scope = new RecordScope($request, $this->store);
@@ -119,10 +120,10 @@ final class WorklogService
         }
 
         $executionId = (int) ($request->body['execution_id'] ?? ($current['execution_id'] ?? 0));
-        $execution = $this->store->find('executions', $executionId);
+        $execution = $this->store->findExecution($executionId);
 
         if ($execution === null) {
-            return Response::error(404, 'execution_not_found', [], $request->requestId);
+            return ApiResponder::error(404, 'execution_not_found', [], $request->requestId);
         }
 
         if (!$scope->canAccessExecution($execution)) {
@@ -135,7 +136,7 @@ final class WorklogService
             return $ownerError;
         }
 
-        $updated = $this->store->update('worklogs', $id, [
+        $updated = $this->store->updateWorklog($id, [
             'execution_id' => $executionId,
             'execution_name' => (string) ($execution['name'] ?? 'Unknown execution'),
             'owner_name' => $ownerName !== '' ? $ownerName : (string) ($current['owner_name'] ?? 'Unassigned'),
@@ -144,6 +145,6 @@ final class WorklogService
             'summary' => $request->body['summary'] ?? ($current['summary'] ?? ''),
         ]);
 
-        return Response::success($updated ?? $current, $request->requestId);
+        return ApiResponder::success($updated ?? $current, $request->requestId);
     }
 }

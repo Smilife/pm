@@ -79,7 +79,7 @@ final class Authorization
         ['POST', '/reports/weekly/generate', 'report.weekly.generate.self'],
     ];
 
-    public static function authorizeRequest(Request $request): ?Response
+    public static function authorizeRequest(ApiContext $request): ?\think\Response
     {
         $requiredPermission = self::requiredPermission($request);
 
@@ -88,13 +88,13 @@ final class Authorization
         }
 
         if (!in_array($requiredPermission, self::permissionsForRequest($request), true)) {
-            return Response::error(403, 'forbidden', ['required_permission' => $requiredPermission], $request->requestId);
+            return ApiResponder::error(403, 'forbidden', ['required_permission' => $requiredPermission], $request->requestId);
         }
 
         return null;
     }
 
-    public static function permissionsForRequest(Request $request): array
+    public static function permissionsForRequest(ApiContext $request): array
     {
         $user = Auth::currentUser($request);
         $permissions = is_array($user['permissions'] ?? null) ? $user['permissions'] : [];
@@ -102,7 +102,7 @@ final class Authorization
         return array_values(array_map(static fn ($item): string => (string) $item, $permissions));
     }
 
-    private static function requiredPermission(Request $request): ?string
+    private static function requiredPermission(ApiContext $request): ?string
     {
         foreach (self::ROUTE_PERMISSIONS as [$method, $pattern, $permission]) {
             if ($request->method !== $method) {

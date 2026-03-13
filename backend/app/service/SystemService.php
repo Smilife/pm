@@ -5,24 +5,31 @@ declare(strict_types=1);
 namespace App\Service;
 
 use App\Support\Auth;
-use App\Support\JsonStore;
+use App\Support\StoreRegistry;
 use App\Support\RecordScope;
-use App\Support\Request;
-use App\Support\Response;
+use App\Support\ApiContext;
+use App\Support\ApiResponder;
+use think\Response as ThinkResponse;
 
 final class SystemService
 {
-    public function summary(Request $request, array $params): Response
+    private StoreRegistry $store;
+
+    public function __construct(StoreRegistry $store)
     {
-        $store = new JsonStore();
+        $this->store = $store;
+    }
+    public function summary(ApiContext $request, array $params): ThinkResponse
+    {
+        $store = $this->store;
         $scope = new RecordScope($request, $store);
-        $requirements = $scope->filterRequirements($store->all('requirements'));
-        $projects = $scope->filterProjects($store->all('projects'));
-        $executions = $scope->filterExecutions($store->all('executions'));
-        $dailyTasks = $scope->filterDailyTasks($store->all('daily_tasks'));
-        $bugs = $scope->filterBugs($store->all('bugs'));
-        $worklogs = $scope->filterWorklogs($store->all('worklogs'));
-        $users = $store->all('users');
+        $requirements = $scope->filterRequirements($store->allRequirements());
+        $projects = $scope->filterProjects($store->allProjects());
+        $executions = $scope->filterExecutions($store->allExecutions());
+        $dailyTasks = $scope->filterDailyTasks($store->allDailyTasks());
+        $bugs = $scope->filterBugs($store->allBugs());
+        $worklogs = $scope->filterWorklogs($store->allWorklogs());
+        $users = $store->allUsers();
         $today = date('Y-m-d');
         $dueSoonBoundary = date('Y-m-d', strtotime('+3 days'));
         $currentUser = Auth::currentUser($request);
@@ -89,7 +96,7 @@ final class SystemService
             'open_bug_count' => $openBugCount,
         ];
 
-        return Response::success([
+        return ApiResponder::success([
             'auth_mode' => 'password_login',
             'permission_mode' => 'rbac_route_guard_with_record_scope',
             'dashboard_mode' => $dashboardMode,

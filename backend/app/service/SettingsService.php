@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace App\Service;
 
-use App\Support\JsonStore;
-use App\Support\Request;
-use App\Support\Response;
+use App\Support\StoreRegistry;
+use App\Support\ApiContext;
+use App\Support\ApiResponder;
+use think\Response as ThinkResponse;
 
 final class SettingsService
 {
@@ -14,25 +15,25 @@ final class SettingsService
 
     private const PROTECTED_DICTIONARY_KEYS = ['requirement_status', 'execution_status', 'bug_severity', 'project_status'];
 
-    private JsonStore $store;
+    private StoreRegistry $store;
 
-    public function __construct()
+    public function __construct(StoreRegistry $store)
     {
-        $this->store = new JsonStore();
+        $this->store = $store;
     }
 
-    public function members(Request $request, array $params): Response
+    public function members(ApiContext $request, array $params): ThinkResponse
     {
-        $items = array_map(fn (array $user): array => $this->mapMember($user), $this->store->all('users'));
+        $items = array_map(fn (array $user): array => $this->mapMember($user), $this->store->allUsers());
 
         usort($items, static function (array $left, array $right): int {
             return strcmp((string) ($left['name'] ?? ''), (string) ($right['name'] ?? ''));
         });
 
-        return Response::success(['items' => array_values($items), 'total' => count($items)], $request->requestId);
+        return ApiResponder::success(['items' => array_values($items), 'total' => count($items)], $request->requestId);
     }
 
-    public function storeMember(Request $request, array $params): Response
+    public function storeMember(ApiContext $request, array $params): ThinkResponse
     {
         $error = $this->validateMemberRequest($request);
         if ($error !== null) {
@@ -41,11 +42,11 @@ final class SettingsService
 
         $email = trim((string) ($request->body['email'] ?? ''));
         if ($this->emailExists($email)) {
-            return Response::error(422, 'duplicate_member_email', [], $request->requestId);
+            return ApiResponder::error(422, 'duplicate_member_email', [], $request->requestId);
         }
 
         $roles = $this->normalizeRoles($request->body['roles'] ?? []);
-        $created = $this->store->create('users', [
+        $created = $this->store->createUser([
             'name' => trim((string) ($request->body['name'] ?? '')),
             'email' => $email,
             'password' => 'demo123',
@@ -58,15 +59,15 @@ final class SettingsService
             'last_login_at' => '',
         ]);
 
-        return Response::success($this->mapMember($created), $request->requestId);
+        return ApiResponder::success($this->mapMember($created), $request->requestId);
     }
 
-    public function updateMember(Request $request, array $params): Response
+    public function updateMember(ApiContext $request, array $params): ThinkResponse
     {
         $memberId = (int) ($params['id'] ?? 0);
-        $current = $this->store->find('users', $memberId);
+        $current = $this->store->findUser($memberId);
         if ($current === null) {
-            return Response::error(404, 'member_not_found', [], $request->requestId);
+            return ApiResponder::error(404, 'member_not_found', [], $request->requestId);
         }
 
         $error = $this->validateMemberRequest($request, $current);
@@ -76,11 +77,11 @@ final class SettingsService
 
         $email = trim((string) ($request->body['email'] ?? ($current['email'] ?? '')));
         if ($this->emailExists($email, $memberId)) {
-            return Response::error(422, 'duplicate_member_email', [], $request->requestId);
+            return ApiResponder::error(422, 'duplicate_member_email', [], $request->requestId);
         }
 
         $roles = $this->normalizeRoles($request->body['roles'] ?? ($current['roles'] ?? []));
-        $updated = $this->store->update('users', $memberId, [
+        $updated = $this->store->updateUser($memberId, [
             'name' => trim((string) ($request->body['name'] ?? ($current['name'] ?? ''))),
             'email' => $email,
             'department' => trim((string) ($request->body['department'] ?? ($current['department'] ?? 'General'))),
@@ -92,20 +93,20 @@ final class SettingsService
         ]);
 
         if ($updated === null) {
-            return Response::error(404, 'member_not_found', [], $request->requestId);
+            return ApiResponder::error(404, 'member_not_found', [], $request->requestId);
         }
 
-        return Response::success($this->mapMember($updated), $request->requestId);
+        return ApiResponder::success($this->mapMember($updated), $request->requestId);
     }
 
-    public function roles(Request $request, array $params): Response
+    public function roles(ApiContext $request, array $params): ThinkResponse
     {
-        $items = array_map(fn (array $role): array => $this->mapRole($role), $this->store->all('roles'));
+        $items = array_map(fn (array $role): array => $this->mapRole($role), $this->store->allRoles());
 
-        return Response::success(['items' => array_values($items), 'total' => count($items)], $request->requestId);
+        return ApiResponder::success(['items' => array_values($items), 'total' => count($items)], $request->requestId);
     }
 
-    public function storeRole(Request $request, array $params): Response
+    public function storeRole(ApiContext $request, array $params): ThinkResponse
     {
         $key = $this->normalizeMachineKey((string) ($request->body['key'] ?? ''));
         $name = trim((string) ($request->body['name'] ?? ''));
@@ -114,28 +115,28 @@ final class SettingsService
         $permissions = $this->normalizePermissionList($request->body['permissions'] ?? []);
 
         if ($key === '') {
-            return Response::error(422, 'missing_role_key', [], $request->requestId);
+            return ApiResponder::error(422, 'missing_role_key', [], $request->requestId);
         }
         if (!preg_match('/^[a-z][a-z0-9_]*$/', $key)) {
-            return Response::error(422, 'invalid_role_key', [], $request->requestId);
+            return ApiResponder::error(422, 'invalid_role_key', [], $request->requestId);
         }
         if ($this->machineKeyExists('roles', $key)) {
-            return Response::error(422, 'duplicate_role_key', [], $request->requestId);
+            return ApiResponder::error(422, 'duplicate_role_key', [], $request->requestId);
         }
         if ($name === '') {
-            return Response::error(422, 'missing_role_name', [], $request->requestId);
+            return ApiResponder::error(422, 'missing_role_name', [], $request->requestId);
         }
         if (!$this->isValidScope($scope)) {
-            return Response::error(422, 'invalid_setting_scope', [], $request->requestId);
+            return ApiResponder::error(422, 'invalid_setting_scope', [], $request->requestId);
         }
         if ($description === '') {
-            return Response::error(422, 'missing_role_description', [], $request->requestId);
+            return ApiResponder::error(422, 'missing_role_description', [], $request->requestId);
         }
         if ($permissions === []) {
-            return Response::error(422, 'missing_role_permissions', [], $request->requestId);
+            return ApiResponder::error(422, 'missing_role_permissions', [], $request->requestId);
         }
 
-        $created = $this->store->create('roles', [
+        $created = $this->store->createRole([
             'key' => $key,
             'name' => $name,
             'scope' => $scope,
@@ -143,15 +144,15 @@ final class SettingsService
             'permissions' => $permissions,
         ]);
 
-        return Response::success($this->mapRole($created), $request->requestId);
+        return ApiResponder::success($this->mapRole($created), $request->requestId);
     }
 
-    public function updateRole(Request $request, array $params): Response
+    public function updateRole(ApiContext $request, array $params): ThinkResponse
     {
         $roleId = (int) ($params['id'] ?? 0);
-        $current = $this->store->find('roles', $roleId);
+        $current = $this->store->findRole($roleId);
         if ($current === null) {
-            return Response::error(404, 'role_not_found', [], $request->requestId);
+            return ApiResponder::error(404, 'role_not_found', [], $request->requestId);
         }
 
         $name = trim((string) ($request->body['name'] ?? ($current['name'] ?? '')));
@@ -160,19 +161,19 @@ final class SettingsService
         $permissions = $this->normalizePermissionList($request->body['permissions'] ?? ($current['permissions'] ?? []));
 
         if ($name === '') {
-            return Response::error(422, 'missing_role_name', [], $request->requestId);
+            return ApiResponder::error(422, 'missing_role_name', [], $request->requestId);
         }
         if (!$this->isValidScope($scope)) {
-            return Response::error(422, 'invalid_setting_scope', [], $request->requestId);
+            return ApiResponder::error(422, 'invalid_setting_scope', [], $request->requestId);
         }
         if ($description === '') {
-            return Response::error(422, 'missing_role_description', [], $request->requestId);
+            return ApiResponder::error(422, 'missing_role_description', [], $request->requestId);
         }
         if ($permissions === []) {
-            return Response::error(422, 'missing_role_permissions', [], $request->requestId);
+            return ApiResponder::error(422, 'missing_role_permissions', [], $request->requestId);
         }
 
-        $updated = $this->store->update('roles', $roleId, [
+        $updated = $this->store->updateRole($roleId, [
             'name' => $name,
             'scope' => $scope,
             'description' => $description,
@@ -180,44 +181,44 @@ final class SettingsService
         ]);
 
         if ($updated === null) {
-            return Response::error(404, 'role_not_found', [], $request->requestId);
+            return ApiResponder::error(404, 'role_not_found', [], $request->requestId);
         }
 
         $this->syncUsersForRole((string) ($current['key'] ?? ''));
 
-        return Response::success($this->mapRole($updated), $request->requestId);
+        return ApiResponder::success($this->mapRole($updated), $request->requestId);
     }
 
-    public function destroyRole(Request $request, array $params): Response
+    public function destroyRole(ApiContext $request, array $params): ThinkResponse
     {
         $roleId = (int) ($params['id'] ?? 0);
-        $current = $this->store->find('roles', $roleId);
+        $current = $this->store->findRole($roleId);
         if ($current === null) {
-            return Response::error(404, 'role_not_found', [], $request->requestId);
+            return ApiResponder::error(404, 'role_not_found', [], $request->requestId);
         }
 
         $roleKey = (string) ($current['key'] ?? '');
         $userCount = $this->roleUserCount($roleKey);
         if ($userCount > 0) {
-            return Response::error(409, 'role_in_use', ['user_count' => $userCount], $request->requestId);
+            return ApiResponder::error(409, 'role_in_use', ['user_count' => $userCount], $request->requestId);
         }
 
-        $deleted = $this->store->delete('roles', $roleId);
+        $deleted = $this->store->deleteRole($roleId);
         if ($deleted === null) {
-            return Response::error(404, 'role_not_found', [], $request->requestId);
+            return ApiResponder::error(404, 'role_not_found', [], $request->requestId);
         }
 
-        return Response::success($this->mapRole($deleted), $request->requestId);
+        return ApiResponder::success($this->mapRole($deleted), $request->requestId);
     }
 
-    public function policies(Request $request, array $params): Response
+    public function policies(ApiContext $request, array $params): ThinkResponse
     {
-        $items = array_map(fn (array $policy): array => $this->mapPolicy($policy), $this->store->all('policies'));
+        $items = array_map(fn (array $policy): array => $this->mapPolicy($policy), $this->store->allPolicies());
 
-        return Response::success(['items' => array_values($items), 'total' => count($items)], $request->requestId);
+        return ApiResponder::success(['items' => array_values($items), 'total' => count($items)], $request->requestId);
     }
 
-    public function storePolicy(Request $request, array $params): Response
+    public function storePolicy(ApiContext $request, array $params): ThinkResponse
     {
         $name = trim((string) ($request->body['name'] ?? ''));
         $description = trim((string) ($request->body['description'] ?? ''));
@@ -225,37 +226,37 @@ final class SettingsService
         $permissions = $this->normalizePermissionList($request->body['permissions'] ?? []);
 
         if ($name === '') {
-            return Response::error(422, 'missing_policy_name', [], $request->requestId);
+            return ApiResponder::error(422, 'missing_policy_name', [], $request->requestId);
         }
         if ($this->nameExists('policies', $name)) {
-            return Response::error(422, 'duplicate_policy_name', [], $request->requestId);
+            return ApiResponder::error(422, 'duplicate_policy_name', [], $request->requestId);
         }
         if (!$this->isValidScope($scope)) {
-            return Response::error(422, 'invalid_setting_scope', [], $request->requestId);
+            return ApiResponder::error(422, 'invalid_setting_scope', [], $request->requestId);
         }
         if ($description === '') {
-            return Response::error(422, 'missing_policy_description', [], $request->requestId);
+            return ApiResponder::error(422, 'missing_policy_description', [], $request->requestId);
         }
         if ($permissions === []) {
-            return Response::error(422, 'missing_policy_permissions', [], $request->requestId);
+            return ApiResponder::error(422, 'missing_policy_permissions', [], $request->requestId);
         }
 
-        $created = $this->store->create('policies', [
+        $created = $this->store->createPolicy([
             'name' => $name,
             'scope' => $scope,
             'description' => $description,
             'permissions' => $permissions,
         ]);
 
-        return Response::success($this->mapPolicy($created), $request->requestId);
+        return ApiResponder::success($this->mapPolicy($created), $request->requestId);
     }
 
-    public function updatePolicy(Request $request, array $params): Response
+    public function updatePolicy(ApiContext $request, array $params): ThinkResponse
     {
         $policyId = (int) ($params['id'] ?? 0);
-        $current = $this->store->find('policies', $policyId);
+        $current = $this->store->findPolicy($policyId);
         if ($current === null) {
-            return Response::error(404, 'policy_not_found', [], $request->requestId);
+            return ApiResponder::error(404, 'policy_not_found', [], $request->requestId);
         }
 
         $name = trim((string) ($request->body['name'] ?? ($current['name'] ?? '')));
@@ -264,22 +265,22 @@ final class SettingsService
         $permissions = $this->normalizePermissionList($request->body['permissions'] ?? ($current['permissions'] ?? []));
 
         if ($name === '') {
-            return Response::error(422, 'missing_policy_name', [], $request->requestId);
+            return ApiResponder::error(422, 'missing_policy_name', [], $request->requestId);
         }
         if ($this->nameExists('policies', $name, $policyId)) {
-            return Response::error(422, 'duplicate_policy_name', [], $request->requestId);
+            return ApiResponder::error(422, 'duplicate_policy_name', [], $request->requestId);
         }
         if (!$this->isValidScope($scope)) {
-            return Response::error(422, 'invalid_setting_scope', [], $request->requestId);
+            return ApiResponder::error(422, 'invalid_setting_scope', [], $request->requestId);
         }
         if ($description === '') {
-            return Response::error(422, 'missing_policy_description', [], $request->requestId);
+            return ApiResponder::error(422, 'missing_policy_description', [], $request->requestId);
         }
         if ($permissions === []) {
-            return Response::error(422, 'missing_policy_permissions', [], $request->requestId);
+            return ApiResponder::error(422, 'missing_policy_permissions', [], $request->requestId);
         }
 
-        $updated = $this->store->update('policies', $policyId, [
+        $updated = $this->store->updatePolicy($policyId, [
             'name' => $name,
             'scope' => $scope,
             'description' => $description,
@@ -287,127 +288,127 @@ final class SettingsService
         ]);
 
         if ($updated === null) {
-            return Response::error(404, 'policy_not_found', [], $request->requestId);
+            return ApiResponder::error(404, 'policy_not_found', [], $request->requestId);
         }
 
-        return Response::success($this->mapPolicy($updated), $request->requestId);
+        return ApiResponder::success($this->mapPolicy($updated), $request->requestId);
     }
 
-    public function destroyPolicy(Request $request, array $params): Response
+    public function destroyPolicy(ApiContext $request, array $params): ThinkResponse
     {
         $policyId = (int) ($params['id'] ?? 0);
-        $current = $this->store->find('policies', $policyId);
+        $current = $this->store->findPolicy($policyId);
         if ($current === null) {
-            return Response::error(404, 'policy_not_found', [], $request->requestId);
+            return ApiResponder::error(404, 'policy_not_found', [], $request->requestId);
         }
 
-        $deleted = $this->store->delete('policies', $policyId);
+        $deleted = $this->store->deletePolicy($policyId);
         if ($deleted === null) {
-            return Response::error(404, 'policy_not_found', [], $request->requestId);
+            return ApiResponder::error(404, 'policy_not_found', [], $request->requestId);
         }
 
-        return Response::success($this->mapPolicy($deleted), $request->requestId);
+        return ApiResponder::success($this->mapPolicy($deleted), $request->requestId);
     }
 
-    public function dictionaries(Request $request, array $params): Response
+    public function dictionaries(ApiContext $request, array $params): ThinkResponse
     {
-        $items = array_map(fn (array $dictionary): array => $this->mapDictionary($dictionary), $this->store->all('dictionaries'));
+        $items = array_map(fn (array $dictionary): array => $this->mapDictionary($dictionary), $this->store->allDictionaries());
 
-        return Response::success(['items' => array_values($items), 'total' => count($items)], $request->requestId);
+        return ApiResponder::success(['items' => array_values($items), 'total' => count($items)], $request->requestId);
     }
 
-    public function storeDictionary(Request $request, array $params): Response
+    public function storeDictionary(ApiContext $request, array $params): ThinkResponse
     {
         $key = $this->normalizeMachineKey((string) ($request->body['key'] ?? ''));
         $name = trim((string) ($request->body['name'] ?? ''));
         $values = $this->normalizeStringList($request->body['values'] ?? []);
 
         if ($key === '') {
-            return Response::error(422, 'missing_dictionary_key', [], $request->requestId);
+            return ApiResponder::error(422, 'missing_dictionary_key', [], $request->requestId);
         }
         if (!preg_match('/^[a-z][a-z0-9_]*$/', $key)) {
-            return Response::error(422, 'invalid_dictionary_key', [], $request->requestId);
+            return ApiResponder::error(422, 'invalid_dictionary_key', [], $request->requestId);
         }
         if ($this->machineKeyExists('dictionaries', $key)) {
-            return Response::error(422, 'duplicate_dictionary_key', [], $request->requestId);
+            return ApiResponder::error(422, 'duplicate_dictionary_key', [], $request->requestId);
         }
         if ($name === '') {
-            return Response::error(422, 'missing_dictionary_name', [], $request->requestId);
+            return ApiResponder::error(422, 'missing_dictionary_name', [], $request->requestId);
         }
         if ($values === []) {
-            return Response::error(422, 'missing_dictionary_values', [], $request->requestId);
+            return ApiResponder::error(422, 'missing_dictionary_values', [], $request->requestId);
         }
 
-        $created = $this->store->create('dictionaries', [
+        $created = $this->store->createDictionary([
             'key' => $key,
             'name' => $name,
             'values' => $values,
             'updated_at' => date('c'),
         ]);
 
-        return Response::success($this->mapDictionary($created), $request->requestId);
+        return ApiResponder::success($this->mapDictionary($created), $request->requestId);
     }
 
-    public function updateDictionary(Request $request, array $params): Response
+    public function updateDictionary(ApiContext $request, array $params): ThinkResponse
     {
         $dictionaryId = (int) ($params['id'] ?? 0);
-        $current = $this->store->find('dictionaries', $dictionaryId);
+        $current = $this->store->findDictionary($dictionaryId);
         if ($current === null) {
-            return Response::error(404, 'dictionary_not_found', [], $request->requestId);
+            return ApiResponder::error(404, 'dictionary_not_found', [], $request->requestId);
         }
 
         $name = trim((string) ($request->body['name'] ?? ($current['name'] ?? '')));
         $values = $this->normalizeStringList($request->body['values'] ?? ($current['values'] ?? []));
 
         if ($name === '') {
-            return Response::error(422, 'missing_dictionary_name', [], $request->requestId);
+            return ApiResponder::error(422, 'missing_dictionary_name', [], $request->requestId);
         }
         if ($values === []) {
-            return Response::error(422, 'missing_dictionary_values', [], $request->requestId);
+            return ApiResponder::error(422, 'missing_dictionary_values', [], $request->requestId);
         }
 
-        $updated = $this->store->update('dictionaries', $dictionaryId, [
+        $updated = $this->store->updateDictionary($dictionaryId, [
             'name' => $name,
             'values' => $values,
             'updated_at' => date('c'),
         ]);
 
         if ($updated === null) {
-            return Response::error(404, 'dictionary_not_found', [], $request->requestId);
+            return ApiResponder::error(404, 'dictionary_not_found', [], $request->requestId);
         }
 
-        return Response::success($this->mapDictionary($updated), $request->requestId);
+        return ApiResponder::success($this->mapDictionary($updated), $request->requestId);
     }
 
-    public function destroyDictionary(Request $request, array $params): Response
+    public function destroyDictionary(ApiContext $request, array $params): ThinkResponse
     {
         $dictionaryId = (int) ($params['id'] ?? 0);
-        $current = $this->store->find('dictionaries', $dictionaryId);
+        $current = $this->store->findDictionary($dictionaryId);
         if ($current === null) {
-            return Response::error(404, 'dictionary_not_found', [], $request->requestId);
+            return ApiResponder::error(404, 'dictionary_not_found', [], $request->requestId);
         }
 
         $key = (string) ($current['key'] ?? '');
         if ($this->isProtectedDictionaryKey($key)) {
-            return Response::error(409, 'dictionary_locked', ['key' => $key], $request->requestId);
+            return ApiResponder::error(409, 'dictionary_locked', ['key' => $key], $request->requestId);
         }
 
-        $deleted = $this->store->delete('dictionaries', $dictionaryId);
+        $deleted = $this->store->deleteDictionary($dictionaryId);
         if ($deleted === null) {
-            return Response::error(404, 'dictionary_not_found', [], $request->requestId);
+            return ApiResponder::error(404, 'dictionary_not_found', [], $request->requestId);
         }
 
-        return Response::success($this->mapDictionary($deleted), $request->requestId);
+        return ApiResponder::success($this->mapDictionary($deleted), $request->requestId);
     }
 
-    public function workflows(Request $request, array $params): Response
+    public function workflows(ApiContext $request, array $params): ThinkResponse
     {
-        $items = array_map(fn (array $workflow): array => $this->mapWorkflow($workflow), $this->store->all('workflows'));
+        $items = array_map(fn (array $workflow): array => $this->mapWorkflow($workflow), $this->store->allWorkflows());
 
-        return Response::success(['items' => array_values($items), 'total' => count($items)], $request->requestId);
+        return ApiResponder::success(['items' => array_values($items), 'total' => count($items)], $request->requestId);
     }
 
-    public function storeWorkflow(Request $request, array $params): Response
+    public function storeWorkflow(ApiContext $request, array $params): ThinkResponse
     {
         $name = trim((string) ($request->body['name'] ?? ''));
         $scope = (string) ($request->body['scope'] ?? 'org');
@@ -415,19 +416,19 @@ final class SettingsService
         $enabled = (bool) ($request->body['enabled'] ?? false);
 
         if ($name === '') {
-            return Response::error(422, 'missing_workflow_name', [], $request->requestId);
+            return ApiResponder::error(422, 'missing_workflow_name', [], $request->requestId);
         }
         if ($this->nameExists('workflows', $name)) {
-            return Response::error(422, 'duplicate_workflow_name', [], $request->requestId);
+            return ApiResponder::error(422, 'duplicate_workflow_name', [], $request->requestId);
         }
         if (!$this->isValidScope($scope)) {
-            return Response::error(422, 'invalid_setting_scope', [], $request->requestId);
+            return ApiResponder::error(422, 'invalid_setting_scope', [], $request->requestId);
         }
         if ($stages === []) {
-            return Response::error(422, 'missing_workflow_stages', [], $request->requestId);
+            return ApiResponder::error(422, 'missing_workflow_stages', [], $request->requestId);
         }
 
-        $created = $this->store->create('workflows', [
+        $created = $this->store->createWorkflow([
             'name' => $name,
             'scope' => $scope,
             'stages' => $stages,
@@ -435,15 +436,15 @@ final class SettingsService
             'updated_at' => date('c'),
         ]);
 
-        return Response::success($this->mapWorkflow($created), $request->requestId);
+        return ApiResponder::success($this->mapWorkflow($created), $request->requestId);
     }
 
-    public function updateWorkflow(Request $request, array $params): Response
+    public function updateWorkflow(ApiContext $request, array $params): ThinkResponse
     {
         $workflowId = (int) ($params['id'] ?? 0);
-        $current = $this->store->find('workflows', $workflowId);
+        $current = $this->store->findWorkflow($workflowId);
         if ($current === null) {
-            return Response::error(404, 'workflow_not_found', [], $request->requestId);
+            return ApiResponder::error(404, 'workflow_not_found', [], $request->requestId);
         }
 
         $name = trim((string) ($request->body['name'] ?? ($current['name'] ?? '')));
@@ -452,19 +453,19 @@ final class SettingsService
         $enabled = array_key_exists('enabled', $request->body) ? (bool) $request->body['enabled'] : (bool) ($current['enabled'] ?? false);
 
         if ($name === '') {
-            return Response::error(422, 'missing_workflow_name', [], $request->requestId);
+            return ApiResponder::error(422, 'missing_workflow_name', [], $request->requestId);
         }
         if ($this->nameExists('workflows', $name, $workflowId)) {
-            return Response::error(422, 'duplicate_workflow_name', [], $request->requestId);
+            return ApiResponder::error(422, 'duplicate_workflow_name', [], $request->requestId);
         }
         if (!$this->isValidScope($scope)) {
-            return Response::error(422, 'invalid_setting_scope', [], $request->requestId);
+            return ApiResponder::error(422, 'invalid_setting_scope', [], $request->requestId);
         }
         if ($stages === []) {
-            return Response::error(422, 'missing_workflow_stages', [], $request->requestId);
+            return ApiResponder::error(422, 'missing_workflow_stages', [], $request->requestId);
         }
 
-        $updated = $this->store->update('workflows', $workflowId, [
+        $updated = $this->store->updateWorkflow($workflowId, [
             'name' => $name,
             'scope' => $scope,
             'stages' => $stages,
@@ -473,45 +474,45 @@ final class SettingsService
         ]);
 
         if ($updated === null) {
-            return Response::error(404, 'workflow_not_found', [], $request->requestId);
+            return ApiResponder::error(404, 'workflow_not_found', [], $request->requestId);
         }
 
-        return Response::success($this->mapWorkflow($updated), $request->requestId);
+        return ApiResponder::success($this->mapWorkflow($updated), $request->requestId);
     }
 
-    public function destroyWorkflow(Request $request, array $params): Response
+    public function destroyWorkflow(ApiContext $request, array $params): ThinkResponse
     {
         $workflowId = (int) ($params['id'] ?? 0);
-        $current = $this->store->find('workflows', $workflowId);
+        $current = $this->store->findWorkflow($workflowId);
         if ($current === null) {
-            return Response::error(404, 'workflow_not_found', [], $request->requestId);
+            return ApiResponder::error(404, 'workflow_not_found', [], $request->requestId);
         }
 
-        $deleted = $this->store->delete('workflows', $workflowId);
+        $deleted = $this->store->deleteWorkflow($workflowId);
         if ($deleted === null) {
-            return Response::error(404, 'workflow_not_found', [], $request->requestId);
+            return ApiResponder::error(404, 'workflow_not_found', [], $request->requestId);
         }
 
-        return Response::success($this->mapWorkflow($deleted), $request->requestId);
+        return ApiResponder::success($this->mapWorkflow($deleted), $request->requestId);
     }
 
-    private function validateMemberRequest(Request $request, ?array $current = null): ?Response
+    private function validateMemberRequest(ApiContext $request, ?array $current = null): ?Response
     {
         $name = trim((string) ($request->body['name'] ?? ($current['name'] ?? '')));
         $email = trim((string) ($request->body['email'] ?? ($current['email'] ?? '')));
         $roles = $this->normalizeRoles($request->body['roles'] ?? ($current['roles'] ?? []));
 
         if ($name === '') {
-            return Response::error(422, 'missing_member_name', [], $request->requestId);
+            return ApiResponder::error(422, 'missing_member_name', [], $request->requestId);
         }
         if ($email === '') {
-            return Response::error(422, 'missing_member_email', [], $request->requestId);
+            return ApiResponder::error(422, 'missing_member_email', [], $request->requestId);
         }
         if (filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
-            return Response::error(422, 'invalid_member_email', [], $request->requestId);
+            return ApiResponder::error(422, 'invalid_member_email', [], $request->requestId);
         }
         if ($roles === []) {
-            return Response::error(422, 'missing_member_roles', [], $request->requestId);
+            return ApiResponder::error(422, 'missing_member_roles', [], $request->requestId);
         }
 
         return null;
@@ -540,7 +541,7 @@ final class SettingsService
     {
         $roleKey = (string) ($role['key'] ?? '');
         $userCount = count(array_filter(
-            $this->store->all('users'),
+            $this->store->allUsers(),
             static fn (array $user): bool => in_array($roleKey, is_array($user['roles'] ?? null) ? $user['roles'] : [], true)
         ));
 
@@ -595,7 +596,7 @@ final class SettingsService
             return [];
         }
 
-        $roleKeys = array_column($this->store->all('roles'), 'key');
+        $roleKeys = array_column($this->store->allRoles(), 'key');
 
         return array_values(array_unique(array_filter(array_map(
             static fn ($item): string => trim((string) $item),
@@ -630,25 +631,7 @@ final class SettingsService
 
     private function permissionsForRoles(array $roles): array
     {
-        $roleMap = [];
-        foreach ($this->store->all('roles') as $role) {
-            $roleKey = (string) ($role['key'] ?? '');
-            if ($roleKey !== '') {
-                $roleMap[$roleKey] = is_array($role['permissions'] ?? null) ? $role['permissions'] : [];
-            }
-        }
-
-        $permissions = [];
-        foreach ($roles as $roleKey) {
-            foreach ($roleMap[$roleKey] ?? [] as $permission) {
-                $permissions[] = (string) $permission;
-            }
-        }
-
-        $permissions = array_values(array_unique(array_filter($permissions, static fn (string $item): bool => $item !== '')));
-        sort($permissions);
-
-        return $permissions;
+        return $this->store->permissionsForRoles($roles);
     }
 
     private function syncUsersForRole(string $roleKey): void
@@ -657,7 +640,7 @@ final class SettingsService
             return;
         }
 
-        $users = $this->store->all('users');
+        $users = $this->store->allUsers();
         $changed = false;
 
         foreach ($users as $index => $user) {
@@ -681,20 +664,13 @@ final class SettingsService
         }
 
         if ($changed) {
-            $this->store->replaceAll('users', $users);
+            $this->store->replaceAllUsers($users);
         }
     }
 
     private function roleUserCount(string $roleKey): int
     {
-        if ($roleKey === '') {
-            return 0;
-        }
-
-        return count(array_filter(
-            $this->store->all('users'),
-            static fn (array $user): bool => in_array($roleKey, is_array($user['roles'] ?? null) ? $user['roles'] : [], true)
-        ));
+        return $this->store->roleUserCount($roleKey);
     }
 
     private function isProtectedDictionaryKey(string $key): bool
@@ -709,42 +685,47 @@ final class SettingsService
 
     private function emailExists(string $email, ?int $excludeMemberId = null): bool
     {
-        foreach ($this->store->all('users') as $user) {
-            $userId = (int) ($user['id'] ?? 0);
-            if ($excludeMemberId !== null && $excludeMemberId === $userId) {
-                continue;
-            }
-            if (strcasecmp((string) ($user['email'] ?? ''), $email) === 0) {
-                return true;
-            }
-        }
-
-        return false;
+        return $this->store->emailExists($email, $excludeMemberId);
     }
 
     private function machineKeyExists(string $collection, string $key, ?int $excludeId = null): bool
     {
-        foreach ($this->store->all($collection) as $item) {
-            $itemId = (int) ($item['id'] ?? 0);
-            if ($excludeId !== null && $excludeId === $itemId) {
-                continue;
-            }
-            if ($this->normalizeMachineKey((string) ($item['key'] ?? '')) === $key) {
-                return true;
-            }
-        }
-
-        return false;
+        return match ($collection) {
+            'roles' => $this->store->roleKeyExists($key, $excludeId),
+            'dictionaries' => $this->dictionaryKeyExists($key, $excludeId),
+            default => false,
+        };
     }
 
     private function nameExists(string $collection, string $name, ?int $excludeId = null): bool
     {
-        foreach ($this->store->all($collection) as $item) {
+        $items = match ($collection) {
+            'policies' => $this->store->allPolicies(),
+            'workflows' => $this->store->allWorkflows(),
+            default => [],
+        };
+
+        foreach ($items as $item) {
             $itemId = (int) ($item['id'] ?? 0);
             if ($excludeId !== null && $excludeId === $itemId) {
                 continue;
             }
             if (strcasecmp((string) ($item['name'] ?? ''), $name) === 0) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function dictionaryKeyExists(string $key, ?int $excludeId = null): bool
+    {
+        foreach ($this->store->allDictionaries() as $item) {
+            $itemId = (int) ($item['id'] ?? 0);
+            if ($excludeId !== null && $excludeId === $itemId) {
+                continue;
+            }
+            if ($this->normalizeMachineKey((string) ($item['key'] ?? '')) === $key) {
                 return true;
             }
         }

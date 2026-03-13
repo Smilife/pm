@@ -4,33 +4,34 @@ declare(strict_types=1);
 
 namespace App\Service;
 
-use App\Support\JsonStore;
+use App\Support\StoreRegistry;
 use App\Support\RecordScope;
-use App\Support\Request;
-use App\Support\Response;
+use App\Support\ApiContext;
+use App\Support\ApiResponder;
+use think\Response as ThinkResponse;
 
 final class BugService
 {
-    private JsonStore $store;
+    private StoreRegistry $store;
 
-    public function __construct()
+    public function __construct(StoreRegistry $store)
     {
-        $this->store = new JsonStore();
+        $this->store = $store;
     }
 
-    public function index(Request $request, array $params): Response
+    public function index(ApiContext $request, array $params): ThinkResponse
     {
         $scope = new RecordScope($request, $this->store);
-        $items = $scope->filterBugs($this->store->all('bugs'));
+        $items = $scope->filterBugs($this->store->allBugs());
 
         usort($items, static function (array $left, array $right): int {
             return strcmp((string) ($right['updated_at'] ?? ''), (string) ($left['updated_at'] ?? ''));
         });
 
-        return Response::success(['items' => $items, 'total' => count($items)], $request->requestId);
+        return ApiResponder::success(['items' => $items, 'total' => count($items)], $request->requestId);
     }
 
-    public function store(Request $request, array $params): Response
+    public function store(ApiContext $request, array $params): ThinkResponse
     {
         $scope = new RecordScope($request, $this->store);
         $linkType = $this->normalizeLinkType((string) ($request->body['link_type'] ?? 'execution'));
@@ -68,16 +69,16 @@ final class BugService
             'submitted_at' => $status === 'Draft' ? null : $now,
         ];
 
-        return Response::success($this->store->create('bugs', $payload), $request->requestId);
+        return ApiResponder::success($this->store->createBug($payload), $request->requestId);
     }
 
-    public function show(Request $request, array $params): Response
+    public function show(ApiContext $request, array $params): ThinkResponse
     {
         $bugId = (int) ($params['id'] ?? 0);
-        $bug = $this->store->find('bugs', $bugId);
+        $bug = $this->store->findBug($bugId);
 
         if ($bug === null) {
-            return Response::error(404, 'bug_not_found', [], $request->requestId);
+            return ApiResponder::error(404, 'bug_not_found', [], $request->requestId);
         }
 
         $scope = new RecordScope($request, $this->store);
@@ -85,16 +86,16 @@ final class BugService
             return $scope->scopeDenied('bug', $request->requestId, $bugId);
         }
 
-        return Response::success($bug, $request->requestId);
+        return ApiResponder::success($bug, $request->requestId);
     }
 
-    public function update(Request $request, array $params): Response
+    public function update(ApiContext $request, array $params): ThinkResponse
     {
         $bugId = (int) ($params['id'] ?? 0);
-        $current = $this->store->find('bugs', $bugId);
+        $current = $this->store->findBug($bugId);
 
         if ($current === null) {
-            return Response::error(404, 'bug_not_found', [], $request->requestId);
+            return ApiResponder::error(404, 'bug_not_found', [], $request->requestId);
         }
 
         $scope = new RecordScope($request, $this->store);
@@ -111,7 +112,7 @@ final class BugService
             return $scope->scopeDenied('execution', $request->requestId, $linkId);
         }
 
-        $updated = $this->store->update('bugs', $bugId, [
+        $updated = $this->store->updateBug($bugId, [
             'title' => trim((string) ($request->body['title'] ?? ($current['title'] ?? 'Untitled bug'))),
             'severity' => (string) ($request->body['severity'] ?? ($current['severity'] ?? 'Medium')),
             'priority' => (string) ($request->body['priority'] ?? ($current['priority'] ?? 'P1')),
@@ -128,23 +129,23 @@ final class BugService
         ]);
 
         if ($updated === null) {
-            return Response::error(404, 'bug_not_found', [], $request->requestId);
+            return ApiResponder::error(404, 'bug_not_found', [], $request->requestId);
         }
 
-        return Response::success($updated, $request->requestId);
+        return ApiResponder::success($updated, $request->requestId);
     }
 
-    public function batchSubmit(Request $request, array $params): Response
+    public function batchSubmit(ApiContext $request, array $params): ThinkResponse
     {
         $scope = new RecordScope($request, $this->store);
         $bugIds = array_values(array_filter(array_map('intval', (array) ($request->body['bug_ids'] ?? [])), static fn (int $item): bool => $item > 0));
 
         if ($bugIds === []) {
-            return Response::error(422, 'missing_bug_ids', [], $request->requestId);
+            return ApiResponder::error(422, 'missing_bug_ids', [], $request->requestId);
         }
 
         $now = date('c');
-        $items = $this->store->all('bugs');
+        $items = $this->store->allBugs();
         $submitted = [];
         $skippedBugIds = [];
 
@@ -185,9 +186,9 @@ final class BugService
             }
         }
 
-        $this->store->replaceAll('bugs', $items);
+        $this->store->replaceAllBugs($items);
 
-        return Response::success([
+        return ApiResponder::success([
             'items' => array_values($submitted),
             'skipped_bug_ids' => array_values(array_unique($skippedBugIds)),
         ], $request->requestId);
@@ -204,8 +205,9 @@ final class BugService
             return $fallback;
         }
 
-        $collection = $linkType === 'project' ? 'projects' : 'executions';
-        $record = $this->store->find($collection, $linkId);
+        $record = $linkType === 'project'
+            ? $this->store->findProject($linkId)
+            : $this->store->findExecution($linkId);
 
         if ($record === null) {
             return $fallback;

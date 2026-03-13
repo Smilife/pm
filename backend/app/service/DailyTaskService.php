@@ -4,29 +4,30 @@ declare(strict_types=1);
 
 namespace App\Service;
 
-use App\Support\JsonStore;
+use App\Support\StoreRegistry;
 use App\Support\RecordScope;
-use App\Support\Request;
-use App\Support\Response;
+use App\Support\ApiContext;
+use App\Support\ApiResponder;
+use think\Response as ThinkResponse;
 
 final class DailyTaskService
 {
-    private JsonStore $store;
+    private StoreRegistry $store;
 
-    public function __construct()
+    public function __construct(StoreRegistry $store)
     {
-        $this->store = new JsonStore();
+        $this->store = $store;
     }
 
-    public function index(Request $request, array $params): Response
+    public function index(ApiContext $request, array $params): ThinkResponse
     {
         $scope = new RecordScope($request, $this->store);
-        $items = $scope->filterDailyTasks($this->store->all('daily_tasks'));
+        $items = $scope->filterDailyTasks($this->store->allDailyTasks());
 
-        return Response::success(['items' => $items, 'total' => count($items)], $request->requestId);
+        return ApiResponder::success(['items' => $items, 'total' => count($items)], $request->requestId);
     }
 
-    public function store(Request $request, array $params): Response
+    public function store(ApiContext $request, array $params): ThinkResponse
     {
         $scope = new RecordScope($request, $this->store);
         $ownerName = trim((string) ($request->body['owner_name'] ?? '')) ?: $scope->currentUserName();
@@ -43,16 +44,16 @@ final class DailyTaskService
             'exclude_from_report' => (bool) ($request->body['exclude_from_report'] ?? false),
         ];
 
-        return Response::success($this->store->create('daily_tasks', $payload), $request->requestId);
+        return ApiResponder::success($this->store->createDailyTask($payload), $request->requestId);
     }
 
-    public function show(Request $request, array $params): Response
+    public function show(ApiContext $request, array $params): ThinkResponse
     {
         $dailyTaskId = (int) ($params['id'] ?? 0);
-        $item = $this->store->find('daily_tasks', $dailyTaskId);
+        $item = $this->store->findDailyTask($dailyTaskId);
 
         if ($item === null) {
-            return Response::error(404, 'daily_task_not_found', [], $request->requestId);
+            return ApiResponder::error(404, 'daily_task_not_found', [], $request->requestId);
         }
 
         $scope = new RecordScope($request, $this->store);
@@ -60,16 +61,16 @@ final class DailyTaskService
             return $scope->scopeDenied('daily_task', $request->requestId, $dailyTaskId);
         }
 
-        return Response::success($item, $request->requestId);
+        return ApiResponder::success($item, $request->requestId);
     }
 
-    public function update(Request $request, array $params): Response
+    public function update(ApiContext $request, array $params): ThinkResponse
     {
         $dailyTaskId = (int) ($params['id'] ?? 0);
-        $current = $this->store->find('daily_tasks', $dailyTaskId);
+        $current = $this->store->findDailyTask($dailyTaskId);
 
         if ($current === null) {
-            return Response::error(404, 'daily_task_not_found', [], $request->requestId);
+            return ApiResponder::error(404, 'daily_task_not_found', [], $request->requestId);
         }
 
         $scope = new RecordScope($request, $this->store);
@@ -88,7 +89,7 @@ final class DailyTaskService
             return $ownerError;
         }
 
-        $updated = $this->store->update('daily_tasks', $dailyTaskId, [
+        $updated = $this->store->updateDailyTask($dailyTaskId, [
             'title' => $request->body['title'] ?? ($current['title'] ?? 'Untitled daily item'),
             'owner_name' => $ownerName !== '' ? $ownerName : (string) ($current['owner_name'] ?? 'Unassigned'),
             'status' => $request->body['status'] ?? ($current['status'] ?? 'NotStarted'),
@@ -97,9 +98,9 @@ final class DailyTaskService
         ]);
 
         if ($updated === null) {
-            return Response::error(404, 'daily_task_not_found', [], $request->requestId);
+            return ApiResponder::error(404, 'daily_task_not_found', [], $request->requestId);
         }
 
-        return Response::success($updated, $request->requestId);
+        return ApiResponder::success($updated, $request->requestId);
     }
 }

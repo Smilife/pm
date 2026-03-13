@@ -5,21 +5,22 @@ declare(strict_types=1);
 namespace App\Service;
 
 use App\Support\Auth;
-use App\Support\JsonStore;
+use App\Support\StoreRegistry;
 use App\Support\RecordScope;
-use App\Support\Request;
-use App\Support\Response;
+use App\Support\ApiContext;
+use App\Support\ApiResponder;
+use think\Response as ThinkResponse;
 
 final class PerformanceService
 {
-    private JsonStore $store;
+    private StoreRegistry $store;
 
-    public function __construct()
+    public function __construct(StoreRegistry $store)
     {
-        $this->store = new JsonStore();
+        $this->store = $store;
     }
 
-    public function members(Request $request, array $params): Response
+    public function members(ApiContext $request, array $params): ThinkResponse
     {
         $scope = new RecordScope($request, $this->store);
         [$start, $end, $dayCount] = $this->resolveRange($request);
@@ -28,11 +29,11 @@ final class PerformanceService
         $permissions = is_array($currentUser['permissions'] ?? null) ? $currentUser['permissions'] : [];
         $dashboardMode = $this->isTeamMode($scope, $permissions) ? 'team' : 'personal';
 
-        $projects = $scope->filterProjects($this->store->all('projects'));
-        $executions = $scope->filterExecutions($this->store->all('executions'));
-        $dailyTasks = $scope->filterDailyTasks($this->store->all('daily_tasks'));
-        $worklogs = $scope->filterWorklogs($this->store->all('worklogs'));
-        $users = $this->store->all('users');
+        $projects = $scope->filterProjects($this->store->allProjects());
+        $executions = $scope->filterExecutions($this->store->allExecutions());
+        $dailyTasks = $scope->filterDailyTasks($this->store->allDailyTasks());
+        $worklogs = $scope->filterWorklogs($this->store->allWorklogs());
+        $users = $this->store->allUsers();
 
         $executionProjectMap = [];
         foreach ($executions as $execution) {
@@ -110,7 +111,7 @@ final class PerformanceService
             $ranking[$index]['rank'] = $index + 1;
         }
 
-        return Response::success([
+        return ApiResponder::success([
             'dashboard_mode' => $dashboardMode,
             'range' => [
                 'start' => $start,
@@ -380,7 +381,7 @@ final class PerformanceService
         return $visibleUsers;
     }
 
-    private function resolveRange(Request $request): array
+    private function resolveRange(ApiContext $request): array
     {
         $today = date('Y-m-d');
         $start = $this->sanitizeDate((string) ($request->query['start'] ?? date('Y-m-d', strtotime('-13 days'))));

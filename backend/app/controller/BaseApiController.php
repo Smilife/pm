@@ -4,11 +4,8 @@ declare(strict_types=1);
 
 namespace app\controller;
 
-use App\Support\Auth;
-use App\Support\Authorization;
-use App\Support\Request as ApiRequest;
-use App\Support\Response as ApiResponse;
-use App\Support\ThinkResponseFactory;
+use App\Support\ApiContext;
+use App\Support\ApiResponder;
 use Throwable;
 use think\Request as ThinkRequest;
 use think\Response as ThinkResponse;
@@ -17,23 +14,25 @@ abstract class BaseApiController
 {
     protected function run(ThinkRequest $request, callable $callback, bool $allowGuest = false): ThinkResponse
     {
-        $apiRequest = ApiRequest::fromThinkRequest($request);
-
-        if (!$allowGuest && $apiRequest->method !== 'OPTIONS' && !Auth::isAuthorized($apiRequest)) {
-            return ThinkResponseFactory::fromResponse(ApiResponse::error(401, 'unauthorized', [], $apiRequest->requestId));
-        }
-
-        if (!$allowGuest) {
-            $authorizationError = Authorization::authorizeRequest($apiRequest);
-            if ($authorizationError !== null) {
-                return ThinkResponseFactory::fromResponse($authorizationError);
-            }
+        $apiRequest = $request->middleware('api_context');
+        if (!$apiRequest instanceof ApiContext) {
+            $apiRequest = ApiContext::fromThinkRequest($request);
         }
 
         try {
             $response = $callback($apiRequest);
+
+            if ($response instanceof ThinkResponse) {
+                return $response;
+            }
+
+            if (is_array($response)) {
+                return ApiResponder::success($response, $apiRequest->requestId);
+            }
+
+            return ApiResponder::success(['value' => $response], $apiRequest->requestId);
         } catch (Throwable $exception) {
-            $response = ApiResponse::error(
+            return ApiResponder::error(
                 500,
                 'internal_error',
                 [
@@ -42,7 +41,5 @@ abstract class BaseApiController
                 $apiRequest->requestId
             );
         }
-
-        return ThinkResponseFactory::fromResponse($response);
     }
 }

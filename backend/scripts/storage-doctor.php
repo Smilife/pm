@@ -27,6 +27,6 @@ $collections = [
     'requirement_attachments',
 ];
 
-$store = new App\Support\JsonStore();
+$store = new App\Support\StoreRegistry();
 
-echo json_encode($store->diagnostics($collections), JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) . PHP_EOL;
+echo json_encode($store->diagnostics(), JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) . PHP_EOL;

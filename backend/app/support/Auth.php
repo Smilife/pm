@@ -13,25 +13,25 @@ final class Auth
         return self::TOKEN_PREFIX . (int) ($user['id'] ?? 0);
     }
 
-    public static function isAuthorized(Request $request): bool
+    public static function isAuthorized(ApiContext $request): bool
     {
         return self::currentUser($request) !== null;
     }
 
-    public static function currentUser(Request $request): ?array
+    public static function currentUser(ApiContext $request): ?array
     {
         $userId = self::userIdFromRequest($request);
         if ($userId === null) {
             return null;
         }
 
-        $store = new JsonStore();
-        $user = $store->find('users', $userId);
+        $store = app(StoreRegistry::class);
+        $user = $store->findUser($userId);
 
         return is_array($user) ? $user : null;
     }
 
-    public static function userIdFromRequest(Request $request): ?int
+    public static function userIdFromRequest(ApiContext $request): ?int
     {
         $token = self::bearerToken($request);
         if ($token === '' || !str_starts_with($token, self::TOKEN_PREFIX)) {
@@ -43,7 +43,7 @@ final class Auth
         return $userId > 0 ? $userId : null;
     }
 
-    private static function bearerToken(Request $request): string
+    private static function bearerToken(ApiContext $request): string
     {
         $header = (string) ($request->headers['Authorization'] ?? $request->headers['authorization'] ?? '');
         if (!str_starts_with($header, 'Bearer ')) {

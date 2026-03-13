@@ -4,20 +4,27 @@ declare(strict_types=1);
 
 namespace App\Service;
 
-use App\Support\JsonStore;
+use App\Support\StoreRegistry;
 use App\Support\RecordScope;
-use App\Support\Request;
-use App\Support\Response;
+use App\Support\ApiContext;
+use App\Support\ApiResponder;
+use think\Response as ThinkResponse;
 
 final class ReportService
 {
-    public function generateDaily(Request $request, array $params): Response
+    private StoreRegistry $store;
+
+    public function __construct(StoreRegistry $store)
     {
-        $store = new JsonStore();
+        $this->store = $store;
+    }
+    public function generateDaily(ApiContext $request, array $params): ThinkResponse
+    {
+        $store = $this->store;
         $scope = new RecordScope($request, $store);
-        $executions = $scope->filterExecutions($store->all('executions'));
+        $executions = $scope->filterExecutions($store->allExecutions());
         $dailyTasks = array_values(array_filter(
-            $scope->filterDailyTasks($store->all('daily_tasks')),
+            $scope->filterDailyTasks($store->allDailyTasks()),
             static fn (array $item): bool => !($item['exclude_from_report'] ?? false)
         ));
 
@@ -59,7 +66,7 @@ final class ReportService
             ));
         }
 
-        return Response::success([
+        return ApiResponder::success([
             'report_type' => 'daily',
             'generated_at' => date(DATE_ATOM),
             'completed' => $completed,
@@ -69,16 +76,16 @@ final class ReportService
         ], $request->requestId);
     }
 
-    public function generateWeekly(Request $request, array $params): Response
+    public function generateWeekly(ApiContext $request, array $params): ThinkResponse
     {
-        $store = new JsonStore();
+        $store = $this->store;
         $scope = new RecordScope($request, $store);
-        $executions = $scope->filterExecutions($store->all('executions'));
+        $executions = $scope->filterExecutions($store->allExecutions());
         $dailyTasks = array_values(array_filter(
-            $scope->filterDailyTasks($store->all('daily_tasks')),
+            $scope->filterDailyTasks($store->allDailyTasks()),
             static fn (array $item): bool => !($item['exclude_from_report'] ?? false)
         ));
-        $worklogs = $scope->filterWorklogs($store->all('worklogs'));
+        $worklogs = $scope->filterWorklogs($store->allWorklogs());
         usort($worklogs, static fn (array $left, array $right): int => strcmp((string) ($right['work_date'] ?? ''), (string) ($left['work_date'] ?? '')));
 
         $completed = array_values(array_map(
@@ -143,7 +150,7 @@ final class ReportService
             count($worklogs)
         );
 
-        return Response::success([
+        return ApiResponder::success([
             'report_type' => 'weekly',
             'generated_at' => date(DATE_ATOM),
             'summary' => $summary,

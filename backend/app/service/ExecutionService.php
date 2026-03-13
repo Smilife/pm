@@ -4,29 +4,30 @@ declare(strict_types=1);
 
 namespace App\Service;
 
-use App\Support\JsonStore;
+use App\Support\StoreRegistry;
 use App\Support\RecordScope;
-use App\Support\Request;
-use App\Support\Response;
+use App\Support\ApiContext;
+use App\Support\ApiResponder;
+use think\Response as ThinkResponse;
 
 final class ExecutionService
 {
-    private JsonStore $store;
+    private StoreRegistry $store;
 
-    public function __construct()
+    public function __construct(StoreRegistry $store)
     {
-        $this->store = new JsonStore();
+        $this->store = $store;
     }
 
-    public function index(Request $request, array $params): Response
+    public function index(ApiContext $request, array $params): ThinkResponse
     {
         $scope = new RecordScope($request, $this->store);
-        $items = $scope->filterExecutions($this->store->all('executions'));
+        $items = $scope->filterExecutions($this->store->allExecutions());
 
-        return Response::success(['items' => $items, 'total' => count($items)], $request->requestId);
+        return ApiResponder::success(['items' => $items, 'total' => count($items)], $request->requestId);
     }
 
-    public function store(Request $request, array $params): Response
+    public function store(ApiContext $request, array $params): ThinkResponse
     {
         $scope = new RecordScope($request, $this->store);
         $projectId = (int) ($request->body['project_id'] ?? 0);
@@ -41,7 +42,7 @@ final class ExecutionService
             }
         }
 
-        $projects = $this->store->all('projects');
+        $projects = $this->store->allProjects();
         $projectName = $this->resolveProjectName($projectId, $projects, (string) ($request->body['project_name'] ?? 'Unassigned project'));
         $ownerName = trim((string) ($request->body['owner_name'] ?? '')) ?: $scope->currentUserName();
 
@@ -58,7 +59,7 @@ final class ExecutionService
             'requirement_ids' => $requirementIds,
         ];
 
-        $created = $this->store->create('executions', $payload);
+        $created = $this->store->createExecution($payload);
 
         if ($projectId > 0) {
             foreach ($projects as $index => $project) {
@@ -67,21 +68,21 @@ final class ExecutionService
                 }
 
                 $projects[$index]['execution_count'] = (int) ($project['execution_count'] ?? 0) + 1;
-                $this->store->replaceAll('projects', $projects);
+                $this->store->replaceAllProjects($projects);
                 break;
             }
         }
 
-        return Response::success($created, $request->requestId);
+        return ApiResponder::success($created, $request->requestId);
     }
 
-    public function show(Request $request, array $params): Response
+    public function show(ApiContext $request, array $params): ThinkResponse
     {
         $executionId = (int) ($params['id'] ?? 0);
-        $execution = $this->store->find('executions', $executionId);
+        $execution = $this->store->findExecution($executionId);
 
         if ($execution === null) {
-            return Response::error(404, 'execution_not_found', [], $request->requestId);
+            return ApiResponder::error(404, 'execution_not_found', [], $request->requestId);
         }
 
         $scope = new RecordScope($request, $this->store);
@@ -89,16 +90,16 @@ final class ExecutionService
             return $scope->scopeDenied('execution', $request->requestId, $executionId);
         }
 
-        return Response::success($execution, $request->requestId);
+        return ApiResponder::success($execution, $request->requestId);
     }
 
-    public function update(Request $request, array $params): Response
+    public function update(ApiContext $request, array $params): ThinkResponse
     {
         $executionId = (int) ($params['id'] ?? 0);
-        $current = $this->store->find('executions', $executionId);
+        $current = $this->store->findExecution($executionId);
 
         if ($current === null) {
-            return Response::error(404, 'execution_not_found', [], $request->requestId);
+            return ApiResponder::error(404, 'execution_not_found', [], $request->requestId);
         }
 
         $scope = new RecordScope($request, $this->store);
@@ -106,50 +107,53 @@ final class ExecutionService
             return $scope->scopeDenied('execution', $request->requestId, $executionId);
         }
 
-        $updated = $this->store->update('executions', $executionId, $request->body);
+        $updated = $this->store->updateExecution($executionId, $request->body);
 
         if ($updated === null) {
-            return Response::error(404, 'execution_not_found', [], $request->requestId);
+            return ApiResponder::error(404, 'execution_not_found', [], $request->requestId);
         }
 
-        return Response::success($updated, $request->requestId);
+        return ApiResponder::success($updated, $request->requestId);
     }
 
-    public function listTasks(Request $request, array $params): Response
+    public function listTasks(ApiContext $request, array $params): ThinkResponse
     {
         $scope = new RecordScope($request, $this->store);
         $executionId = (int) ($params['id'] ?? 0);
-        $execution = $this->store->find('executions', $executionId);
+        $execution = $this->store->findExecution($executionId);
 
         if ($execution === null) {
-            return Response::error(404, 'execution_not_found', [], $request->requestId);
+            return ApiResponder::error(404, 'execution_not_found', [], $request->requestId);
         }
 
         if (!$scope->canAccessExecution($execution)) {
             return $scope->scopeDenied('execution', $request->requestId, $executionId);
         }
 
-        $tasks = $scope->filterTasks($this->store->filter('tasks', static fn (array $item): bool => (int) ($item['execution_id'] ?? 0) === $executionId));
+        $tasks = $scope->filterTasks(array_values(array_filter(
+            $this->store->allTasks(),
+            static fn (array $item): bool => (int) ($item['execution_id'] ?? 0) === $executionId
+        )));
 
-        return Response::success(['items' => $tasks], $request->requestId);
+        return ApiResponder::success(['items' => $tasks], $request->requestId);
     }
 
-    public function taskIndex(Request $request, array $params): Response
+    public function taskIndex(ApiContext $request, array $params): ThinkResponse
     {
         $scope = new RecordScope($request, $this->store);
-        $items = $scope->filterTasks($this->store->all('tasks'));
+        $items = $scope->filterTasks($this->store->allTasks());
 
-        return Response::success(['items' => $items, 'total' => count($items)], $request->requestId);
+        return ApiResponder::success(['items' => $items, 'total' => count($items)], $request->requestId);
     }
 
-    public function taskStore(Request $request, array $params): Response
+    public function taskStore(ApiContext $request, array $params): ThinkResponse
     {
         $scope = new RecordScope($request, $this->store);
         $executionId = (int) ($request->body['execution_id'] ?? 0);
-        $execution = $this->store->find('executions', $executionId);
+        $execution = $this->store->findExecution($executionId);
 
         if ($execution === null) {
-            return Response::error(404, 'execution_not_found', [], $request->requestId);
+            return ApiResponder::error(404, 'execution_not_found', [], $request->requestId);
         }
 
         if (!$scope->canAccessExecution($execution)) {
@@ -165,16 +169,16 @@ final class ExecutionService
             'actual_progress' => (int) ($request->body['actual_progress'] ?? 0),
         ];
 
-        return Response::success($this->store->create('tasks', $payload), $request->requestId);
+        return ApiResponder::success($this->store->createTask($payload), $request->requestId);
     }
 
-    public function taskShow(Request $request, array $params): Response
+    public function taskShow(ApiContext $request, array $params): ThinkResponse
     {
         $taskId = (int) ($params['id'] ?? 0);
-        $task = $this->store->find('tasks', $taskId);
+        $task = $this->store->findTask($taskId);
 
         if ($task === null) {
-            return Response::error(404, 'task_not_found', [], $request->requestId);
+            return ApiResponder::error(404, 'task_not_found', [], $request->requestId);
         }
 
         $scope = new RecordScope($request, $this->store);
@@ -182,16 +186,16 @@ final class ExecutionService
             return $scope->scopeDenied('task', $request->requestId, $taskId);
         }
 
-        return Response::success($task, $request->requestId);
+        return ApiResponder::success($task, $request->requestId);
     }
 
-    public function taskUpdate(Request $request, array $params): Response
+    public function taskUpdate(ApiContext $request, array $params): ThinkResponse
     {
         $taskId = (int) ($params['id'] ?? 0);
-        $current = $this->store->find('tasks', $taskId);
+        $current = $this->store->findTask($taskId);
 
         if ($current === null) {
-            return Response::error(404, 'task_not_found', [], $request->requestId);
+            return ApiResponder::error(404, 'task_not_found', [], $request->requestId);
         }
 
         $scope = new RecordScope($request, $this->store);
@@ -199,7 +203,7 @@ final class ExecutionService
             return $scope->scopeDenied('task', $request->requestId, $taskId);
         }
 
-        $updated = $this->store->update('tasks', $taskId, [
+        $updated = $this->store->updateTask($taskId, [
             'name' => $request->body['name'] ?? ($current['name'] ?? 'Untitled child execution'),
             'owner_name' => $request->body['owner_name'] ?? ($current['owner_name'] ?? 'Unassigned'),
             'status' => $request->body['status'] ?? ($current['status'] ?? 'NotStarted'),
@@ -207,10 +211,10 @@ final class ExecutionService
         ]);
 
         if ($updated === null) {
-            return Response::error(404, 'task_not_found', [], $request->requestId);
+            return ApiResponder::error(404, 'task_not_found', [], $request->requestId);
         }
 
-        return Response::success($updated, $request->requestId);
+        return ApiResponder::success($updated, $request->requestId);
     }
 
     private function resolveProjectName(int $projectId, array $projects, string $fallback): string
