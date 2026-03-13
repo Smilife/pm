@@ -10,7 +10,6 @@ import { pmApi } from '../services/api';
 import type { ExecutionScheduleItem, ProjectScheduleItem, TeamScheduleItem } from '../services/types';
 
 type ViewMode = 'project' | 'team' | 'execution';
-type ProjectHealth = ProjectScheduleItem['health'];
 type TimelineRange = {
   start: Dayjs;
   end: Dayjs;
@@ -20,46 +19,120 @@ type TimelineRange = {
 type SummaryCardItem = {
   title: string;
   value: number;
-  suffix?: string;
   loading: boolean;
 };
 
+type ProjectExecutionGroup = {
+  project: ProjectScheduleItem;
+  executions: TeamScheduleItem[];
+};
+
+const text = {
+  pageTitle: '\u7518\u7279\u56fe',
+  pageDescription: '\u4ece\u9879\u76ee\u3001\u56e2\u961f\u548c\u6267\u884c\u4e09\u4e2a\u5c42\u7ea7\u89c2\u5bdf\u6392\u671f\u7a97\u53e3\u3001\u98ce\u9669\u8282\u70b9\u4e0e\u4efb\u52a1\u62c6\u89e3\u3002',
+  projectView: '\u9879\u76ee\u7518\u7279',
+  teamView: '\u56e2\u961f\u6392\u671f',
+  executionView: '\u6267\u884c\u62c6\u89e3',
+  projectCardTitle: '\u9879\u76ee\u7518\u7279\u56fe',
+  projectCardHint: '\u4ee5\u9879\u76ee\u4e3a\u4e3b\u7ebf\uff0c\u5728\u540c\u4e00\u65f6\u95f4\u8f74\u4e0a\u76f4\u89c2\u5c55\u793a\u6267\u884c\u3001\u8d1f\u8d23\u4eba\u548c\u65f6\u95f4\u5173\u7cfb\u3002',
+  teamCardTitle: '\u56e2\u961f\u6392\u671f\u603b\u89c8',
+  teamCardHint: '\u8868\u683c\u6309\u8d1f\u8d23\u4eba\u7406\u89e3\u5373\u53ef\uff0c\u51b2\u7a81\u4f1a\u5728\u6bcf\u4e00\u884c\u76f4\u63a5\u6807\u8bb0\u3002',
+  executionCardTitle: '\u6267\u884c\u62c6\u89e3\u89c6\u56fe',
+  executionCardHint: '\u5f53\u524d\u5b50\u4efb\u52a1\u9ed8\u8ba4\u7ee7\u627f\u7236\u6267\u884c\u7684\u8ba1\u5212\u65f6\u95f4\u7a97\u53e3\u3002',
+  projectCount: '\u9879\u76ee\u6570',
+  riskProjectCount: '\u98ce\u9669\u9879\u76ee',
+  dueSoonCount: '\u4e34\u8fd1\u8282\u70b9\u9879\u76ee',
+  overdueCount: '\u5df2\u903e\u671f\u9879\u76ee',
+  scheduledExecutionCount: '\u6392\u671f\u6267\u884c\u6570',
+  conflictOwnerCount: '\u51b2\u7a81\u8d1f\u8d23\u4eba',
+  blockedExecutionCount: '\u963b\u585e\u6267\u884c',
+  coveredProjectCount: '\u6d89\u53ca\u9879\u76ee',
+  taskCount: '\u5b50\u4efb\u52a1\u6570',
+  taskInProgressCount: '\u8fdb\u884c\u4e2d\u5b50\u4efb\u52a1',
+  taskDoneCount: '\u5df2\u5b8c\u6210\u5b50\u4efb\u52a1',
+  linkedExecutionCount: '\u5173\u8054\u6267\u884c\u6570',
+  projectAlertRiskTitle: '\u9879\u76ee\u5c42\u5b58\u5728\u9700\u8981\u4f18\u5148\u5173\u6ce8\u7684\u4ea4\u4ed8\u98ce\u9669',
+  projectAlertRiskDescription: '\u4e0b\u65b9\u7684\u9879\u76ee\u7518\u7279\u5df2\u7ecf\u6309\u9879\u76ee\u5c55\u5f00\u6267\u884c\u548c\u8d1f\u8d23\u4eba\uff0c\u53ef\u4ee5\u76f4\u63a5\u770b\u5230\u98ce\u9669\u51fa\u5728\u54ea\u4e00\u6bb5\u65f6\u95f4\u3002',
+  projectAlertStableTitle: '\u9879\u76ee\u5c42\u65f6\u95f4\u5173\u7cfb\u5df2\u7ecf\u6e05\u6670\u5c55\u5f00',
+  projectAlertStableDescription: '\u73b0\u5728\u53ef\u4ee5\u4ece\u4e0b\u65b9\u76f4\u63a5\u5bf9\u6bd4\u6bcf\u4e2a\u9879\u76ee\u4e0b\u7684\u6267\u884c\u3001\u4eba\u5458\u548c\u65f6\u95f4\u6761\u3002',
+  teamAlertConflictTitle: '\u68c0\u6d4b\u5230\u8d1f\u8d23\u4eba\u6392\u671f\u91cd\u53e0',
+  teamAlertConflictDescription: '\u8bf7\u4f18\u5148\u8c03\u6574\u540c\u4e00\u4eba\u5728\u540c\u4e00\u65f6\u95f4\u7a97\u5185\u7684\u591a\u4e2a\u6267\u884c\u5b89\u6392\u3002',
+  teamAlertStableTitle: '\u5f53\u524d\u672a\u53d1\u73b0\u56e2\u961f\u7ea7\u6392\u671f\u51b2\u7a81',
+  teamAlertStableDescription: '\u53ef\u4ee5\u7ed3\u5408\u963b\u585e\u72b6\u6001\u548c\u8fdb\u5ea6\u504f\u5dee\u6301\u7eed\u5173\u6ce8\u3002',
+  executionAlertTitle: '\u6267\u884c\u62c6\u89e3\u89c6\u56fe\u7528\u4e8e\u8ddf\u8e2a\u6700\u7ec6\u9897\u7c92\u5ea6\u7684\u63a8\u8fdb\u60c5\u51b5',
+  executionAlertDescription: '\u8fd9\u4e00\u5c42\u4e3b\u8981\u7528\u6765\u5bf9\u7167\u9879\u76ee\u7518\u7279\u4e2d\u7684\u6267\u884c\u6761\u3002',
+  owner: '\u8d1f\u8d23\u4eba',
+  status: '\u72b6\u6001',
+  progress: '\u8fdb\u5ea6',
+  actual: '\u5b9e\u9645',
+  plan: '\u8ba1\u5212',
+  overlap: '\u51b2\u7a81',
+  overlapNormal: '\u6b63\u5e38',
+  overlapPrefix: '\u91cd\u53e0',
+  execution: '\u6267\u884c',
+  project: '\u9879\u76ee',
+  timeline: '\u65f6\u95f4\u8f74',
+  childTask: '\u5b50\u4efb\u52a1',
+  linkedExecution: '\u6240\u5c5e\u6267\u884c',
+  linkedProject: '\u6240\u5c5e\u9879\u76ee',
+  inheritWindow: '\u7ee7\u627f\u65f6\u95f4\u7a97',
+  planWindow: '\u8ba1\u5212\u7a97\u53e3',
+  projectOwner: '\u9879\u76ee\u8d1f\u8d23\u4eba',
+  projectWindow: '\u9879\u76ee\u65f6\u95f4\u7a97',
+  latestActivity: '\u6700\u8fd1\u6d3b\u52a8',
+  projectSummary: '\u9879\u76ee\u603b\u89c8',
+  summaryHint: '\u6c47\u603b\u65f6\u95f4\u7a97',
+  noCode: '\u672a\u8bbe\u7f6e\u7f16\u7801',
+  noActivity: '\u6682\u65e0\u66f4\u65b0',
+  noSchedule: '\u672a\u6392\u671f',
+  noExecutions: '\u6682\u65e0\u6267\u884c\u6392\u671f',
+  noExecutionsHint: '\u8fd9\u4e2a\u9879\u76ee\u8fd8\u6ca1\u6709\u62c6\u51fa\u6267\u884c\uff0c\u6240\u4ee5\u770b\u4e0d\u5230\u4eba\u5458\u4e0e\u65f6\u95f4\u7684\u5173\u7cfb\u3002',
+  healthy: '\u5065\u5eb7',
+  watch: '\u5173\u6ce8',
+  risk: '\u98ce\u9669',
+  done: '\u5df2\u5b8c\u6210',
+  blocked: '\u6709\u963b\u585e',
+  active: '\u8fdb\u884c\u4e2d',
+  loadingProjectGantt: '\u6b63\u5728\u52a0\u8f7d\u9879\u76ee\u7518\u7279\u6570\u636e...',
+} as const;
+
 const teamColumns: ColumnsType<TeamScheduleItem & { overlapCount: number }> = [
-  { title: '负责人', dataIndex: 'ownerName', width: 140 },
-  { title: '执行名称', dataIndex: 'name' },
-  { title: '所属项目', dataIndex: 'projectName', width: 220 },
+  { title: text.owner, dataIndex: 'ownerName', width: 140 },
+  { title: text.execution, dataIndex: 'name' },
+  { title: text.linkedProject, dataIndex: 'projectName', width: 220 },
   {
-    title: '计划窗口',
+    title: text.planWindow,
     width: 220,
     render: (_, record) => formatWindow(record.planStart, record.planEnd),
   },
-  { title: '状态', dataIndex: 'status', width: 140, render: (value: string) => <StatusTag value={value} /> },
+  { title: text.status, dataIndex: 'status', width: 140, render: (value: string) => <StatusTag value={value} /> },
   {
-    title: '进度',
+    title: text.progress,
     width: 220,
     render: (_, record) => <ScheduleProgress actual={record.actualProgress} plan={record.planProgress} />,
   },
   {
-    title: '冲突',
+    title: text.overlap,
     dataIndex: 'overlapCount',
     width: 120,
-    render: (value: number) => (value > 0 ? <Tag color="error">重叠 {value} 项</Tag> : <Tag color="success">正常</Tag>),
+    render: (value: number) =>
+      value > 0 ? <Tag color="error">{`${text.overlapPrefix} ${value} ${'\u9879'}`}</Tag> : <Tag color="success">{text.overlapNormal}</Tag>,
   },
 ];
 
 const executionColumns: ColumnsType<ExecutionScheduleItem> = [
-  { title: '子任务', dataIndex: 'name' },
-  { title: '所属执行', dataIndex: 'executionName', width: 240 },
-  { title: '所属项目', dataIndex: 'projectName', width: 220 },
-  { title: '负责人', dataIndex: 'ownerName', width: 140 },
+  { title: text.childTask, dataIndex: 'name' },
+  { title: text.linkedExecution, dataIndex: 'executionName', width: 240 },
+  { title: text.linkedProject, dataIndex: 'projectName', width: 220 },
+  { title: text.owner, dataIndex: 'ownerName', width: 140 },
   {
-    title: '继承时间窗',
+    title: text.inheritWindow,
     width: 220,
     render: (_, record) => formatWindow(record.planStart, record.planEnd),
   },
-  { title: '状态', dataIndex: 'status', width: 140, render: (value: string) => <StatusTag value={value} /> },
+  { title: text.status, dataIndex: 'status', width: 140, render: (value: string) => <StatusTag value={value} /> },
   {
-    title: '进度',
+    title: text.progress,
     dataIndex: 'actualProgress',
     width: 180,
     render: (value: number) => <Progress percent={value} size="small" />,
@@ -74,32 +147,19 @@ export function GanttPage() {
   const executionQuery = useQuery({ queryKey: ['schedule-execution'], queryFn: pmApi.getExecutionSchedule });
 
   const projectRows = projectQuery.data ?? [];
-  const teamRows = useMemo(() => withOverlapCount(teamQuery.data ?? []), [teamQuery.data]);
-  const projectRange = useMemo(() => getProjectTimelineRange(projectRows), [projectRows]);
+  const scheduleRows = teamQuery.data ?? [];
+  const teamRows = useMemo(() => withOverlapCount(scheduleRows), [scheduleRows]);
+  const projectGroups = useMemo(() => buildProjectExecutionGroups(projectRows, scheduleRows), [projectRows, scheduleRows]);
+  const projectRange = useMemo(() => getProjectTimelineRange(projectGroups), [projectGroups]);
   const ownerConflictCount = useMemo(
     () => new Set(teamRows.filter((item) => item.overlapCount > 0).map((item) => item.ownerName)).size,
     [teamRows],
   );
-  const blockedExecutionCount = useMemo(
-    () => (teamQuery.data ?? []).filter((item) => item.status === 'Blocked').length,
-    [teamQuery.data],
-  );
-  const projectRiskCount = useMemo(
-    () => projectRows.filter((item) => item.health === 'risk').length,
-    [projectRows],
-  );
-  const dueSoonProjectCount = useMemo(
-    () => projectRows.filter((item) => item.dueSoonCount > 0).length,
-    [projectRows],
-  );
-  const overdueProjectCount = useMemo(
-    () => projectRows.filter((item) => item.overdueCount > 0).length,
-    [projectRows],
-  );
-  const coveredProjectCount = useMemo(
-    () => new Set((teamQuery.data ?? []).map((item) => item.projectName).filter(Boolean)).size,
-    [teamQuery.data],
-  );
+  const blockedExecutionCount = useMemo(() => scheduleRows.filter((item) => item.status === 'Blocked').length, [scheduleRows]);
+  const projectRiskCount = useMemo(() => projectRows.filter((item) => item.health === 'risk').length, [projectRows]);
+  const dueSoonProjectCount = useMemo(() => projectRows.filter((item) => item.dueSoonCount > 0).length, [projectRows]);
+  const overdueProjectCount = useMemo(() => projectRows.filter((item) => item.overdueCount > 0).length, [projectRows]);
+  const coveredProjectCount = useMemo(() => new Set(scheduleRows.map((item) => item.projectName).filter(Boolean)).size, [scheduleRows]);
   const executionInProgressCount = useMemo(
     () => (executionQuery.data ?? []).filter((item) => item.status === 'InProgress').length,
     [executionQuery.data],
@@ -115,19 +175,19 @@ export function GanttPage() {
 
   const summaryCards = buildSummaryCards({
     view,
-    projectRows,
+    projectCount: projectGroups.length,
     projectRiskCount,
     dueSoonProjectCount,
     overdueProjectCount,
-    teamRows,
+    scheduledExecutionCount: teamRows.length,
     ownerConflictCount,
     blockedExecutionCount,
     coveredProjectCount,
-    executionRows: executionQuery.data ?? [],
+    taskCount: (executionQuery.data ?? []).length,
     executionInProgressCount,
     executionDoneCount,
     linkedExecutionCount,
-    projectLoading: projectQuery.isLoading,
+    projectLoading: projectQuery.isLoading || teamQuery.isLoading,
     teamLoading: teamQuery.isLoading,
     executionLoading: executionQuery.isLoading,
   });
@@ -141,14 +201,14 @@ export function GanttPage() {
   return (
     <Space direction="vertical" size={20} className="page-stack">
       <PageHeader
-        title="甘特图"
-        description="从项目、团队和执行三个层级观察排期窗口、风险节点与任务拆解。"
+        title={text.pageTitle}
+        description={text.pageDescription}
         extra={
           <Segmented<ViewMode>
             options={[
-              { label: '项目甘特', value: 'project' },
-              { label: '团队排期', value: 'team' },
-              { label: '执行拆解', value: 'execution' },
+              { label: text.projectView, value: 'project' },
+              { label: text.teamView, value: 'team' },
+              { label: text.executionView, value: 'execution' },
             ]}
             value={view}
             onChange={(value) => handleViewChange(value)}
@@ -159,36 +219,21 @@ export function GanttPage() {
       <Space size={16} wrap>
         {summaryCards.map((item) => (
           <Card key={item.title}>
-            <Statistic title={item.title} value={item.value} suffix={item.suffix} loading={item.loading} />
+            <Statistic title={item.title} value={item.value} loading={item.loading} />
           </Card>
         ))}
       </Space>
 
-      {renderViewAlert(view, {
-        projectRiskCount,
-        dueSoonProjectCount,
-        overdueProjectCount,
-        ownerConflictCount,
-        blockedExecutionCount,
-        executionInProgressCount,
-        executionDoneCount,
-      })}
+      {renderViewAlert(view, ownerConflictCount, blockedExecutionCount, projectRiskCount, overdueProjectCount, dueSoonProjectCount)}
 
       {view === 'project' ? (
-        <Card title="项目甘特图" extra={<Typography.Text type="secondary">按项目时间窗查看整体交付节奏和风险节点。</Typography.Text>}>
-          <Table
-            rowKey="id"
-            columns={buildProjectColumns(projectRange)}
-            dataSource={projectRows}
-            loading={projectQuery.isLoading}
-            pagination={false}
-            scroll={{ x: 1480 }}
-          />
+        <Card title={text.projectCardTitle} extra={<Typography.Text type="secondary">{text.projectCardHint}</Typography.Text>}>
+          <ProjectGanttBoard groups={projectGroups} range={projectRange} loading={projectQuery.isLoading || teamQuery.isLoading} />
         </Card>
       ) : null}
 
       {view === 'team' ? (
-        <Card title="团队排期总览" extra={<Typography.Text type="secondary">表格按负责人理解即可，冲突会在每一行直接标记。</Typography.Text>}>
+        <Card title={text.teamCardTitle} extra={<Typography.Text type="secondary">{text.teamCardHint}</Typography.Text>}>
           <Table
             rowKey="id"
             columns={teamColumns}
@@ -201,7 +246,7 @@ export function GanttPage() {
       ) : null}
 
       {view === 'execution' ? (
-        <Card title="执行拆解视图" extra={<Typography.Text type="secondary">当前子任务默认继承父执行的计划时间窗口。</Typography.Text>}>
+        <Card title={text.executionCardTitle} extra={<Typography.Text type="secondary">{text.executionCardHint}</Typography.Text>}>
           <Table
             rowKey="id"
             columns={executionColumns}
@@ -216,150 +261,215 @@ export function GanttPage() {
   );
 }
 
-function buildProjectColumns(range: TimelineRange | null): ColumnsType<ProjectScheduleItem> {
-  return [
-    {
-      title: '项目',
-      width: 240,
-      render: (_, record) => (
+function ProjectGanttBoard({
+  groups,
+  range,
+  loading,
+}: {
+  groups: ProjectExecutionGroup[];
+  range: TimelineRange | null;
+  loading: boolean;
+}) {
+  if (loading) {
+    return <Typography.Text type="secondary">{text.loadingProjectGantt}</Typography.Text>;
+  }
+
+  return (
+    <Space direction="vertical" size={16} className="gantt-project-board">
+      {groups.map((group) => (
+        <div key={group.project.id} className="gantt-project-group">
+          <div className="gantt-project-group__header">
+            <Space direction="vertical" size={4}>
+              <Space size={[8, 8]} wrap>
+                <Typography.Title level={5}>{group.project.name}</Typography.Title>
+                <Tag>{group.project.code || text.noCode}</Tag>
+                <ProjectHealthTag health={group.project.health} />
+                <ProjectMilestoneTag project={group.project} />
+              </Space>
+              <Typography.Text type="secondary">
+                {`${text.projectOwner}\uff1a${group.project.ownerName || '-'} | ${text.projectWindow}\uff1a${formatWindow(group.project.planStart, group.project.planEnd)} | ${text.latestActivity}\uff1a${group.project.lastActivityAt || text.noActivity}`}
+              </Typography.Text>
+            </Space>
+            <Space size={[8, 8]} wrap>
+              <Tag color="processing">{`${text.execution} ${group.executions.length}`}</Tag>
+              <Tag color={group.project.blockedExecutionCount > 0 ? 'error' : 'success'}>{`${text.blocked} ${group.project.blockedExecutionCount}`}</Tag>
+              <Tag color={group.project.health === 'risk' ? 'error' : group.project.health === 'watch' ? 'warning' : 'success'}>{`${text.progress} ${group.project.averageProgress}%`}</Tag>
+            </Space>
+          </div>
+
+          <div className="gantt-project-grid">
+            <div className="gantt-project-grid__head">{text.timeline}</div>
+            <div className="gantt-project-grid__head">{text.owner}</div>
+            <div className="gantt-project-grid__head">{text.status}</div>
+            <div className="gantt-project-grid__head">{text.execution}</div>
+
+            <ProjectSummaryRow project={group.project} range={range} />
+
+            {group.executions.length > 0
+              ? group.executions.map((execution) => <ExecutionTimelineRow key={execution.id} execution={execution} range={range} />)
+              : <EmptyProjectRow />}
+          </div>
+        </div>
+      ))}
+    </Space>
+  );
+}
+
+function ProjectSummaryRow({ project, range }: { project: ProjectScheduleItem; range: TimelineRange | null }) {
+  return (
+    <>
+      <div className="gantt-project-grid__cell">
+        <TimelineBar
+          start={project.planStart}
+          end={project.planEnd}
+          range={range}
+          tone={project.health}
+          label={formatWindow(project.planStart, project.planEnd)}
+          hint={text.summaryHint}
+        />
+      </div>
+      <div className="gantt-project-grid__cell">
+        <Typography.Text strong>{project.ownerName || '-'}</Typography.Text>
+      </div>
+      <div className="gantt-project-grid__cell">
+        <ProjectMilestoneTag project={project} />
+      </div>
+      <div className="gantt-project-grid__cell">
         <Space direction="vertical" size={2}>
-          <Typography.Text strong>{record.name}</Typography.Text>
-          <Typography.Text type="secondary">{record.code || '未设置编码'}</Typography.Text>
+          <Typography.Text strong>{text.projectSummary}</Typography.Text>
+          <Typography.Text type="secondary">{`${text.progress}\uff1a${project.averageProgress}%`}</Typography.Text>
         </Space>
-      ),
-    },
-    { title: '负责人', dataIndex: 'ownerName', width: 140 },
-    {
-      title: '健康度',
-      dataIndex: 'health',
-      width: 120,
-      render: (_: ProjectHealth, record) => <ProjectHealthTag health={record.health} />,
-    },
-    {
-      title: '项目时间窗',
-      width: 220,
-      render: (_, record) => (
-        <Space direction="vertical" size={2}>
-          <Typography.Text>{formatWindow(record.planStart, record.planEnd)}</Typography.Text>
-          <Typography.Text type="secondary">最近活动：{record.lastActivityAt || '暂无更新'}</Typography.Text>
+      </div>
+    </>
+  );
+}
+
+function ExecutionTimelineRow({ execution, range }: { execution: TeamScheduleItem; range: TimelineRange | null }) {
+  return (
+    <>
+      <div className="gantt-project-grid__cell">
+        <TimelineBar
+          start={execution.planStart}
+          end={execution.planEnd}
+          range={range}
+          tone={getExecutionTone(execution.status)}
+          label={formatWindow(execution.planStart, execution.planEnd)}
+          hint={`${text.actual}\uff1a${execution.actualProgress}%  ${text.plan}\uff1a${execution.planProgress}%`}
+        />
+      </div>
+      <div className="gantt-project-grid__cell">
+        <Typography.Text>{execution.ownerName || '-'}</Typography.Text>
+      </div>
+      <div className="gantt-project-grid__cell">
+        <StatusTag value={execution.status} />
+      </div>
+      <div className="gantt-project-grid__cell">
+        <Space direction="vertical" size={4} style={{ width: '100%' }}>
+          <Typography.Text strong>{execution.name}</Typography.Text>
+          <Progress percent={execution.actualProgress} size="small" />
         </Space>
-      ),
-    },
-    {
-      title: '时间条',
-      width: 320,
-      render: (_, record) => <ProjectTimelineBar record={record} range={range} />,
-    },
-    {
-      title: '交付摘要',
-      width: 300,
-      render: (_, record) => (
-        <Space direction="vertical" size={8}>
-          <Space size={[8, 8]} wrap>
-            <Tag color="processing">执行 {record.executionCount}</Tag>
-            <Tag color={record.blockedExecutionCount > 0 ? 'error' : 'success'}>阻塞 {record.blockedExecutionCount}</Tag>
-            <Tag color={record.openBugCount > 0 ? 'warning' : 'success'}>缺陷 {record.openBugCount}</Tag>
-          </Space>
-          <Space size={[6, 6]} wrap>
-            {record.executionNames.length > 0 ? (
-              record.executionNames.map((name) => <Tag key={name}>{name}</Tag>)
-            ) : (
-              <Typography.Text type="secondary">尚未拆解执行</Typography.Text>
-            )}
-          </Space>
-        </Space>
-      ),
-    },
-    {
-      title: '节点状态',
-      width: 140,
-      render: (_, record) => <ProjectMilestoneTag record={record} />,
-    },
-    {
-      title: '平均进度',
-      width: 180,
-      render: (_, record) => <Progress percent={record.averageProgress} size="small" />,
-    },
-  ];
+      </div>
+    </>
+  );
+}
+
+function EmptyProjectRow() {
+  return (
+    <>
+      <div className="gantt-project-grid__cell">
+        <div className="gantt-timeline gantt-timeline--empty">
+          <Typography.Text type="secondary">{text.noSchedule}</Typography.Text>
+        </div>
+      </div>
+      <div className="gantt-project-grid__cell">
+        <Typography.Text type="secondary">-</Typography.Text>
+      </div>
+      <div className="gantt-project-grid__cell">
+        <Tag>{text.noExecutions}</Tag>
+      </div>
+      <div className="gantt-project-grid__cell">
+        <Typography.Text type="secondary">{text.noExecutionsHint}</Typography.Text>
+      </div>
+    </>
+  );
+}
+
+function TimelineBar({
+  start,
+  end,
+  range,
+  tone,
+  label,
+  hint,
+}: {
+  start: string;
+  end: string;
+  range: TimelineRange | null;
+  tone: 'healthy' | 'watch' | 'risk';
+  label: string;
+  hint?: string;
+}) {
+  const metrics = getTimelineMetrics(start, end, range);
+
+  return (
+    <div className="gantt-timeline">
+      <div className="gantt-timeline__labels">
+        <span>{range?.start.format('MM-DD') ?? '--'}</span>
+        <span>{range?.end.format('MM-DD') ?? '--'}</span>
+      </div>
+      <div className="gantt-timeline__track">
+        {metrics ? (
+          <div className={`gantt-timeline__bar gantt-timeline__bar--${tone}`} style={{ left: `${metrics.left}%`, width: `${metrics.width}%` }} />
+        ) : (
+          <div className="gantt-timeline__placeholder" />
+        )}
+      </div>
+      <Space direction="vertical" size={0}>
+        <Typography.Text>{label}</Typography.Text>
+        {hint ? <Typography.Text type="secondary">{hint}</Typography.Text> : null}
+      </Space>
+    </div>
+  );
 }
 
 function renderViewAlert(
   view: ViewMode,
-  metrics: {
-    projectRiskCount: number;
-    dueSoonProjectCount: number;
-    overdueProjectCount: number;
-    ownerConflictCount: number;
-    blockedExecutionCount: number;
-    executionInProgressCount: number;
-    executionDoneCount: number;
-  },
+  ownerConflictCount: number,
+  blockedExecutionCount: number,
+  projectRiskCount: number,
+  overdueProjectCount: number,
+  dueSoonProjectCount: number,
 ) {
   if (view === 'project') {
-    if (metrics.projectRiskCount > 0 || metrics.overdueProjectCount > 0) {
-      return (
-        <Alert
-          type="warning"
-          showIcon
-          message="项目层发现需要优先关注的排期风险"
-          description={`当前有 ${metrics.projectRiskCount} 个风险项目，${metrics.overdueProjectCount} 个项目已出现逾期节点，建议优先处理。`}
-        />
-      );
+    if (projectRiskCount > 0 || overdueProjectCount > 0) {
+      return <Alert type="warning" showIcon message={text.projectAlertRiskTitle} description={text.projectAlertRiskDescription} />;
     }
 
-    return (
-      <Alert
-        type="success"
-        showIcon
-        message="项目层排期整体平稳"
-        description={`当前有 ${metrics.dueSoonProjectCount} 个项目进入临近节点窗口，可继续按计划推进。`}
-      />
-    );
+    return <Alert type="success" showIcon message={text.projectAlertStableTitle} description={`${text.projectAlertStableDescription} ${text.dueSoonCount} ${dueSoonProjectCount}`} />;
   }
 
   if (view === 'team') {
-    if (metrics.ownerConflictCount > 0) {
-      return (
-        <Alert
-          type="warning"
-          showIcon
-          message="检测到负责人排期重叠"
-          description={`当前有 ${metrics.ownerConflictCount} 位负责人存在时间窗冲突，建议尽快调整计划时间。`}
-        />
-      );
+    if (ownerConflictCount > 0) {
+      return <Alert type="warning" showIcon message={text.teamAlertConflictTitle} description={text.teamAlertConflictDescription} />;
     }
 
-    return (
-      <Alert
-        type="success"
-        showIcon
-        message="当前未发现团队级排期冲突"
-        description={`阻塞中的执行共 ${metrics.blockedExecutionCount} 项，仍建议结合状态列持续关注。`}
-      />
-    );
+    return <Alert type="success" showIcon message={text.teamAlertStableTitle} description={`${text.teamAlertStableDescription} ${text.blockedExecutionCount} ${blockedExecutionCount}`} />;
   }
 
-  return (
-    <Alert
-      type="info"
-      showIcon
-      message="执行拆解视图用于追踪最细颗粒度的推进情况"
-      description={`当前有 ${metrics.executionInProgressCount} 个子任务进行中，${metrics.executionDoneCount} 个子任务已完成。`}
-    />
-  );
+  return <Alert type="info" showIcon message={text.executionAlertTitle} description={text.executionAlertDescription} />;
 }
 
 function buildSummaryCards(input: {
   view: ViewMode;
-  projectRows: ProjectScheduleItem[];
+  projectCount: number;
   projectRiskCount: number;
   dueSoonProjectCount: number;
   overdueProjectCount: number;
-  teamRows: Array<TeamScheduleItem & { overlapCount: number }>;
+  scheduledExecutionCount: number;
   ownerConflictCount: number;
   blockedExecutionCount: number;
   coveredProjectCount: number;
-  executionRows: ExecutionScheduleItem[];
+  taskCount: number;
   executionInProgressCount: number;
   executionDoneCount: number;
   linkedExecutionCount: number;
@@ -369,102 +479,66 @@ function buildSummaryCards(input: {
 }): SummaryCardItem[] {
   if (input.view === 'project') {
     return [
-      { title: '项目数', value: input.projectRows.length, loading: input.projectLoading },
-      { title: '风险项目', value: input.projectRiskCount, loading: input.projectLoading },
-      { title: '临近节点项目', value: input.dueSoonProjectCount, loading: input.projectLoading },
-      { title: '已逾期项目', value: input.overdueProjectCount, loading: input.projectLoading },
+      { title: text.projectCount, value: input.projectCount, loading: input.projectLoading },
+      { title: text.riskProjectCount, value: input.projectRiskCount, loading: input.projectLoading },
+      { title: text.dueSoonCount, value: input.dueSoonProjectCount, loading: input.projectLoading },
+      { title: text.overdueCount, value: input.overdueProjectCount, loading: input.projectLoading },
     ];
   }
 
   if (input.view === 'team') {
     return [
-      { title: '排期执行数', value: input.teamRows.length, loading: input.teamLoading },
-      { title: '冲突负责人', value: input.ownerConflictCount, loading: input.teamLoading },
-      { title: '阻塞执行', value: input.blockedExecutionCount, loading: input.teamLoading },
-      { title: '涉及项目', value: input.coveredProjectCount, loading: input.teamLoading },
+      { title: text.scheduledExecutionCount, value: input.scheduledExecutionCount, loading: input.teamLoading },
+      { title: text.conflictOwnerCount, value: input.ownerConflictCount, loading: input.teamLoading },
+      { title: text.blockedExecutionCount, value: input.blockedExecutionCount, loading: input.teamLoading },
+      { title: text.coveredProjectCount, value: input.coveredProjectCount, loading: input.teamLoading },
     ];
   }
 
   return [
-    { title: '子任务数', value: input.executionRows.length, loading: input.executionLoading },
-    { title: '进行中子任务', value: input.executionInProgressCount, loading: input.executionLoading },
-    { title: '已完成子任务', value: input.executionDoneCount, loading: input.executionLoading },
-    { title: '关联执行数', value: input.linkedExecutionCount, loading: input.executionLoading },
+    { title: text.taskCount, value: input.taskCount, loading: input.executionLoading },
+    { title: text.taskInProgressCount, value: input.executionInProgressCount, loading: input.executionLoading },
+    { title: text.taskDoneCount, value: input.executionDoneCount, loading: input.executionLoading },
+    { title: text.linkedExecutionCount, value: input.linkedExecutionCount, loading: input.executionLoading },
   ];
 }
 
-function ProjectHealthTag({ health }: { health: ProjectHealth }) {
-  const config: Record<ProjectHealth, { color: string; label: string }> = {
-    healthy: { color: 'success', label: '健康' },
-    watch: { color: 'warning', label: '关注' },
-    risk: { color: 'error', label: '风险' },
+function ProjectHealthTag({ health }: { health: ProjectScheduleItem['health'] }) {
+  const config: Record<ProjectScheduleItem['health'], { color: string; label: string }> = {
+    healthy: { color: 'success', label: text.healthy },
+    watch: { color: 'warning', label: text.watch },
+    risk: { color: 'error', label: text.risk },
   };
 
   const item = config[health];
   return <Tag color={item.color}>{item.label}</Tag>;
 }
 
-function ProjectMilestoneTag({ record }: { record: ProjectScheduleItem }) {
-  if (record.executionCount === 0) {
-    return <Tag>待拆解</Tag>;
+function ProjectMilestoneTag({ project }: { project: ProjectScheduleItem }) {
+  if (project.status === 'Done') {
+    return <Tag color="success">{text.done}</Tag>;
   }
 
-  if (!record.planStart || !record.planEnd) {
-    return <Tag>未排期</Tag>;
+  if (project.blockedExecutionCount > 0 || project.overdueCount > 0) {
+    return <Tag color="error">{text.blocked}</Tag>;
   }
 
-  if (record.status === 'Done') {
-    return <Tag color="success">已完成</Tag>;
+  if (project.dueSoonCount > 0 || project.health === 'watch') {
+    return <Tag color="warning">{text.watch}</Tag>;
   }
 
-  if (record.overdueCount > 0) {
-    return <Tag color="error">已逾期</Tag>;
-  }
-
-  if (record.dueSoonCount > 0) {
-    return <Tag color="warning">临近节点</Tag>;
-  }
-
-  if (record.blockedExecutionCount > 0) {
-    return <Tag color="volcano">有阻塞</Tag>;
-  }
-
-  return <Tag color="processing">排期中</Tag>;
-}
-
-function ProjectTimelineBar({ record, range }: { record: ProjectScheduleItem; range: TimelineRange | null }) {
-  const metrics = getTimelineMetrics(record, range);
-
-  if (!metrics) {
-    return <Typography.Text type="secondary">未形成可视化时间窗</Typography.Text>;
-  }
-
-  return (
-    <div className="gantt-timeline">
-      <div className="gantt-timeline__labels">
-        <span>{range?.start.format('MM-DD')}</span>
-        <span>{range?.end.format('MM-DD')}</span>
-      </div>
-      <div className="gantt-timeline__track">
-        <div
-          className={`gantt-timeline__bar gantt-timeline__bar--${record.health}`}
-          style={{ left: `${metrics.left}%`, width: `${metrics.width}%` }}
-        />
-      </div>
-      <Typography.Text type="secondary">{formatWindow(record.planStart, record.planEnd)}</Typography.Text>
-    </div>
-  );
+  return <Tag color="success">{text.active}</Tag>;
 }
 
 function ScheduleProgress({ actual, plan }: { actual: number; plan: number }) {
   return (
     <Space direction="vertical" size={4} style={{ width: 180 }}>
       <div>
-        <Typography.Text type="secondary">实际</Typography.Text>
+        <Typography.Text type="secondary">{text.actual}</Typography.Text>
         <Progress percent={actual} size="small" />
       </div>
       <div>
-        <Typography.Text type="secondary">计划</Typography.Text>
+        <Typography.Text type="secondary">{text.plan}</Typography.Text>
         <Progress percent={plan} size="small" status="active" />
       </div>
     </Space>
@@ -505,26 +579,45 @@ function parseView(rawValue: string | null): ViewMode {
 
 function formatWindow(start: string, end: string): string {
   if (!start || !end) {
-    return '未排期';
+    return text.noSchedule;
   }
 
   return `${start} ~ ${end}`;
 }
 
-function getProjectTimelineRange(items: ProjectScheduleItem[]): TimelineRange | null {
-  const starts = items
-    .map((item) => dayjs(item.planStart))
-    .filter((value) => value.isValid());
-  const ends = items
-    .map((item) => dayjs(item.planEnd))
-    .filter((value) => value.isValid());
+function buildProjectExecutionGroups(projects: ProjectScheduleItem[], executions: TeamScheduleItem[]): ProjectExecutionGroup[] {
+  return projects
+    .map((project) => ({
+      project,
+      executions: executions
+        .filter((execution) => execution.projectId === project.id || execution.projectName === project.name)
+        .sort((left, right) => {
+          const leftStart = left.planStart || '9999-12-31';
+          const rightStart = right.planStart || '9999-12-31';
+          if (leftStart !== rightStart) {
+            return leftStart.localeCompare(rightStart);
+          }
 
-  if (starts.length === 0 || ends.length === 0) {
+          return left.ownerName.localeCompare(right.ownerName);
+        }),
+    }))
+    .sort((left, right) => left.project.name.localeCompare(right.project.name));
+}
+
+function getProjectTimelineRange(groups: ProjectExecutionGroup[]): TimelineRange | null {
+  const values = groups.flatMap((group) => [
+    group.project.planStart,
+    group.project.planEnd,
+    ...group.executions.flatMap((execution) => [execution.planStart, execution.planEnd]),
+  ]);
+  const parsed = values.map((value) => dayjs(value)).filter((value) => value.isValid());
+
+  if (parsed.length === 0) {
     return null;
   }
 
-  const start = starts.reduce((min, current) => (current.isBefore(min) ? current : min));
-  let end = ends.reduce((max, current) => (current.isAfter(max) ? current : max));
+  const start = parsed.reduce((min, current) => (current.isBefore(min) ? current : min));
+  let end = parsed.reduce((max, current) => (current.isAfter(max) ? current : max));
   if (end.isSame(start, 'day')) {
     end = end.add(1, 'day');
   }
@@ -536,13 +629,13 @@ function getProjectTimelineRange(items: ProjectScheduleItem[]): TimelineRange | 
   };
 }
 
-function getTimelineMetrics(record: ProjectScheduleItem, range: TimelineRange | null): { left: number; width: number } | null {
-  if (!range || !record.planStart || !record.planEnd) {
+function getTimelineMetrics(startValue: string, endValue: string, range: TimelineRange | null): { left: number; width: number } | null {
+  if (!range || !startValue || !endValue) {
     return null;
   }
 
-  const start = dayjs(record.planStart);
-  const end = dayjs(record.planEnd);
+  const start = dayjs(startValue);
+  const end = dayjs(endValue);
   if (!start.isValid() || !end.isValid()) {
     return null;
   }
@@ -554,6 +647,18 @@ function getTimelineMetrics(record: ProjectScheduleItem, range: TimelineRange | 
     left: (offsetDays / range.totalDays) * 100,
     width: Math.max((spanDays / range.totalDays) * 100, 8),
   };
+}
+
+function getExecutionTone(status: TeamScheduleItem['status']): 'healthy' | 'watch' | 'risk' {
+  if (status === 'Blocked') {
+    return 'risk';
+  }
+
+  if (status === 'NotStarted' || status === 'ToVerify') {
+    return 'watch';
+  }
+
+  return 'healthy';
 }
 
 function isClosedStatus(status: string): boolean {
