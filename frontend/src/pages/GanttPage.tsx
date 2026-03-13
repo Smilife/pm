@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Alert, Button, Card, Progress, Segmented, Space, Statistic, Table, Tag, Typography } from 'antd';
+import { Button, Card, Progress, Segmented, Space, Table, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs, { type Dayjs } from 'dayjs';
 import { useSearchParams } from 'react-router-dom';
@@ -16,11 +16,6 @@ type TimelineRange = {
   totalDays: number;
 };
 
-type SummaryCardItem = {
-  title: string;
-  value: number;
-  loading: boolean;
-};
 
 type TeamScheduleRow = TeamScheduleItem & { overlapCount: number };
 
@@ -54,7 +49,7 @@ const WEEKDAY_LABELS = ['\u65e5', '\u4e00', '\u4e8c', '\u4e09', '\u56db', '\u4e9
 
 const text = {
   pageTitle: '\u7518\u7279\u56fe',
-  pageDescription: '\u4ece\u9879\u76ee\u3001\u56e2\u961f\u548c\u6267\u884c\u4e09\u4e2a\u5c42\u7ea7\u89c2\u5bdf\u6392\u671f\u7a97\u53e3\u3001\u98ce\u9669\u8282\u70b9\u4e0e\u4efb\u52a1\u62c6\u89e3\u3002',
+  pageDescription: '\u805a\u7126\u9879\u76ee\u8fdb\u5ea6\u4e0e\u65f6\u95f4\u5173\u7cfb\uff0c\u53ef\u6309\u9879\u76ee\u3001\u56e2\u961f\u548c\u6267\u884c\u4e09\u4e2a\u89c6\u89d2\u67e5\u770b\u6392\u671f\u3002',
   projectView: '\u9879\u76ee\u7518\u7279',
   teamView: '\u56e2\u961f\u7518\u7279',
   executionView: '\u6267\u884c\u62c6\u89e3',
@@ -131,30 +126,6 @@ const text = {
   loadingProjectGantt: '\u6b63\u5728\u52a0\u8f7d\u9879\u76ee\u7518\u7279\u6570\u636e...',
 } as const;
 
-const teamColumns: ColumnsType<TeamScheduleRow> = [
-  { title: text.owner, dataIndex: 'ownerName', width: 140 },
-  { title: text.execution, dataIndex: 'name' },
-  { title: text.linkedProject, dataIndex: 'projectName', width: 220 },
-  {
-    title: text.planWindow,
-    width: 220,
-    render: (_, record) => formatWindow(record.planStart, record.planEnd),
-  },
-  { title: text.status, dataIndex: 'status', width: 140, render: (value: string) => <StatusTag value={value} /> },
-  {
-    title: text.progress,
-    width: 220,
-    render: (_, record) => <ScheduleProgress actual={record.actualProgress} plan={record.planProgress} />,
-  },
-  {
-    title: text.overlap,
-    dataIndex: 'overlapCount',
-    width: 120,
-    render: (value: number) =>
-      value > 0 ? <Tag color="error">{`${text.overlapPrefix} ${value} ${'\u9879'}`}</Tag> : <Tag color="success">{text.overlapNormal}</Tag>,
-  },
-];
-
 const executionColumns: ColumnsType<ExecutionScheduleItem> = [
   { title: text.childTask, dataIndex: 'name' },
   { title: text.linkedExecution, dataIndex: 'executionName', width: 240 },
@@ -188,28 +159,6 @@ export function GanttPage() {
   const ownerGroups = useMemo(() => buildOwnerExecutionGroups(teamRows), [teamRows]);
   const projectRange = useMemo(() => getProjectTimelineRange(projectGroups), [projectGroups]);
   const teamRange = useMemo(() => getOwnerTimelineRange(ownerGroups), [ownerGroups]);
-  const ownerConflictCount = useMemo(
-    () => new Set(teamRows.filter((item) => item.overlapCount > 0).map((item) => item.ownerName)).size,
-    [teamRows],
-  );
-  const blockedExecutionCount = useMemo(() => teamRows.filter((item) => item.status === 'Blocked').length, [teamRows]);
-  const projectRiskCount = useMemo(() => projectRows.filter((item) => item.health === 'risk').length, [projectRows]);
-  const dueSoonProjectCount = useMemo(() => projectRows.filter((item) => item.dueSoonCount > 0).length, [projectRows]);
-  const overdueProjectCount = useMemo(() => projectRows.filter((item) => item.overdueCount > 0).length, [projectRows]);
-  const coveredProjectCount = useMemo(() => new Set(teamRows.map((item) => item.projectName).filter(Boolean)).size, [teamRows]);
-  const executionInProgressCount = useMemo(
-    () => (executionQuery.data ?? []).filter((item) => item.status === 'InProgress').length,
-    [executionQuery.data],
-  );
-  const executionDoneCount = useMemo(
-    () => (executionQuery.data ?? []).filter((item) => isClosedStatus(item.status)).length,
-    [executionQuery.data],
-  );
-  const linkedExecutionCount = useMemo(
-    () => new Set((executionQuery.data ?? []).map((item) => item.executionId)).size,
-    [executionQuery.data],
-  );
-
   const [expandedProjects, setExpandedProjects] = useState<Record<number, boolean>>({});
   const [expandedOwners, setExpandedOwners] = useState<Record<string, boolean>>({});
 
@@ -232,25 +181,6 @@ export function GanttPage() {
       return next;
     });
   }, [ownerGroups]);
-
-  const summaryCards = buildSummaryCards({
-    view,
-    projectCount: projectGroups.length,
-    projectRiskCount,
-    dueSoonProjectCount,
-    overdueProjectCount,
-    scheduledExecutionCount: teamRows.length,
-    ownerConflictCount,
-    blockedExecutionCount,
-    coveredProjectCount,
-    taskCount: executionQuery.data?.length ?? 0,
-    executionInProgressCount,
-    executionDoneCount,
-    linkedExecutionCount,
-    projectLoading: projectQuery.isLoading || teamQuery.isLoading,
-    teamLoading: teamQuery.isLoading,
-    executionLoading: executionQuery.isLoading,
-  });
 
   const handleViewChange = (nextView: ViewMode) => {
     const nextSearchParams = new URLSearchParams(searchParams);
@@ -276,17 +206,9 @@ export function GanttPage() {
         }
       />
 
-      <Space size={16} wrap>
-        {summaryCards.map((item) => (
-          <Card key={item.title}>
-            <Statistic title={item.title} value={item.value} loading={item.loading} />
-          </Card>
-        ))}
-      </Space>
 
-      {renderViewAlert(view, ownerConflictCount, blockedExecutionCount, projectRiskCount, overdueProjectCount, dueSoonProjectCount)}
       {view === 'project' ? (
-        <Card title={text.projectCardTitle} extra={<Typography.Text type="secondary">{text.projectCardHint}</Typography.Text>} styles={{ body: { padding: 0 } }}>
+        <Card title={text.projectCardTitle} styles={{ body: { padding: 0 } }}>
           <ProjectGanttBoard
             groups={projectGroups}
             range={projectRange}
@@ -303,7 +225,7 @@ export function GanttPage() {
       ) : null}
 
       {view === 'team' ? (
-        <Card title={text.teamCardTitle} extra={<Typography.Text type="secondary">{text.teamCardHint}</Typography.Text>} styles={{ body: { padding: 0 } }}>
+        <Card title={text.teamCardTitle} styles={{ body: { padding: 0 } }}>
           <TeamGanttBoard
             groups={ownerGroups}
             range={teamRange}
@@ -320,7 +242,7 @@ export function GanttPage() {
       ) : null}
 
       {view === 'execution' ? (
-        <Card title={text.executionCardTitle} extra={<Typography.Text type="secondary">{text.executionCardHint}</Typography.Text>}>
+        <Card title={text.executionCardTitle}>
           <Table rowKey="id" columns={executionColumns} dataSource={executionQuery.data ?? []} loading={executionQuery.isLoading} pagination={false} scroll={{ x: 1200 }} />
         </Card>
       ) : null}
@@ -361,7 +283,6 @@ function ProjectGanttBoard({
         <div className="gantt-board__row gantt-board__row--header" style={{ gridTemplateColumns: boardColumns }}>
           <div className="gantt-board__head">{text.hierarchy}</div>
           <div className="gantt-board__head">{text.owner}</div>
-          <div className="gantt-board__head">{text.status}</div>
           <div className="gantt-board__head">{text.progress}</div>
           <div className="gantt-board__head gantt-board__head--timeline">
             <TimelineAxis days={days} monthSegments={monthSegments} dayColumns={dayColumns} />
@@ -434,7 +355,6 @@ function TeamGanttBoard({
         <div className="gantt-board__row gantt-board__row--header" style={{ gridTemplateColumns: boardColumns }}>
           <div className="gantt-board__head">{text.hierarchy}</div>
           <div className="gantt-board__head">{text.linkedProject}</div>
-          <div className="gantt-board__head">{text.status}</div>
           <div className="gantt-board__head">{text.progress}</div>
           <div className="gantt-board__head gantt-board__head--timeline">
             <TimelineAxis days={days} monthSegments={monthSegments} dayColumns={dayColumns} />
@@ -527,8 +447,11 @@ function ProjectTimelineRow({
   expanded: boolean;
   onToggle: () => void;
 }) {
-  const subtitle = `${group.project.code || text.noCode} \u00b7 ${text.projectOwner}\uff1a${group.project.ownerName || '-'} \u00b7 ${text.executionCount} ${group.executions.length}`;
-  const progressHint = `${text.riskAndBug}\uff1a${group.project.riskCount} / ${group.project.openBugCount}`;
+  const subtitle = `${group.project.code || text.noCode} \u00b7 ${text.executionCount} ${group.executions.length}`;
+  const timelineSubtitle =
+    group.project.blockedExecutionCount > 0
+      ? `${text.progress}\uff1a${group.project.averageProgress}% \u00b7 ${text.blocked} ${group.project.blockedExecutionCount}`
+      : `${text.progress}\uff1a${group.project.averageProgress}%`;
 
   return (
     <div className="gantt-board__row gantt-board__row--project" style={{ gridTemplateColumns: boardColumns }}>
@@ -536,10 +459,8 @@ function ProjectTimelineRow({
         <div className="gantt-hierarchy">
           <Space size={[8, 8]} wrap className="gantt-hierarchy__header">
             <Button type="text" size="small" onClick={onToggle}>{expanded ? text.collapse : text.expand}</Button>
-            <Tag color="geekblue">{text.rowTypeProject}</Tag>
             <Typography.Text strong>{group.project.name}</Typography.Text>
             <ProjectHealthTag health={group.project.health} />
-            <ProjectMilestoneTag project={group.project} />
           </Space>
           <Typography.Text type="secondary">{subtitle}</Typography.Text>
           {!expanded ? <Typography.Text type="secondary">{`${text.hiddenExecutionCount}\uff1a${group.executions.length}`}</Typography.Text> : null}
@@ -549,16 +470,10 @@ function ProjectTimelineRow({
         <Typography.Text strong>{group.project.ownerName || '-'}</Typography.Text>
       </div>
       <div className="gantt-board__cell gantt-board__cell--project">
-        <Space direction="vertical" size={4}>
-          <ProjectMilestoneTag project={group.project} />
-          <Typography.Text type="secondary">{`${text.latestActivity}\uff1a${group.project.lastActivityAt || text.noActivity}`}</Typography.Text>
-        </Space>
-      </div>
-      <div className="gantt-board__cell gantt-board__cell--project">
         <div className="gantt-progress-cell">
           <Typography.Text strong>{`${group.project.averageProgress}%`}</Typography.Text>
           <Progress percent={group.project.averageProgress} size="small" />
-          <Typography.Text type="secondary">{progressHint}</Typography.Text>
+          <Typography.Text type="secondary">{`${text.executionCount}\uff1a${group.executions.length}`}</Typography.Text>
         </div>
       </div>
       <div className="gantt-board__cell gantt-board__cell--timeline gantt-board__cell--project">
@@ -571,13 +486,12 @@ function ProjectTimelineRow({
           tone={group.project.health}
           variant="project"
           label={formatWindow(group.project.planStart, group.project.planEnd)}
-          subtitle={`${text.summaryHint} \u00b7 ${text.blocked} ${group.project.blockedExecutionCount}`}
+          subtitle={timelineSubtitle}
         />
       </div>
     </div>
   );
 }
-
 function ProjectExecutionRow({
   execution,
   range,
@@ -600,23 +514,19 @@ function ProjectExecutionRow({
         <div className="gantt-hierarchy gantt-hierarchy--child">
           <Space size={[8, 8]} wrap>
             <span className="gantt-hierarchy__indent" />
-            <Tag>{text.rowTypeExecution}</Tag>
             <Typography.Text strong>{execution.name}</Typography.Text>
+            <StatusTag value={execution.status} />
           </Space>
-          <Typography.Text type="secondary">{`${text.linkedProject}\uff1a${execution.projectName || '-'} \u00b7 ${text.planWindow}\uff1a${formatWindow(execution.planStart, execution.planEnd)}`}</Typography.Text>
         </div>
       </div>
       <div className="gantt-board__cell">
         <Typography.Text>{execution.ownerName || '-'}</Typography.Text>
       </div>
       <div className="gantt-board__cell">
-        <StatusTag value={execution.status} />
-      </div>
-      <div className="gantt-board__cell">
         <div className="gantt-progress-cell">
           <Typography.Text strong>{`${execution.actualProgress}%`}</Typography.Text>
           <Progress percent={execution.actualProgress} size="small" />
-          <Typography.Text type="secondary">{`${text.deviation}\uff1a${deviationPrefix}${deviation}%`}</Typography.Text>
+          <Typography.Text type="secondary">{`${text.plan}\uff1a${execution.planProgress}%`}</Typography.Text>
         </div>
       </div>
       <div className="gantt-board__cell gantt-board__cell--timeline">
@@ -629,13 +539,12 @@ function ProjectExecutionRow({
           tone={getExecutionTone(execution.status)}
           variant="execution"
           label={formatWindow(execution.planStart, execution.planEnd)}
-          subtitle={`${text.actual}\uff1a${execution.actualProgress}% \u00b7 ${text.plan}\uff1a${execution.planProgress}%`}
+          subtitle={`${text.deviation}\uff1a${deviationPrefix}${deviation}%`}
         />
       </div>
     </div>
   );
 }
-
 function OwnerTimelineRow({
   group,
   range,
@@ -656,7 +565,12 @@ function OwnerTimelineRow({
   const window = getExecutionWindow(group.executions);
   const averageActual = Math.round(group.executions.reduce((sum, item) => sum + item.actualProgress, 0) / Math.max(group.executions.length, 1));
   const overlapCount = group.executions.filter((item) => item.overlapCount > 0).length;
-  const blockedCount = group.executions.filter((item) => item.status === 'Blocked').length;
+  const projectNames = group.executions
+    .map((item) => item.projectName)
+    .filter(Boolean)
+    .filter((value, index, array) => array.indexOf(value) === index);
+  const projectLabel = projectNames.length <= 1 ? projectNames[0] || '-' : `${projectNames.length} ${text.projectCount}`;
+  const timelineSubtitle = overlapCount > 0 ? `${text.overlap}\uff1a${overlapCount} \u00b7 ${text.progress}\uff1a${averageActual}%` : `${text.progress}\uff1a${averageActual}%`;
 
   return (
     <div className="gantt-board__row gantt-board__row--owner" style={{ gridTemplateColumns: boardColumns }}>
@@ -664,19 +578,15 @@ function OwnerTimelineRow({
         <div className="gantt-hierarchy">
           <Space size={[8, 8]} wrap className="gantt-hierarchy__header">
             <Button type="text" size="small" onClick={onToggle}>{expanded ? text.collapse : text.expand}</Button>
-            <Tag color="cyan">{text.rowTypeOwner}</Tag>
             <Typography.Text strong>{group.ownerName || '-'}</Typography.Text>
-            {overlapCount > 0 ? <Tag color="error">{`${text.overlapPrefix} ${overlapCount}`}</Tag> : <Tag color="success">{text.overlapNormal}</Tag>}
+            {overlapCount > 0 ? <Tag color="error">{`${text.overlapPrefix} ${overlapCount}`}</Tag> : null}
           </Space>
-          <Typography.Text type="secondary">{`${text.executionCount}\uff1a${group.executions.length} \u00b7 ${text.blocked}\uff1a${blockedCount}`}</Typography.Text>
+          <Typography.Text type="secondary">{`${text.executionCount}\uff1a${group.executions.length}`}</Typography.Text>
           {!expanded ? <Typography.Text type="secondary">{`${text.hiddenExecutionCount}\uff1a${group.executions.length}`}</Typography.Text> : null}
         </div>
       </div>
       <div className="gantt-board__cell gantt-board__cell--owner">
-        <Typography.Text>{group.executions.map((item) => item.projectName).filter(Boolean).filter((value, index, array) => array.indexOf(value) === index).join(' / ') || '-'}</Typography.Text>
-      </div>
-      <div className="gantt-board__cell gantt-board__cell--owner">
-        {blockedCount > 0 ? <Tag color="error">{text.blocked}</Tag> : <Tag color="success">{text.active}</Tag>}
+        <Typography.Text>{projectLabel}</Typography.Text>
       </div>
       <div className="gantt-board__cell gantt-board__cell--owner">
         <div className="gantt-progress-cell">
@@ -692,16 +602,15 @@ function OwnerTimelineRow({
           range={range}
           days={days}
           dayColumns={dayColumns}
-          tone={blockedCount > 0 ? 'risk' : overlapCount > 0 ? 'watch' : 'healthy'}
+          tone={overlapCount > 0 ? 'watch' : 'healthy'}
           variant="project"
           label={formatWindow(window.start, window.end)}
-          subtitle={`${text.executionCount}\uff1a${group.executions.length} \u00b7 ${text.overlap}\uff1a${overlapCount}`}
+          subtitle={timelineSubtitle}
         />
       </div>
     </div>
   );
 }
-
 function OwnerExecutionRow({
   execution,
   range,
@@ -724,23 +633,19 @@ function OwnerExecutionRow({
         <div className="gantt-hierarchy gantt-hierarchy--child">
           <Space size={[8, 8]} wrap>
             <span className="gantt-hierarchy__indent" />
-            <Tag>{text.rowTypeExecution}</Tag>
             <Typography.Text strong>{execution.name}</Typography.Text>
+            <StatusTag value={execution.status} />
           </Space>
-          <Typography.Text type="secondary">{`${text.owner}\uff1a${execution.ownerName || '-'} \u00b7 ${text.planWindow}\uff1a${formatWindow(execution.planStart, execution.planEnd)}`}</Typography.Text>
         </div>
       </div>
       <div className="gantt-board__cell">
         <Typography.Text>{execution.projectName || '-'}</Typography.Text>
       </div>
       <div className="gantt-board__cell">
-        <StatusTag value={execution.status} />
-      </div>
-      <div className="gantt-board__cell">
         <div className="gantt-progress-cell">
           <Typography.Text strong>{`${execution.actualProgress}%`}</Typography.Text>
           <Progress percent={execution.actualProgress} size="small" />
-          <Typography.Text type="secondary">{`${text.deviation}\uff1a${deviationPrefix}${deviation}%`}</Typography.Text>
+          <Typography.Text type="secondary">{`${text.plan}\uff1a${execution.planProgress}%`}</Typography.Text>
         </div>
       </div>
       <div className="gantt-board__cell gantt-board__cell--timeline">
@@ -753,7 +658,7 @@ function OwnerExecutionRow({
           tone={getExecutionTone(execution.status)}
           variant="execution"
           label={formatWindow(execution.planStart, execution.planEnd)}
-          subtitle={`${text.actual}\uff1a${execution.actualProgress}% \u00b7 ${text.plan}\uff1a${execution.planProgress}%`}
+          subtitle={`${text.deviation}\uff1a${deviationPrefix}${deviation}%`}
         />
       </div>
     </div>
@@ -816,77 +721,6 @@ function TimelineLane({
   );
 }
 
-function renderViewAlert(
-  view: ViewMode,
-  ownerConflictCount: number,
-  blockedExecutionCount: number,
-  projectRiskCount: number,
-  overdueProjectCount: number,
-  dueSoonProjectCount: number,
-) {
-  if (view === 'project') {
-    if (projectRiskCount > 0 || overdueProjectCount > 0) {
-      return <Alert type="warning" showIcon message={text.projectAlertRiskTitle} description={text.projectAlertRiskDescription} />;
-    }
-
-    return <Alert type="success" showIcon message={text.projectAlertStableTitle} description={`${text.projectAlertStableDescription} ${text.dueSoonCount} ${dueSoonProjectCount}`} />;
-  }
-
-  if (view === 'team') {
-    if (ownerConflictCount > 0) {
-      return <Alert type="warning" showIcon message={text.teamAlertConflictTitle} description={text.teamAlertConflictDescription} />;
-    }
-
-    return <Alert type="success" showIcon message={text.teamAlertStableTitle} description={`${text.teamAlertStableDescription} ${text.blockedExecutionCount} ${blockedExecutionCount}`} />;
-  }
-
-  return <Alert type="info" showIcon message={text.executionAlertTitle} description={text.executionAlertDescription} />;
-}
-
-function buildSummaryCards(input: {
-  view: ViewMode;
-  projectCount: number;
-  projectRiskCount: number;
-  dueSoonProjectCount: number;
-  overdueProjectCount: number;
-  scheduledExecutionCount: number;
-  ownerConflictCount: number;
-  blockedExecutionCount: number;
-  coveredProjectCount: number;
-  taskCount: number;
-  executionInProgressCount: number;
-  executionDoneCount: number;
-  linkedExecutionCount: number;
-  projectLoading: boolean;
-  teamLoading: boolean;
-  executionLoading: boolean;
-}): SummaryCardItem[] {
-  if (input.view === 'project') {
-    return [
-      { title: text.projectCount, value: input.projectCount, loading: input.projectLoading },
-      { title: text.riskProjectCount, value: input.projectRiskCount, loading: input.projectLoading },
-      { title: text.dueSoonCount, value: input.dueSoonProjectCount, loading: input.projectLoading },
-      { title: text.overdueCount, value: input.overdueProjectCount, loading: input.projectLoading },
-    ];
-  }
-
-  if (input.view === 'team') {
-    return [
-      { title: text.scheduledExecutionCount, value: input.scheduledExecutionCount, loading: input.teamLoading },
-      { title: text.conflictOwnerCount, value: input.ownerConflictCount, loading: input.teamLoading },
-      { title: text.blockedExecutionCount, value: input.blockedExecutionCount, loading: input.teamLoading },
-      { title: text.coveredProjectCount, value: input.coveredProjectCount, loading: input.teamLoading },
-    ];
-  }
-
-  return [
-    { title: text.taskCount, value: input.taskCount, loading: input.executionLoading },
-    { title: text.taskInProgressCount, value: input.executionInProgressCount, loading: input.executionLoading },
-    { title: text.taskDoneCount, value: input.executionDoneCount, loading: input.executionLoading },
-    { title: text.linkedExecutionCount, value: input.linkedExecutionCount, loading: input.executionLoading },
-  ];
-}
-
 function ProjectHealthTag({ health }: { health: ProjectScheduleItem['health'] }) {
   const config: Record<ProjectScheduleItem['health'], { color: string; label: string }> = {
     healthy: { color: 'success', label: text.healthy },
@@ -896,37 +730,6 @@ function ProjectHealthTag({ health }: { health: ProjectScheduleItem['health'] })
 
   const item = config[health];
   return <Tag color={item.color}>{item.label}</Tag>;
-}
-
-function ProjectMilestoneTag({ project }: { project: ProjectScheduleItem }) {
-  if (project.status === 'Done') {
-    return <Tag color="success">{text.done}</Tag>;
-  }
-
-  if (project.blockedExecutionCount > 0 || project.overdueCount > 0) {
-    return <Tag color="error">{text.blocked}</Tag>;
-  }
-
-  if (project.dueSoonCount > 0 || project.health === 'watch') {
-    return <Tag color="warning">{text.watch}</Tag>;
-  }
-
-  return <Tag color="success">{text.active}</Tag>;
-}
-
-function ScheduleProgress({ actual, plan }: { actual: number; plan: number }) {
-  return (
-    <Space direction="vertical" size={4} style={{ width: 180 }}>
-      <div>
-        <Typography.Text type="secondary">{text.actual}</Typography.Text>
-        <Progress percent={actual} size="small" />
-      </div>
-      <div>
-        <Typography.Text type="secondary">{text.plan}</Typography.Text>
-        <Progress percent={plan} size="small" status="active" />
-      </div>
-    </Space>
-  );
 }
 
 function withOverlapCount(items: TeamScheduleItem[]): TeamScheduleRow[] {
@@ -1080,7 +883,7 @@ function getTimelineWidth(range: TimelineRange | null): number {
 }
 
 function buildBoardColumns(timelineWidth: number): string {
-  return `420px 160px 170px 210px ${timelineWidth}px`;
+  return `360px 180px 200px ${timelineWidth}px`;
 }
 
 function getTimelineMetrics(startValue: string, endValue: string, range: TimelineRange | null): { left: number; width: number } | null {
@@ -1137,6 +940,3 @@ function shouldExpandOwner(group: OwnerExecutionGroup, index: number): boolean {
   return group.executions.some((item) => item.overlapCount > 0 || item.status === 'Blocked');
 }
 
-function isClosedStatus(status: string): boolean {
-  return status === 'Done' || status === 'Closed';
-}
