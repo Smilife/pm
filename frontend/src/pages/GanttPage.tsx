@@ -1,4 +1,4 @@
-﻿import { Fragment, useMemo } from 'react';
+import { Fragment, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Alert, Card, Progress, Segmented, Space, Statistic, Table, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
